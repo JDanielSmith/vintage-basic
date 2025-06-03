@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36109.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VintageBasic", "src\VintageBasic.csproj", "{AEED5954-3F87-4EA3-BEEC-89F734E2462B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VintageBasic", "C#\src\VintageBasic.csproj", "{AEED5954-3F87-4EA3-BEEC-89F734E2462B}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{B36A84DF-456D-A817-6EDD-3EC3E7F6E11F}"
 	ProjectSection(SolutionItems) = preProject
@@ -14,9 +14,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{B3
 		examples\strings.bas = examples\strings.bas
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VintageBasic.Tests", "VintageBasic.Tests\VintageBasic.Tests.csproj", "{47AF9DE0-B7F1-C2FF-0A5E-C29FD323870F}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{089100B1-113F-4E66-888A-E83F3999EAFD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VintageBasic.Tests", "C#\VintageBasic.Tests\VintageBasic.Tests.csproj", "{47AF9DE0-B7F1-C2FF-0A5E-C29FD323870F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
