@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
+﻿using System.Globalization;
 
 namespace vintage_basic.Language.VintageBasic;
-public static class BasicPrinter
+static class BasicPrinter
 {
 	public static string PrintLiteral(object value)
 	{
@@ -22,7 +19,7 @@ public static class BasicPrinter
 		return x < 0 ? $"-{PrintPosFloat(-x)}" : $" {PrintPosFloat(x)}";
 	}
 
-	private static readonly int MaxFloatDigits = (int)Math.Ceiling(Math.Log(2) / Math.Log(10) * 24);
+	//static readonly int MaxFloatDigits = (int)Math.Ceiling(Math.Log(2) / Math.Log(10) * 24);
 
 	private static string PrintPosFloat(float x)
 	{

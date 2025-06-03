@@ -1,7 +1,7 @@
 // src/VintageBasic/Runtime/RuntimeContext.cs
 namespace VintageBasic.Runtime;
 
-public class RuntimeContext
+sealed class RuntimeContext
 {
     public BasicStore Store { get; }
     public BasicState State { get; }

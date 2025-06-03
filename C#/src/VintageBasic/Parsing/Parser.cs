@@ -1,13 +1,9 @@
-// src/VintageBasic/Parsing/Parser.cs
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using VintageBasic.Parsing.Errors;
 using VintageBasic.Syntax;
-using VintageBasic.Parsing.Errors; 
 
 namespace VintageBasic.Parsing;
 
-public class Parser
+sealed class Parser
 {
     private readonly IReadOnlyList<Tagged<Token>> _tokens;
     private int _currentTokenIndex;

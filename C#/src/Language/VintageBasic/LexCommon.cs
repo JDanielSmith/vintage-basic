@@ -4,7 +4,7 @@ namespace vintage_basic.Language.VintageBasic;
 
 sealed record class Tagged<T>(int Position, T Value);
 
-public static class LexCommon
+static class LexCommon
 {
 	// Parses a single whitespace character
 	public static bool IsWhiteSpaceChar(char c) => " \v\f\t".Contains(c);

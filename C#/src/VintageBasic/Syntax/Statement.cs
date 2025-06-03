@@ -4,9 +4,9 @@ using System.Linq;
 
 namespace VintageBasic.Syntax;
 
-public abstract class Statement { }
+abstract class Statement { }
 
-public class LetStmt : Statement
+sealed class LetStmt : Statement
 {
     public Var Variable { get; }
     public Expr Expression { get; }
@@ -20,7 +20,7 @@ public class LetStmt : Statement
     public override string ToString() => $"LetStmt({Variable}, {Expression})";
 }
 
-public class DimStmt : Statement
+sealed class DimStmt : Statement
 {
     public IReadOnlyList<(VarName Name, IReadOnlyList<Expr> Dimensions)> Declarations { get; }
     public DimStmt(IReadOnlyList<(VarName, IReadOnlyList<Expr>)> declarations)
@@ -34,7 +34,7 @@ public class DimStmt : Statement
     public override string ToString() => $"DimStmt([{String.Join(", ", Declarations.Select(d => $"{d.Name}({String.Join(", ", d.Dimensions)})"))}])";
 }
 
-public class GotoStmt : Statement
+sealed class GotoStmt : Statement
 {
     public int TargetLabel { get; }
     public GotoStmt(int targetLabel) { TargetLabel = targetLabel; }
@@ -43,7 +43,7 @@ public class GotoStmt : Statement
     public override string ToString() => $"GotoStmt({TargetLabel})";
 }
 
-public class GosubStmt : Statement
+sealed class GosubStmt : Statement
 {
     public int TargetLabel { get; }
     public GosubStmt(int targetLabel) { TargetLabel = targetLabel; }
@@ -52,7 +52,7 @@ public class GosubStmt : Statement
     public override string ToString() => $"GosubStmt({TargetLabel})";
 }
 
-public class OnGotoStmt : Statement
+sealed class OnGotoStmt : Statement
 {
     public Expr Expression { get; }
     public IReadOnlyList<int> TargetLabels { get; }
@@ -69,7 +69,7 @@ public class OnGotoStmt : Statement
     public override string ToString() => $"OnGotoStmt({Expression}, [{String.Join(", ", TargetLabels)}])";
 }
 
-public class OnGosubStmt : Statement
+sealed class OnGosubStmt : Statement
 {
     public Expr Expression { get; }
     public IReadOnlyList<int> TargetLabels { get; }
@@ -86,14 +86,14 @@ public class OnGosubStmt : Statement
     public override string ToString() => $"OnGosubStmt({Expression}, [{String.Join(", ", TargetLabels)}])";
 }
 
-public class ReturnStmt : Statement
+sealed class ReturnStmt : Statement
 {
     public override bool Equals(object? obj) => obj is ReturnStmt;
     public override int GetHashCode() => typeof(ReturnStmt).GetHashCode();
     public override string ToString() => "ReturnStmt";
 }
 
-public class IfStmt : Statement
+sealed class IfStmt : Statement
 {
     public Expr Condition { get; }
     public IReadOnlyList<Tagged<Statement>> Statements { get; }
@@ -110,7 +110,7 @@ public class IfStmt : Statement
     public override string ToString() => $"IfStmt({Condition}, [{String.Join("; ", Statements.Select(s => s.ToString()))}])";
 }
 
-public class ForStmt : Statement
+sealed class ForStmt : Statement
 {
     public VarName LoopVariable { get; }
     public Expr InitialValue { get; }
@@ -133,7 +133,7 @@ public class ForStmt : Statement
     public override string ToString() => $"ForStmt({LoopVariable}, {InitialValue}, {LimitValue}, {StepValue})";
 }
 
-public class NextStmt : Statement
+sealed class NextStmt : Statement
 {
     public IReadOnlyList<VarName>? LoopVariables { get; } // Nullable for simple NEXT
     public NextStmt(IReadOnlyList<VarName>? loopVariables)
@@ -148,7 +148,7 @@ public class NextStmt : Statement
     public override string ToString() => $"NextStmt([{String.Join(", ", LoopVariables?.Select(v => v.ToString()) ?? new List<string>())}])";
 }
 
-public class PrintStmt : Statement
+sealed class PrintStmt : Statement
 {
     public IReadOnlyList<Expr> Expressions { get; }
     public PrintStmt(IReadOnlyList<Expr> expressions)
@@ -162,7 +162,7 @@ public class PrintStmt : Statement
     public override string ToString() => $"PrintStmt([{String.Join(", ", Expressions.Select(e => e.ToString()))}])";
 }
 
-public class InputStmt : Statement
+sealed class InputStmt : Statement
 {
     public string? Prompt { get; } // Nullable for no prompt
     public IReadOnlyList<Var> Variables { get; }
@@ -179,28 +179,28 @@ public class InputStmt : Statement
     public override string ToString() => $"InputStmt(\"{Prompt}\", [{String.Join(", ", Variables.Select(v => v.ToString()))}])";
 }
 
-public class EndStmt : Statement
+sealed class EndStmt : Statement
 {
     public override bool Equals(object? obj) => obj is EndStmt;
     public override int GetHashCode() => typeof(EndStmt).GetHashCode();
     public override string ToString() => "EndStmt";
 }
 
-public class StopStmt : Statement
+sealed class StopStmt : Statement
 {
     public override bool Equals(object? obj) => obj is StopStmt;
     public override int GetHashCode() => typeof(StopStmt).GetHashCode();
     public override string ToString() => "StopStmt";
 }
 
-public class RandomizeStmt : Statement
+sealed class RandomizeStmt : Statement
 {
     public override bool Equals(object? obj) => obj is RandomizeStmt;
     public override int GetHashCode() => typeof(RandomizeStmt).GetHashCode();
     public override string ToString() => "RandomizeStmt";
 }
 
-public class ReadStmt : Statement
+sealed class ReadStmt : Statement
 {
     public IReadOnlyList<Var> Variables { get; }
     public ReadStmt(IReadOnlyList<Var> variables)
@@ -214,7 +214,7 @@ public class ReadStmt : Statement
     public override string ToString() => $"ReadStmt([{String.Join(", ", Variables.Select(v => v.ToString()))}])";
 }
 
-public class RestoreStmt : Statement
+sealed class RestoreStmt : Statement
 {
     public int? TargetLabel { get; } // Nullable for restoring to the beginning
     public RestoreStmt(int? targetLabel)
@@ -226,7 +226,7 @@ public class RestoreStmt : Statement
     public override string ToString() => $"RestoreStmt({TargetLabel?.ToString() ?? "Start"})";
 }
 
-public class DataStmt : Statement
+sealed class DataStmt : Statement
 {
     public string Data { get; }
     public DataStmt(string data) { Data = data; }
@@ -235,7 +235,7 @@ public class DataStmt : Statement
     public override string ToString() => $"DataStmt(\"{Data}\")";
 }
 
-public class DefFnStmt : Statement
+sealed class DefFnStmt : Statement
 {
     public VarName FunctionName { get; }
     public IReadOnlyList<VarName> Parameters { get; }
@@ -255,7 +255,7 @@ public class DefFnStmt : Statement
     public override string ToString() => $"DefFnStmt({FunctionName}, [{String.Join(", ", Parameters.Select(p => p.ToString()))}], {Expression})";
 }
 
-public class RemStmt : Statement
+sealed class RemStmt : Statement
 {
     public string Comment { get; }
     public RemStmt(string comment) { Comment = comment; }

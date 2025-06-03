@@ -1,7 +1,7 @@
 // src/VintageBasic/Syntax/Tagged.cs
 namespace VintageBasic.Syntax;
 
-public struct SourcePosition
+readonly struct SourcePosition
 {
     public int Line { get; }
     public int Column { get; }
@@ -21,7 +21,7 @@ public struct SourcePosition
     public override string ToString() => $"({Line},{Column})";
 }
 
-public class Tagged<T>
+sealed class Tagged<T>
 {
     public SourcePosition Position { get; }
     public T Value { get; }

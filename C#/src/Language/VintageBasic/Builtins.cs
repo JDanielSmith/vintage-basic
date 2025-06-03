@@ -34,7 +34,7 @@ sealed record ValBI() : Builtin;
 /// An association list mapping BASIC builtins to their string representation.
 /// It is used forwards to print BASIC code, and backwards to parse BASIC code.
 /// </summary>
-public static class Builtins
+static class Builtins
 {
 	internal static readonly Dictionary<Builtin, string> builtinToStrAssoc = new()
 	{

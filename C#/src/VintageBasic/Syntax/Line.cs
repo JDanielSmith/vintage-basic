@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace VintageBasic.Syntax;
 
-public class Line
+sealed class Line
 {
     public int Label { get; }
     public IReadOnlyList<Tagged<Statement>> Statements { get; }

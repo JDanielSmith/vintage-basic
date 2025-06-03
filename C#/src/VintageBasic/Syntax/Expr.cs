@@ -1,15 +1,11 @@
-// src/VintageBasic/Syntax/Expr.cs
-using System.Collections.Generic;
-using System.Linq;
-
 namespace VintageBasic.Syntax;
 
-public abstract class Expr
+abstract class Expr
 {
     public virtual bool IsPrintSeparator => false;
 }
 
-public class LitX : Expr
+sealed class LitX : Expr
 {
     public Literal Value { get; }
     public LitX(Literal value) { Value = value; }
@@ -18,7 +14,7 @@ public class LitX : Expr
     public override string ToString() => $"LitX({Value})";
 }
 
-public class VarX : Expr
+sealed class VarX : Expr
 {
     public Var Value { get; }
     public VarX(Var value) { Value = value; }
@@ -27,7 +23,7 @@ public class VarX : Expr
     public override string ToString() => $"VarX({Value})";
 }
 
-public class FnX : Expr
+sealed class FnX : Expr
 {
     public VarName FunctionName { get; }
     public IReadOnlyList<Expr> Args { get; }
@@ -44,7 +40,7 @@ public class FnX : Expr
     public override string ToString() => $"FnX({FunctionName}, [{String.Join(", ", Args.Select(a => a.ToString()))}])";
 }
 
-public class MinusX : Expr
+sealed class MinusX : Expr
 {
     public Expr Right { get; }
     public MinusX(Expr right) { Right = right; }
@@ -53,7 +49,7 @@ public class MinusX : Expr
     public override string ToString() => $"MinusX({Right})";
 }
 
-public class NotX : Expr
+sealed class NotX : Expr
 {
     public Expr Right { get; }
     public NotX(Expr right) { Right = right; }
@@ -62,7 +58,7 @@ public class NotX : Expr
     public override string ToString() => $"NotX({Right})";
 }
 
-public class BinX : Expr
+sealed class BinX : Expr
 {
     public BinOp Op { get; }
     public Expr Left { get; }
@@ -82,7 +78,7 @@ public class BinX : Expr
     public override string ToString() => $"BinX({Op}, {Left}, {Right})";
 }
 
-public class BuiltinX : Expr
+sealed class BuiltinX : Expr
 {
     public Builtin Builtin { get; }
     public IReadOnlyList<Expr> Args { get; }
@@ -99,7 +95,7 @@ public class BuiltinX : Expr
     public override string ToString() => $"BuiltinX({Builtin}, [{String.Join(", ", Args.Select(a => a.ToString()))}])";
 }
 
-public class NextZoneX : Expr
+sealed class NextZoneX : Expr
 {
     public override bool IsPrintSeparator => true;
     public override bool Equals(object? obj) => obj is NextZoneX;
@@ -107,7 +103,7 @@ public class NextZoneX : Expr
     public override string ToString() => "NextZoneX";
 }
 
-public class EmptySeparatorX : Expr
+sealed class EmptySeparatorX : Expr
 {
     public override bool IsPrintSeparator => true;
     public override bool Equals(object? obj) => obj is EmptySeparatorX;
@@ -115,7 +111,7 @@ public class EmptySeparatorX : Expr
     public override string ToString() => "EmptySeparatorX";
 }
 
-public class ParenX : Expr
+sealed class ParenX : Expr
 {
     public Expr Inner { get; }
     public ParenX(Expr inner) { Inner = inner; }

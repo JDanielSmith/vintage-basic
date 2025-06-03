@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace vintage_basic.Language.VintageBasic;
+﻿namespace vintage_basic.Language.VintageBasic;
 
 
-public enum BasicResultType
+enum BasicResultType
 {
 	Pass,
 	ScanError,
@@ -12,7 +9,7 @@ public enum BasicResultType
 	LabeledRuntimeException
 }
 
-public class BasicResult
+sealed class BasicResult
 {
 	public BasicResultType Type { get; }
 	public int? LineNumber { get; }
@@ -38,7 +35,7 @@ public class BasicResult
 	}
 }
 
-public enum RuntimeErrorType
+enum RuntimeErrorType
 {
 	TypeMismatchError,
 	WrongNumberOfArgumentsError,
@@ -56,7 +53,7 @@ public enum RuntimeErrorType
 	EndOfInputError
 }
 
-public class RuntimeError
+sealed class RuntimeError
 {
 	public RuntimeErrorType Type { get; }
 	public string AdditionalInfo { get; }

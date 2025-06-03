@@ -10,7 +10,7 @@ using VintageBasic.Syntax;
 
 namespace VintageBasic.Interpreter;
 
-public static class RuntimeParsingUtils
+static class RuntimeParsingUtils
 {
     public static bool TryParseFloat(string s, out float value)
     {

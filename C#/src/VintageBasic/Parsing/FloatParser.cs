@@ -1,11 +1,9 @@
-// src/VintageBasic/Parsing/FloatParser.cs
-using System;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace VintageBasic.Parsing;
 
-public static class FloatParser
+static class FloatParser
 {
     // Main method to attempt parsing a string into a double.
     public static bool TryParseFloat(string s, out double result)

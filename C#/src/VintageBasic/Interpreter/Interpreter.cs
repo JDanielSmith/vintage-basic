@@ -10,19 +10,19 @@ using System.Globalization; // For CultureInfo
 
 namespace VintageBasic.Interpreter;
 
-public class Interpreter
+sealed class Interpreter
 {
-    private readonly RuntimeContext _context;
-    private readonly VariableManager _variableManager;
-    private readonly InputOutputManager _ioManager;
-    private readonly FunctionManager _functionManager;
-    private readonly RandomManager _randomManager;
-    private readonly StateManager _stateManager;
+    readonly RuntimeContext _context;
+    readonly VariableManager _variableManager;
+    readonly InputOutputManager _ioManager;
+    readonly FunctionManager _functionManager;
+    readonly RandomManager _randomManager;
+    readonly StateManager _stateManager;
     
-    private IReadOnlyList<JumpTableEntry> _jumpTable = new List<JumpTableEntry>();
-    private bool _programEnded = false;
-    private int _currentProgramLineIndex = -1; 
-    private bool _nextInstructionIsJump = false;
+    IReadOnlyList<JumpTableEntry> _jumpTable = [];
+    bool _programEnded;
+    int _currentProgramLineIndex = -1; 
+    bool _nextInstructionIsJump;
 
     public Interpreter(RuntimeContext context)
     {
@@ -94,14 +94,14 @@ public class Interpreter
             catch (Exception ex) 
             {
                  _programEnded = true;
-                 throw new BasicRuntimeException($"Unexpected error: {ex.Message}", ex, _stateManager.GetCurrentLineNumber());
+                 throw new BasicRuntimeException($"Unexpected error: {ex.Message}", ex, _stateManager.CurrentLineNumber);
             }
 
             if (_programEnded) break;
 
             if (_nextInstructionIsJump)
             {
-                int targetLabel = _stateManager.GetCurrentLineNumber(); 
+                int targetLabel = _stateManager.CurrentLineNumber; 
                 _currentProgramLineIndex = _jumpTable.ToList().FindIndex(jte => jte.Label == targetLabel);
                 if (_currentProgramLineIndex == -1)
                 {
@@ -115,7 +115,7 @@ public class Interpreter
         }
     }
 
-    private List<string> CollectDataFromLine(Line line)
+    static List<string> CollectDataFromLine(Line line)
     {
         var lineData = new List<string>();
         foreach (var taggedStatement in line.Statements)
@@ -130,13 +130,13 @@ public class Interpreter
 
     private void InterpretStatement(Tagged<Statement> taggedStatement)
     {
-        _stateManager.SetCurrentLineNumber(taggedStatement.Position.Line > 0 ? taggedStatement.Position.Line : _stateManager.GetCurrentLineNumber());
+        _stateManager.SetCurrentLineNumber(taggedStatement.Position.Line > 0 ? taggedStatement.Position.Line : _stateManager.CurrentLineNumber);
         ExecuteStatement(taggedStatement.Value);
     }
 
     private void ExecuteStatement(Statement statement)
     {
-        int currentBasicLine = _stateManager.GetCurrentLineNumber();
+        int currentBasicLine = _stateManager.CurrentLineNumber;
 
         switch (statement)
         {
@@ -353,24 +353,24 @@ public class Interpreter
             case DefFnStmt defFnStmt:
                 UserDefinedFunction udf = (argsFromInvocation) => {
                     if (argsFromInvocation.Count != defFnStmt.Parameters.Count) 
-                        throw new WrongNumberOfArgumentsError($"Function {defFnStmt.FunctionName} expects {defFnStmt.Parameters.Count} args, got {argsFromInvocation.Count}", _stateManager.GetCurrentLineNumber());
+                        throw new WrongNumberOfArgumentsError($"Function {defFnStmt.FunctionName} expects {defFnStmt.Parameters.Count} args, got {argsFromInvocation.Count}", _stateManager.CurrentLineNumber);
                     var stashedValues = new Dictionary<VarName, Val?>();
                     for(int i=0; i < defFnStmt.Parameters.Count; i++)
                     {
                         var paramName = defFnStmt.Parameters[i];
                         try { stashedValues[paramName] = _variableManager.GetScalarVar(paramName); } 
                         catch { stashedValues[paramName] = null; } 
-                        _variableManager.SetScalarVar(paramName, Val.CoerceToType(paramName.Type, argsFromInvocation[i], _stateManager.GetCurrentLineNumber(), _stateManager));
+                        _variableManager.SetScalarVar(paramName, Val.CoerceToType(paramName.Type, argsFromInvocation[i], _stateManager.CurrentLineNumber, _stateManager));
                     }
-                    Val result = EvaluateExpression(defFnStmt.Expression, _stateManager.GetCurrentLineNumber());
+                    Val result = EvaluateExpression(defFnStmt.Expression, _stateManager.CurrentLineNumber);
                     foreach(var paramName in defFnStmt.Parameters)
                     {
                         if(stashedValues.TryGetValue(paramName, out Val? stashedVal) && stashedVal != null)
                             _variableManager.SetScalarVar(paramName, stashedVal);
                         else 
-                            _variableManager.SetScalarVar(paramName, Val.CoerceToType(paramName.Type, paramName.Type == ValType.StringType ? (Val)new StringVal("") : new FloatVal(0), _stateManager.GetCurrentLineNumber(), _stateManager));
+                            _variableManager.SetScalarVar(paramName, Val.CoerceToType(paramName.Type, paramName.Type == ValType.StringType ? (Val)new StringVal("") : new FloatVal(0), _stateManager.CurrentLineNumber, _stateManager));
                     }
-                    return Val.CoerceToType(defFnStmt.FunctionName.Type, result, _stateManager.GetCurrentLineNumber(), _stateManager);
+                    return Val.CoerceToType(defFnStmt.FunctionName.Type, result, _stateManager.CurrentLineNumber, _stateManager);
                 };
                 _functionManager.SetFunction(defFnStmt.FunctionName, udf);
                 break;
@@ -414,7 +414,7 @@ public class Interpreter
         {
             if (expr is NextZoneX)
             {
-                int currentColumn = _ioManager.GetOutputColumn();
+                int currentColumn = _ioManager.OutputColumn;
                 int spacesToNextZone = InputOutputManager.ZoneWidth - (currentColumn % InputOutputManager.ZoneWidth);
                 if (currentColumn > 0 && (currentColumn % InputOutputManager.ZoneWidth == 0)) spacesToNextZone = InputOutputManager.ZoneWidth;
                 if (spacesToNextZone > 0 && spacesToNextZone <= InputOutputManager.ZoneWidth) _ioManager.PrintString(new string(' ', spacesToNextZone));
@@ -430,7 +430,7 @@ public class Interpreter
         if (!printStmt.Expressions.Any() || !(printStmt.Expressions.Last().IsPrintSeparator)) _ioManager.PrintString("\n");
     }
     
-    private string PrintVal(Val val) 
+    static string PrintVal(Val val) 
     {
         switch (val)
         {
@@ -578,13 +578,13 @@ public class Interpreter
                 if (midStart + midLen > midStr.Length) midLen = midStr.Length - midStart;
                 return new StringVal(midStr.Substring(midStart, midLen));
             case Builtin.Right: CheckArgTypes(Builtin.Right, new List<ValType> { ValType.StringType, ValType.FloatType }, args, currentBasicLine); string rightStr = ((StringVal)args[0]).Value; int rightN = args[1].AsInt(currentBasicLine); if (rightN < 0) rightN = 0; return new StringVal(rightStr.Substring(Math.Max(0, rightStr.Length - rightN)));
-            case Builtin.Rnd: float rndArg = (args.Any()) ? args[0].AsFloat(currentBasicLine) : 1.0f; if (rndArg < 0) _randomManager.SeedRandom((int)rndArg); double rndVal = (rndArg == 0) ? _randomManager.GetPreviousRandomValue() : _randomManager.GetRandomValue(); return new FloatVal((float)rndVal);
+            case Builtin.Rnd: float rndArg = (args.Any()) ? args[0].AsFloat(currentBasicLine) : 1.0f; if (rndArg < 0) _randomManager.SeedRandom((int)rndArg); double rndVal = (rndArg == 0) ? _randomManager.PreviousRandomValue : _randomManager.GetRandomValue(); return new FloatVal((float)rndVal);
             case Builtin.Sgn: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("SGN expects 1 numeric arg", currentBasicLine); return new FloatVal(Math.Sign(args[0].AsFloat(currentBasicLine)));
             case Builtin.Sin: CheckArgTypes(Builtin.Sin, new List<ValType> { ValType.FloatType }, args, currentBasicLine); return new FloatVal((float)Math.Sin(args[0].AsFloat(currentBasicLine)));
             case Builtin.Spc: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("SPC expects 1 numeric arg", currentBasicLine); int spcCount = args[0].AsInt(currentBasicLine); if (spcCount < 0) spcCount=0; return new StringVal(new string(' ', Math.Min(spcCount, 255))); 
             case Builtin.Sqr: CheckArgTypes(Builtin.Sqr, new List<ValType> { ValType.FloatType }, args, currentBasicLine); float sqrArg = args[0].AsFloat(currentBasicLine); if (sqrArg < 0) throw new InvalidArgumentError("SQR argument < 0", currentBasicLine); return new FloatVal((float)Math.Sqrt(sqrArg));
             case Builtin.Str: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("STR$ expects 1 numeric arg", currentBasicLine); float strNum = args[0].AsFloat(currentBasicLine); string strRep = strNum.ToString(CultureInfo.InvariantCulture); if (strNum >= 0 && (strRep.Length == 0 || strRep[0] != '-')) strRep = " " + strRep; return new StringVal(strRep);
-            case Builtin.Tab: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("TAB expects 1 numeric arg", currentBasicLine); int tabCol = args[0].AsInt(currentBasicLine); if (tabCol < 1 || tabCol > 255) throw new InvalidArgumentError($"TAB col {tabCol} out of range (1-255)", currentBasicLine); int curCol = _ioManager.GetOutputColumn() + 1; return new StringVal(tabCol > curCol ? new string(' ', tabCol - curCol) : "");
+            case Builtin.Tab: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("TAB expects 1 numeric arg", currentBasicLine); int tabCol = args[0].AsInt(currentBasicLine); if (tabCol < 1 || tabCol > 255) throw new InvalidArgumentError($"TAB col {tabCol} out of range (1-255)", currentBasicLine); int curCol = _ioManager.OutputColumn + 1; return new StringVal(tabCol > curCol ? new string(' ', tabCol - curCol) : "");
             case Builtin.Tan: CheckArgTypes(Builtin.Tan, new List<ValType> { ValType.FloatType }, args, currentBasicLine); return new FloatVal((float)Math.Tan(args[0].AsFloat(currentBasicLine)));
             case Builtin.Val: CheckArgTypes(Builtin.Val, new List<ValType> { ValType.StringType }, args, currentBasicLine); string valStr = RuntimeParsingUtils.Trim(((StringVal)args[0]).Value); string numPart = ""; bool d = false; foreach(char c in valStr){if (Char.IsDigit(c)){numPart+=c;d=true;}else if(c=='.'&&!numPart.Contains('.')){numPart+=c;}else if((c=='E'||c=='e')&&!numPart.ToUpper().Contains('E')&&d){numPart+=c;}else if((c=='+'||c=='-')&&(numPart.Length==0||numPart.ToUpper().EndsWith("E"))){numPart+=c;}else if(Char.IsWhiteSpace(c)&&numPart.Length==0){continue;}else break;} if (RuntimeParsingUtils.TryParseFloat(numPart, out float pf)) return new FloatVal(pf); return new FloatVal(0f); 
             default: throw new NotImplementedException($"Builtin function {builtin}. Line: {currentBasicLine}");

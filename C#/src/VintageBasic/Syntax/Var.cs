@@ -1,16 +1,12 @@
-// src/VintageBasic/Syntax/Var.cs
-using System.Collections.Generic;
-using System.Linq;
-
 namespace VintageBasic.Syntax;
 
-public abstract class Var
+abstract class Var
 {
     public abstract ValType Type { get; }
     public abstract VarName Name { get; } // Added for easier access to the name
 }
 
-public class ScalarVar : Var
+sealed class ScalarVar : Var
 {
     public VarName VarName { get; }
 
@@ -27,7 +23,7 @@ public class ScalarVar : Var
     public override string ToString() => $"ScalarVar({VarName})";
 }
 
-public class ArrVar : Var
+sealed class ArrVar : Var
 {
     public VarName VarName { get; }
     public IReadOnlyList<Expr> Dimensions { get; }

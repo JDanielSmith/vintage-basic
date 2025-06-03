@@ -3,7 +3,7 @@ using System;
 
 namespace VintageBasic.Syntax;
 
-public class VarName : IEquatable<VarName>
+sealed class VarName : IEquatable<VarName>
 {
     public ValType Type { get; }
     public string Name { get; }

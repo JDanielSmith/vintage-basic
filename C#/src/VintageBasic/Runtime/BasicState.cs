@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace VintageBasic.Runtime;
 
-public class BasicState
+sealed class BasicState
 {
     public IInputStream InputStream { get; set; }
     public IOutputStream OutputStream { get; set; }
@@ -68,7 +68,7 @@ public class BasicState
     // Method to re-initialize data statements after program load.
     // This is a bit of a workaround for the current structure.
     // Ideally, BasicState is constructed with all data from the start.
-    public void InitializeDataStatements(IReadOnlyList<string> newDataStatements)
+    public static void InitializeDataStatements(IReadOnlyList<string> newDataStatements)
     {
         // This replaces the internal list. Be cautious if BasicState is shared and re-initialized mid-execution.
         // For initial setup, this should be fine.

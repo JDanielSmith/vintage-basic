@@ -4,7 +4,7 @@ using VintageBasic.Syntax; // For SourcePosition
 
 namespace VintageBasic.Parsing.Errors;
 
-public class ParseException : Exception
+sealed class ParseException : Exception
 {
     public SourcePosition? Position { get; }
 

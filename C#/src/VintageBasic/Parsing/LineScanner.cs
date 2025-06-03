@@ -1,12 +1,8 @@
-// src/VintageBasic/Parsing/LineScanner.cs
-using System.Collections.Generic;
-using System.Linq;
-
 namespace VintageBasic.Parsing;
 
-public record ScannedLine(int? LineNumber, string Content, int OriginalLineIndex);
+record ScannedLine(int? LineNumber, string Content, int OriginalLineIndex);
 
-public static class LineScanner
+static class LineScanner
 {
     /// <summary>
     /// Converts a list of strings into a list of ScannedLines.

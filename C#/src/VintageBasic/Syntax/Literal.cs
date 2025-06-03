@@ -1,12 +1,12 @@
 // src/VintageBasic/Syntax/Literal.cs
 namespace VintageBasic.Syntax;
 
-public abstract class Literal
+abstract class Literal
 {
     public abstract ValType Type { get; }
 }
 
-public class FloatLiteral : Literal
+sealed class FloatLiteral : Literal
 {
     public float Value { get; }
 
@@ -23,7 +23,7 @@ public class FloatLiteral : Literal
 
 }
 
-public class StringLiteral : Literal
+sealed class StringLiteral : Literal
 {
     public string Value { get; }
 

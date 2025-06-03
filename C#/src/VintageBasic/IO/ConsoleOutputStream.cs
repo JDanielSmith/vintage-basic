@@ -1,12 +1,8 @@
-// src/VintageBasic/IO/ConsoleOutputStream.cs
-using System;
-using System.IO;
-using System.Threading.Tasks;
 using VintageBasic.Runtime; // For IOutputStream
 
 namespace VintageBasic.IO;
 
-public class ConsoleOutputStream : IOutputStream
+sealed class ConsoleOutputStream : IOutputStream
 {
     // Console.Out is a TextWriter.
 

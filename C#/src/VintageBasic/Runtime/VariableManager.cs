@@ -4,7 +4,7 @@ using VintageBasic.Syntax;
 
 namespace VintageBasic.Runtime;
 
-public class VariableManager
+sealed class VariableManager
 {
     private readonly BasicStore _store;
     public static readonly IReadOnlyList<int> DefaultDimensionBounds = new List<int> { 11 }.AsReadOnly(); // For 0-10 elements

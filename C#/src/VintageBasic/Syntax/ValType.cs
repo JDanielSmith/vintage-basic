@@ -1,7 +1,6 @@
-// src/VintageBasic/Syntax/ValType.cs
 namespace VintageBasic.Syntax;
 
-public enum ValType
+enum ValType
 {
     FloatType,
     IntType,

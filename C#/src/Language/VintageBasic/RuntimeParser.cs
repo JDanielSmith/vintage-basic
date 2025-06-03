@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace vintage_basic.Language.VintageBasic;
 
-public static class RuntimeParser
+static class RuntimeParser
 {
 	// Attempts to parse a floating point value from a string.
 	public static float? ReadFloat(string input)
@@ -25,7 +25,7 @@ public static class RuntimeParser
 	public static string ParseDataValue(string input)
 	{
 		input = Trim(input);
-		if (input.StartsWith("\"") && input.EndsWith("\"") && input.Length > 1)
+		if (input.StartsWith('"') && input.EndsWith('"') && input.Length > 1)
 		{
 			return input.Substring(1, input.Length - 2);
 		}

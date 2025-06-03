@@ -7,11 +7,11 @@ using VintageBasic.Runtime.Errors;
 
 namespace VintageBasic.Runtime;
 
-public class InputOutputManager
+sealed class InputOutputManager
 {
-    private readonly BasicState _state;
-    private List<string> _dataQueue = new List<string>();
-    private int _dataReadPointer = 0;
+    readonly BasicState _state;
+    List<string> _dataQueue = [];
+    int _dataReadPointer;
     public const int ZoneWidth = 14; // As defined in BasicMonad.hs
 
     public InputOutputManager(BasicState state)
@@ -28,7 +28,7 @@ public class InputOutputManager
         _dataReadPointer = 0; // Reset pointer when new data is set
     }
 
-    private int CalculateEndColumn(int startColumn, string text)
+    static int CalculateEndColumn(int startColumn, string text)
     {
         int currentColumn = startColumn;
         foreach (char c in text)
@@ -100,8 +100,5 @@ public class InputOutputManager
         _dataReadPointer = 0;
     }
 
-    public int GetOutputColumn()
-    {
-        return _state.OutputColumn;
-    }
+	public int OutputColumn => _state.OutputColumn;
 }

@@ -1,7 +1,6 @@
-// src/VintageBasic/Syntax/BinOp.cs
 namespace VintageBasic.Syntax;
 
-public enum BinOp
+enum BinOp
 {
     AddOp,
     SubOp,

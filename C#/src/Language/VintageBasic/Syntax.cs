@@ -3,23 +3,23 @@ using System.Collections.Generic;
 
 namespace vintage_basic.Language.VintageBasic;
 
-public enum ValType
+enum ValType
 {
 	FloatType,
 	IntType,
 	StringType
 }
 
-public interface ITypeable
+interface ITypeable
 {
 	ValType TypeOf();
 }
 
-public class Val { }
-public class Var { }
+sealed class Val { }
+sealed class Var { }
 
 // BASIC Line Number
-public class Label
+sealed class Label
 {
 	public int Value { get; }
 	public Label(int value) => Value = value;
@@ -30,7 +30,7 @@ public class Label
 //	public abstract ValType TypeOf();
 //}
 
-public class VarName : ITypeable
+sealed class VarName : ITypeable
 {
 	public ValType Type { get; }
 	public string Name { get; }
@@ -48,14 +48,14 @@ public abstract class Variable : ITypeable
 	public abstract ValType TypeOf();
 }
 
-public class ScalarVariable : Variable
+sealed class ScalarVariable : Variable
 {
 	public VarName Name { get; }
 	public ScalarVariable(VarName name) => Name = name;
 	public override ValType TypeOf() => Name.TypeOf();
 }
 
-public class ArrayVariable : Variable
+sealed class ArrayVariable : Variable
 {
 	public VarName Name { get; }
 	public List<Expression> Indexes { get; }
@@ -69,7 +69,7 @@ public class ArrayVariable : Variable
 */
 
 // BASIC binary operators
-public enum BinaryOperator
+enum BinaryOperator
 {
 	Add,
 	Subtract,
@@ -86,7 +86,7 @@ public enum BinaryOperator
 	Or
 }
 
-public class FunctionExpression : Expression
+sealed class FunctionExpression : Expression
 {
 	public VarName Name { get; }
 	public List<Expression> Arguments { get; }
@@ -97,7 +97,7 @@ public class FunctionExpression : Expression
 	}
 }
 
-public class UnaryExpression : Expression
+sealed class UnaryExpression : Expression
 {
 	public Expression Operand { get; }
 	public string Operator { get; }
@@ -108,7 +108,7 @@ public class UnaryExpression : Expression
 	}
 }
 
-//public class BinaryExpression : Expression
+//sealed class BinaryExpression : Expression
 //{
 //	public BinaryOperator Operator { get; }
 //	public Expression Left { get; }
@@ -121,13 +121,13 @@ public class UnaryExpression : Expression
 //	}
 //}
 
-public class PrintSeparatorExpression : Expression
+sealed class PrintSeparatorExpression : Expression
 {
 	public bool IsComma { get; }
 	public PrintSeparatorExpression(bool isComma) => IsComma = isComma;
 }
 
-public class ParenthesizedExpression : Expression
+sealed class ParenthesizedExpression : Expression
 {
 	public Expression Inner { get; }
 	public ParenthesizedExpression(Expression inner) => Inner = inner;
@@ -136,7 +136,7 @@ public class ParenthesizedExpression : Expression
 //// BASIC Statements
 //public abstract class Statement { }
 
-//public class LetStatement : Statement
+//sealed class LetStatement : Statement
 //{
 //	public Variable Var { get; }
 //	public Expression Expr { get; }
@@ -147,7 +147,7 @@ public class ParenthesizedExpression : Expression
 //	}
 //}
 
-//public class PrintStatement : Statement
+//sealed class PrintStatement : Statement
 //{
 //	public List<Expression> Expressions { get; }
 //	public PrintStatement(List<Expression> expressions)
@@ -156,7 +156,7 @@ public class ParenthesizedExpression : Expression
 //	}
 //}
 
-public class InputStatement : Statement
+sealed class InputStatement : Statement
 {
 	public List<VarName> Variables { get; }
 	public InputStatement(List<VarName> variables)
@@ -167,7 +167,7 @@ public class InputStatement : Statement
 	public string? Prompt { get; set; } // Optional prompt
 }
 
-//public class IfStatement : Statement
+//sealed class IfStatement : Statement
 //{
 //	public Expression Condition { get; }
 //	public List<Statement> ThenStatements { get; }
@@ -180,37 +180,37 @@ public class InputStatement : Statement
 //	}
 //}
 
-public class GotoStatement : Statement
+sealed class GotoStatement : Statement
 {
 	public int Target { get; }
 	public GotoStatement(int target) => Target = target;
 }
 
-public class GosubStatement : Statement
+sealed class GosubStatement : Statement
 {
 	public Label Target { get; }
 	public GosubStatement(Label target) => Target = target;
 }
 
-public class ReturnStatement : Statement { }
+sealed class ReturnStatement : Statement { }
 
-public class EndStatement : Statement { }
+sealed class EndStatement : Statement { }
 
-public class StopStatement : Statement { }
+sealed class StopStatement : Statement { }
 
-public class RemStatement : Statement
+sealed class RemStatement : Statement
 {
 	public string Comment { get; }
 	public RemStatement(string comment) => Comment = comment;
 }
 
-public class DataStatement : Statement
+sealed class DataStatement : Statement
 {
 	public List<Val> Values { get; }
 	public DataStatement(List<Val> values) => Values = values;
 }
 
-public class DimStatement : Statement
+sealed class DimStatement : Statement
 {
 	public List<VarName> Variables { get; }
 	public DimStatement(List<VarName> variables) => Variables = variables;
@@ -218,7 +218,7 @@ public class DimStatement : Statement
 	public string VarName { get; set; } = string.Empty; // Optional name for the variable
 }
 
-public class ForStatement : Statement
+sealed class ForStatement : Statement
 {
 	public VarName Variable { get; }
 	public Expression Start { get; }
@@ -235,13 +235,13 @@ public class ForStatement : Statement
 	}
 }
 
-public class NextStatement : Statement
+sealed class NextStatement : Statement
 {
 	public VarName Variable { get; }
 	public NextStatement(VarName variable) => Variable = variable;
 }
 
-public class OnGotoStatement : Statement
+sealed class OnGotoStatement : Statement
 {
 	public Expression Expression { get; }
 	public List<Label> Targets { get; }
@@ -252,7 +252,7 @@ public class OnGotoStatement : Statement
 	}
 }
 
-public class OnGosubStatement : Statement
+sealed class OnGosubStatement : Statement
 {
 	public Expression Expression { get; }
 	public List<Label> Targets { get; }
@@ -269,7 +269,7 @@ public class OnGosubStatement : Statement
 
 
 // BASIC program lines
-public class BasicLine
+sealed class BasicLine
 {
 	public int LineNumber { get; }
 	public List<Statement> Statements { get; }

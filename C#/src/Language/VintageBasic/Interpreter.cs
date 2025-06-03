@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
+﻿namespace vintage_basic.Language.VintageBasic;
 
-namespace vintage_basic.Language.VintageBasic;
-
-public class JumpTableEntry
+sealed class JumpTableEntry
 {
 	public int Label { get; }
 	public Action Program { get; }
@@ -19,7 +14,7 @@ public class JumpTableEntry
 	}
 }
 
-public class JumpTable
+sealed class JumpTable
 {
 	private readonly List<JumpTableEntry> entries = new();
 
@@ -39,7 +34,7 @@ public class JumpTable
 	}
 }
 
-class Interpreter
+static class Interpreter
 {
 	public static void InterpLines(List<ParsedLine> progLines)
 	{
@@ -62,7 +57,7 @@ class Interpreter
 		}
 	}
 
-	private static void InterpStatements(JumpTable jumpTable, List<Tagged<Statement>> statements)
+	static void InterpStatements(JumpTable jumpTable, List<Tagged<Statement>> statements)
 	{
 		foreach (var taggedStatement in statements)
 		{
@@ -70,15 +65,15 @@ class Interpreter
 		}
 	}
 
-	private static List<string> ExtractData(ParsedLine line) => new List<string>();
+	static List<string> ExtractData(ParsedLine line) => new List<string>();
 
-	private static void SeedRandomFromTime()
+	static void SeedRandomFromTime()
 	{
 		Random rand = new();
 		Console.WriteLine($"Random seed set: {rand.Next()}");
 	}
 
-	private static void SetDataStrings(List<string>? data)
+	static void SetDataStrings(List<string>? data)
 	{
 		if (data is not null)
 		{
@@ -87,7 +82,7 @@ class Interpreter
 	}
 }
 
-public static class ExpressionEvaluator
+static class ExpressionEvaluator
 {
 	public static float BoolToVal(bool condition) => condition ? -1f : 0f;
 
@@ -127,7 +122,7 @@ public static class ExpressionEvaluator
 	}
 }
 
-public static class BuiltinFunctions
+static class BuiltinFunctions
 {
 	//public static float EvalBuiltin(Builtin builtin, List<float> args)
 	//{
@@ -147,7 +142,7 @@ public static class BuiltinFunctions
 	//	};
 	//}
 }
-public static class StatementInterpreter
+static class StatementInterpreter
 {
 	public static void InterpStatement(JumpTable jumpTable, Statement statement)
 	{

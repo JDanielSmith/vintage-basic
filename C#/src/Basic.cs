@@ -1,17 +1,13 @@
-// src/Program.cs
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
 using VintageBasic.IO;
 using VintageBasic.Parsing;
 using VintageBasic.Parsing.Errors;
-using VintageBasic.Syntax;
 using VintageBasic.Runtime;
 using VintageBasic.Runtime.Errors;
-using VintageBasic.Interpreter;
+using VintageBasic.Syntax;
 
-public class Basic
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("VintageBasic.Tests")]
+
+sealed class Basic
 {
     public static void Main(string[] args)
     {
@@ -72,14 +68,14 @@ public class Basic
         }
 
 
-        var consoleInputStream = new ConsoleInputStream();
-        var consoleOutputStream = new ConsoleOutputStream();
+		ConsoleInputStream consoleInputStream = new();
+		ConsoleOutputStream consoleOutputStream = new();
 
-        var store = new BasicStore();
-        // Pass an empty list for initialDataStatements; Interpreter will load from parsed DATA statements.
-        var state = new BasicState(consoleInputStream, consoleOutputStream, new List<string>()); 
-        var context = new RuntimeContext(store, state);
-        var interpreter = new VintageBasic.Interpreter.Interpreter(context);
+		BasicStore store = new();
+		// Pass an empty list for initialDataStatements; Interpreter will load from parsed DATA statements.
+		BasicState state = new(consoleInputStream, consoleOutputStream, new List<string>());
+		RuntimeContext context = new(store, state);
+		VintageBasic.Interpreter.Interpreter interpreter = new(context);
 
         try
         {

@@ -4,7 +4,7 @@ using VintageBasic.Syntax; // For ValType
 
 namespace VintageBasic.Runtime;
 
-public abstract class Val : IComparable<Val>
+abstract class Val : IComparable<Val>
 {
     public abstract ValType Type { get; }
 
@@ -43,7 +43,7 @@ public abstract class Val : IComparable<Val>
                 // if (value is IntVal ivStr) return new StringVal(ivStr.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 break;
         }
-        throw new Errors.TypeMismatchError($"Cannot coerce {value.Type} to {targetType}", lineNumber ?? stateManager?.GetCurrentLineNumber());
+        throw new Errors.TypeMismatchError($"Cannot coerce {value.Type} to {targetType}", lineNumber ?? stateManager?.CurrentLineNumber);
     }
 
     // Coerces IntVal to FloatVal for expression evaluation if needed, otherwise returns original value.
@@ -59,7 +59,7 @@ public abstract class Val : IComparable<Val>
     }
 }
 
-public class FloatVal : Val
+sealed class FloatVal : Val
 {
     public float Value { get; }
 
@@ -87,7 +87,7 @@ public class FloatVal : Val
     public override string ToString() => Value.ToString(); // Or $"FloatVal({Value})" for debugging
 }
 
-public class IntVal : Val
+sealed class IntVal : Val
 {
     public int Value { get; }
 
@@ -115,7 +115,7 @@ public class IntVal : Val
     public override string ToString() => Value.ToString(); // Or $"IntVal({Value})" for debugging
 }
 
-public class StringVal : Val
+sealed class StringVal : Val
 {
     public string Value { get; }
 

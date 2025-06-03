@@ -5,7 +5,7 @@ using VintageBasic.Runtime.Errors;
 
 namespace VintageBasic.Runtime;
 
-public class FunctionManager
+sealed class FunctionManager
 {
     private readonly BasicStore _store;
 
@@ -30,10 +30,7 @@ public class FunctionManager
 
     public void SetFunction(VarName funcName, UserDefinedFunction function)
     {
-        if (function == null)
-        {
-            throw new ArgumentNullException(nameof(function));
-        }
+        ArgumentNullException.ThrowIfNull(funcName);
         _store.UserFunctions[funcName] = function;
     }
 }

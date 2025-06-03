@@ -2,7 +2,7 @@
 
 namespace vintage_basic.Language.VintageBasic;
 
-public class FloatParser
+static class FloatParser
 {
 	public static bool IsDigit(char c) => char.IsDigit(c);
 	public static bool IsDot(char c) => c == '.';

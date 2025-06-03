@@ -1,9 +1,6 @@
-// src/VintageBasic/Runtime/RandomManager.cs
-using System;
-
 namespace VintageBasic.Runtime;
 
-public class RandomManager
+sealed class RandomManager
 {
     private readonly BasicState _state;
 
@@ -30,13 +27,11 @@ public class RandomManager
         SeedRandom(seed);
     }
 
-    public double GetPreviousRandomValue()
-    {
-        // In some BASICs, RND(0) returns the last number generated.
-        return _state.PreviousRandomValue;
-    }
+	public double PreviousRandomValue =>
+		// In some BASICs, RND(0) returns the last number generated.
+		_state.PreviousRandomValue;
 
-    public double GetRandomValue()
+	public double GetRandomValue()
     {
         // System.Random.NextDouble() returns a value in [0.0, 1.0).
         // BASIC RND typically returns (0.0, 1.0) or [0.0, 1.0).

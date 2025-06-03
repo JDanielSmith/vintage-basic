@@ -5,7 +5,7 @@ using VintageBasic.Syntax; // For ValType, Builtin, BinOp
 
 namespace VintageBasic.Parsing;
 
-public static class Tokenizer
+static class Tokenizer
 {
     private static readonly Dictionary<string, KeywordType> Keywords = new Dictionary<string, KeywordType>(StringComparer.OrdinalIgnoreCase)
     {
@@ -291,12 +291,12 @@ public static class Tokenizer
                 {
                     string namePart = identifier;
                     ValType typeSuffix = ValType.FloatType; // Default
-                    if (identifier.EndsWith("$"))
+                    if (identifier.EndsWith('$'))
                     {
                         typeSuffix = ValType.StringType;
                         namePart = identifier.Substring(0, identifier.Length - 1);
                     }
-                    else if (identifier.EndsWith("%"))
+                    else if (identifier.EndsWith('%'))
                     {
                         typeSuffix = ValType.IntType;
                         namePart = identifier.Substring(0, identifier.Length - 1);

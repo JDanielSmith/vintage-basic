@@ -1,15 +1,13 @@
-// src/VintageBasic/Runtime/BasicStore.cs
-using System.Collections.Generic;
 using VintageBasic.Syntax; // For VarName
 
 namespace VintageBasic.Runtime;
 
 // Represents a user-defined function (DEF FN)
 // Takes a list of arguments and returns a Val.
-public delegate Val UserDefinedFunction(IReadOnlyList<Val> arguments);
+delegate Val UserDefinedFunction(IReadOnlyList<Val> arguments);
 
 // Represents a BASIC array.
-public class BasicArray
+sealed class BasicArray
 {
     // Stores the size of each dimension. E.g., for DIM A(10,5), this would be [11, 6] (0-indexed).
     public IReadOnlyList<int> DimensionSizes { get; }
@@ -79,7 +77,7 @@ public class BasicArray
     }
 }
 
-public class BasicStore
+sealed class BasicStore
 {
     // Scalar variables: VarName -> Val
     // Using Val directly instead of IORef Val, as C# objects are reference types.

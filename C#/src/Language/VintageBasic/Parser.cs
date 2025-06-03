@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace vintage_basic.Language.VintageBasic;
 
-public class BasicParser
+sealed class BasicParser
 {
 	//private Queue<TaggedToken> tokens;
 
@@ -174,23 +174,23 @@ public class BasicParser
 
 
 // Supporting Classes
-public abstract class Literal { }
-public class FloatLiteral : Literal { public float Value { get; } public FloatLiteral(float value) => Value = value; }
-public class StringLiteral : Literal { public string Value { get; } public StringLiteral(string value) => Value = value; }
+abstract class Literal { }
+sealed class FloatLiteral : Literal { public float Value { get; } public FloatLiteral(float value) => Value = value; }
+sealed class StringLiteral : Literal { public string Value { get; } public StringLiteral(string value) => Value = value; }
 
-public abstract class Variable { }
-public class FloatVariable : Variable { public string Name { get; } public FloatVariable(string name) => Name = name; }
-public class IntVariable : Variable { public string Name { get; } public IntVariable(string name) => Name = name; }
-public class StringVariable : Variable { public string Name { get; } public StringVariable(string name) => Name = name; }
+abstract class Variable { }
+sealed class FloatVariable : Variable { public string Name { get; } public FloatVariable(string name) => Name = name; }
+sealed class IntVariable : Variable { public string Name { get; } public IntVariable(string name) => Name = name; }
+sealed class StringVariable : Variable { public string Name { get; } public StringVariable(string name) => Name = name; }
 
-public abstract class Expression { }
-public class LiteralExpression : Expression { public Literal Value { get; } public LiteralExpression(Literal value) => Value = value; }
-public class VariableExpression : Expression { public Variable Value { get; } public VariableExpression(Variable value) => Value = value; }
-public class BinaryExpression : Expression { public Expression Left { get; } public Expression Right { get; } public string Operator { get; } public BinaryExpression(Expression left, Expression right, string op) { Left = left; Right = right; Operator = op; } }
+abstract class Expression { }
+sealed class LiteralExpression : Expression { public Literal Value { get; } public LiteralExpression(Literal value) => Value = value; }
+sealed class VariableExpression : Expression { public Variable Value { get; } public VariableExpression(Variable value) => Value = value; }
+sealed class BinaryExpression : Expression { public Expression Left { get; } public Expression Right { get; } public string Operator { get; } public BinaryExpression(Expression left, Expression right, string op) { Left = left; Right = right; Operator = op; } }
 
-public abstract class Statement { }
+abstract class Statement { }
 
-public class LetStatement : Statement
+sealed class LetStatement : Statement
 {
 	public Variable Var { get; }
 	public Expression Expr { get; }
@@ -201,13 +201,13 @@ public class LetStatement : Statement
 	}
 }
 
-//public class GotoStatement : Statement
+//sealed class GotoStatement : Statement
 //{
 //	public int LineNumber { get; }
 //	public GotoStatement(int lineNumber) => LineNumber = lineNumber;
 //}
 
-public class IfStatement : Statement
+sealed class IfStatement : Statement
 {
 	public Expression Condition { get; }
 	public List<Statement> Statements { get; }
@@ -218,7 +218,7 @@ public class IfStatement : Statement
 	}
 }
 
-public class PrintStatement : Statement
+sealed class PrintStatement : Statement
 {
 	public List<Expression> Expressions { get; }
 	public PrintStatement(List<Expression> expressions) => Expressions = expressions;
@@ -226,7 +226,7 @@ public class PrintStatement : Statement
 
 
 
-//public class BasicLine
+//sealed class BasicLine
 //{
 //	public int LineNumber { get; }
 //	public List<Statement> Statements { get; }
@@ -236,7 +236,7 @@ public class PrintStatement : Statement
 //		Statements = statements;
 //	}
 //}
-class ParsedLine
+sealed class ParsedLine
 {
 	public int Label { get; set; }
 	public List<Tagged<Statement>> Statements { get; set; } = new List<Tagged<Statement>>();

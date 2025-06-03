@@ -1,5 +1,5 @@
 ﻿namespace vintage_basic.Language.VintageBasic;
-public class BasicExecuter
+sealed class BasicExecuter
 {
 	public void ExecuteFile(string fileName)
 	{
@@ -22,7 +22,7 @@ public class BasicExecuter
 	/// <summary>
 	/// Transforms the BASIC source into a series of 'RawLine's using the 'rawLinesP' LineScanner.
 	/// </summary>
-	private IEnumerable<RawLine> ScanLines(string fileName, string text)
+	static IEnumerable<RawLine> ScanLines(string fileName, string text)
 	{	
 		return LineScanner.ParseRawLines(text);
 	}
