@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "VintageBasic": {
+      "commandName": "Project",
+      "commandLineArgs": "HAMURABI.bas",
+      "workingDirectory": "E:\\JDanielSmith\\vintage-basic"
+    }
+  }
+}
