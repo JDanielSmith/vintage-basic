@@ -14,46 +14,6 @@ static class FloatParser
             return false;
         }
 
-        // Using a regex-based approach for flexibility, similar to Parsec's declarative style.
-        // This regex aims to capture the structure defined by the Haskell parser.
-        // It handles:
-        // 1. Optional sign.
-        // 2. Integer part, fractional part, exponent part in various combinations.
-        //    - num.fract E exp
-        //    - .fract E exp
-        //    - num E exp
-        //    - num.fract
-        //    - .fract
-        //    - num
-        // It allows 'E' or 'D' for exponents, and optional '+' for positive exponents.
-
-        // Regex breakdown:
-        // ^\s*                     : Optional leading whitespace
-        // (?<sign>[+-]?)           : Optional sign (+ or -)
-        // (                         : Start of number part options
-        //   (?<integer>\d+)?       : Optional integer part
-        //   (?:\.(?<fraction>\d+))? : Optional fractional part (must have digits if decimal point exists)
-        //   |                       : OR (for cases like ".123")
-        //   \.(?<fraction_only>\d+) : Fractional part starting with decimal point
-        // )
-        // (?:[eEdD](?<expsign>[+-]?)(?<exponent>\d+))? : Optional exponent part
-        // \s*$                     : Optional trailing whitespace
-
-        // Refined regex to better match the Haskell parser's logic (which is more procedural via combinators)
-        // The Haskell parser tries specific combinations:
-        //  1. num.fract E exp
-        //  2. .fract E exp
-        //  3. num E exp
-        //  4. num.fract
-        //  5. .fract
-        //  6. num (implied by natFloat alone, though not explicitly listed as a top-level success in floatLex without exp or fract)
-
-        // Let's try a simpler approach by cleaning the input for C# double.Parse,
-        // then manually parsing if that fails for 'D' exponent.
-        // C# double.Parse/TryParse with NumberStyles.Float and CultureInfo.InvariantCulture
-        // handles most cases like "1.23", "1.23e+10", "1.23E-5", "-.5", "+5".
-        // The main things not handled are 'D' exponent and missing '+' in exponent.
-
         string normalizedString = s.Trim();
         if (String.IsNullOrEmpty(normalizedString)) return false;
 
@@ -65,7 +25,8 @@ static class FloatParser
         normalizedString = Regex.Replace(normalizedString, @"E(\d)", "E+$1");
 
 
-        if (double.TryParse(normalizedString, NumberStyles.Float | NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent, CultureInfo.InvariantCulture, out result))
+        var style = NumberStyles.Float | NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent;
+		if (Double.TryParse(normalizedString, style, CultureInfo.InvariantCulture, out result))
         {
             return true;
         }
@@ -77,7 +38,7 @@ static class FloatParser
 
         // Fallback for extremely simple cases if the above fails (e.g. "1", "-2")
         // This part is more of a safeguard, as TryParse should handle these.
-        if (long.TryParse(normalizedString, NumberStyles.Integer, CultureInfo.InvariantCulture, out long longVal))
+        if (Int64.TryParse(normalizedString, NumberStyles.Integer, CultureInfo.InvariantCulture, out var longVal))
         {
             result = longVal;
             return true;

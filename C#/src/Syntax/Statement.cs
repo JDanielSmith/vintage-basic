@@ -2,102 +2,102 @@ namespace VintageBasic.Syntax;
 
 abstract record Statement { }
 
-sealed record LetStmt(Var Variable, Expr Expression) : Statement
+sealed record LetStatement(Var Variable, Expr Expression) : Statement
 {
-    public override string ToString() => $"LetStmt({Variable}, {Expression})";
+    public override string ToString() => $"{nameof(LetStatement)}({Variable}, {Expression})";
 }
 
-sealed record DimStmt(IReadOnlyList<(VarName Name, IReadOnlyList<Expr> Dimensions)> Declarations) : Statement
+sealed record DimStatement(IReadOnlyList<(VarName Name, IReadOnlyList<Expr> Dimensions)> Declarations) : Statement
 {
-    public override string ToString() => $"DimStmt([{String.Join(", ", Declarations.Select(d => $"{d.Name}({String.Join(", ", d.Dimensions)})"))}])";
+    public override string ToString() => $"{nameof(DimStatement)}([{String.Join(", ", Declarations.Select(d => $"{d.Name}({String.Join(", ", d.Dimensions)})"))}])";
 }
 
-sealed record GotoStmt(int TargetLabel) : Statement
+sealed record GotoStatement(int TargetLabel) : Statement
 {
-    public override string ToString() => $"GotoStmt({TargetLabel})";
+    public override string ToString() => $"{nameof(GotoStatement)}({TargetLabel})";
 }
 
-sealed record GosubStmt(int TargetLabel) : Statement
+sealed record GosubStatement(int TargetLabel) : Statement
 {
-    public override string ToString() => $"GosubStmt({TargetLabel})";
+    public override string ToString() => $"{nameof(GosubStatement)}({TargetLabel})";
 }
 
-sealed record OnGotoStmt(Expr Expression, IReadOnlyList<int> TargetLabels) : Statement
+sealed record OnGotoStatement(Expr Expression, IReadOnlyList<int> TargetLabels) : Statement
 {
-    public override string ToString() => $"OnGotoStmt({Expression}, [{String.Join(", ", TargetLabels)}])";
+    public override string ToString() => $"{nameof(OnGotoStatement)}({Expression}, [{String.Join(", ", TargetLabels)}])";
 }
 
-sealed record OnGosubStmt(Expr Expression, IReadOnlyList<int> TargetLabels) : Statement
+sealed record OnGosubStatement(Expr Expression, IReadOnlyList<int> TargetLabels) : Statement
 {
-    public override string ToString() => $"OnGosubStmt({Expression}, [{String.Join(", ", TargetLabels)}])";
+    public override string ToString() => $"{nameof(OnGosubStatement)}({Expression}, [{String.Join(", ", TargetLabels)}])";
 }
 
-sealed record ReturnStmt : Statement
+sealed record ReturnStatement : Statement
 {
-    public override string ToString() => "ReturnStmt";
+    public override string ToString() => nameof(ReturnStatement);
 }
 
-sealed record IfStmt(Expr Condition, IReadOnlyList<Tagged<Statement>> Statements) : Statement
+sealed record IfStatement(Expr Condition, IReadOnlyList<Tagged<Statement>> Statements) : Statement
 {
-    public override string ToString() => $"IfStmt({Condition}, [{String.Join("; ", Statements.Select(s => s.ToString()))}])";
+    public override string ToString() => $"{nameof(IfStatement)}({Condition}, [{String.Join("; ", Statements.Select(s => s.ToString()))}])";
 }
 
-sealed record ForStmt(VarName LoopVariable, Expr InitialValue, Expr LimitValue, Expr StepValue) : Statement
+sealed record ForStatement(VarName LoopVariable, Expr InitialValue, Expr LimitValue, Expr StepValue) : Statement
 {
-    public override string ToString() => $"ForStmt({LoopVariable}, {InitialValue}, {LimitValue}, {StepValue})";
+    public override string ToString() => $"{nameof(ForStatement)}({LoopVariable}, {InitialValue}, {LimitValue}, {StepValue})";
 }
 
-sealed record NextStmt(IReadOnlyList<VarName>? LoopVariables) : Statement // Nullable for simple NEXT
+sealed record NextStatement(IReadOnlyList<VarName>? LoopVariables) : Statement // Nullable for simple NEXT
 {
-    public override string ToString() => $"NextStmt([{String.Join(", ", LoopVariables?.Select(v => v.ToString()) ?? new List<string>())}])";
+    public override string ToString() => $"{nameof(NextStatement)}([{String.Join(", ", LoopVariables?.Select(v => v.ToString()) ?? new List<string>())}])";
 }
 
-sealed record PrintStmt(IReadOnlyList<Expr> Expressions) : Statement
+sealed record PrintStatement(IReadOnlyList<Expr> Expressions) : Statement
 {
-    public override string ToString() => $"PrintStmt([{String.Join(", ", Expressions.Select(e => e.ToString()))}])";
+    public override string ToString() => $"{nameof(PrintStatement)}([{String.Join(", ", Expressions.Select(e => e.ToString()))}])";
 }
 
-sealed record InputStmt(string? Prompt, IReadOnlyList<Var> Variables) : Statement
+sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Statement
 {
-    public override string ToString() => $"InputStmt(\"{Prompt}\", [{String.Join(", ", Variables.Select(v => v.ToString()))}])";
+    public override string ToString() => $"{nameof(InputStatement)}(\"{Prompt}\", [{String.Join(", ", Variables.Select(v => v.ToString()))}])";
 }
 
-sealed record EndStmt : Statement
+sealed record EndStatement : Statement
 {
-    public override string ToString() => "EndStmt";
+    public override string ToString() => nameof(EndStatement);
 }
 
-sealed record StopStmt : Statement
+sealed record StopStatement : Statement
 {
-    public override string ToString() => "StopStmt";
+    public override string ToString() => nameof(StopStatement);
 }
 
-sealed record RandomizeStmt : Statement
+sealed record RandomizeStatement : Statement
 {
-    public override string ToString() => "RandomizeStmt";
+    public override string ToString() => nameof(RandomizeStatement);
 }
 
-sealed record ReadStmt(IReadOnlyList<Var> Variables) : Statement
+sealed record ReadStatement(IReadOnlyList<Var> Variables) : Statement
 {
-    public override string ToString() => $"ReadStmt([{String.Join(", ", Variables.Select(v => v.ToString()))}])";
+    public override string ToString() => $"{nameof(ReadStatement)}([{String.Join(", ", Variables.Select(v => v.ToString()))}])";
 }
 
-sealed record RestoreStmt(int? TargetLabel) : Statement
+sealed record RestoreStatement(int? TargetLabel) : Statement
 {
-    public override string ToString() => $"RestoreStmt({TargetLabel?.ToString() ?? "Start"})";
+    public override string ToString() => $"{nameof(RestoreStatement)}({TargetLabel?.ToString() ?? "Start"})";
 }
 
-sealed record DataStmt(string Data) : Statement
+sealed record DataStatement(string Data) : Statement
 {
-    public override string ToString() => $"DataStmt(\"{Data}\")";
+    public override string ToString() => $"{nameof(DataStatement)}(\"{Data}\")";
 }
 
-sealed record DefFnStmt(VarName FunctionName, IReadOnlyList<VarName> Parameters, Expr Expression) : Statement
+sealed record DefFnStatement(VarName FunctionName, IReadOnlyList<VarName> Parameters, Expr Expression) : Statement
 {
-    public override string ToString() => $"DefFnStmt({FunctionName}, [{String.Join(", ", Parameters.Select(p => p.ToString()))}], {Expression})";
+    public override string ToString() => $"{nameof(DefFnStatement)}({FunctionName}, [{String.Join(", ", Parameters.Select(p => p.ToString()))}], {Expression})";
 }
 
-sealed record RemStmt(string Comment) : Statement
+sealed record RemStatement(string Comment) : Statement
 {
-    public override string ToString() => $"RemStmt(\"{Comment}\")";
+    public override string ToString() => $"{nameof(RemStatement)}(\"{Comment}\")";
 }

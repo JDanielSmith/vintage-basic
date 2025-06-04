@@ -1,39 +1,13 @@
 namespace VintageBasic.Syntax;
 
-abstract class Literal
+abstract record Literal(ValType Type) { }
+
+sealed record FloatLiteral(float Value) : Literal(ValType.FloatType)
 {
-    public abstract ValType Type { get; }
+    public override string ToString() => $"{nameof(FloatLiteral)}(({Value})";
 }
 
-sealed class FloatLiteral : Literal
+sealed record StringLiteral(string Value) : Literal(ValType.StringType)
 {
-    public float Value { get; }
-
-    public FloatLiteral(float value)
-    {
-        Value = value;
-    }
-
-    public override ValType Type => ValType.FloatType;
-
-    public override bool Equals(object? obj) => obj is FloatLiteral other && Value == other.Value;
-    public override int GetHashCode() => Value.GetHashCode();
-    public override string ToString() => $"FloatLit({Value})";
-
-}
-
-sealed class StringLiteral : Literal
-{
-    public string Value { get; }
-
-    public StringLiteral(string value)
-    {
-        Value = value;
-    }
-
-    public override ValType Type => ValType.StringType;
-
-    public override bool Equals(object? obj) => obj is StringLiteral other && Value == other.Value;
-    public override int GetHashCode() => Value.GetHashCode();
-    public override string ToString() => $"StringLit(\"{Value}\")";
+    public override string ToString() => $"{nameof(StringLiteral)}(\"{Value}\")";
 }

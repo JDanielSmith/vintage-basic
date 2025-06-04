@@ -1,13 +1,12 @@
 using System.Text;
-using System.Xml.Linq;
-using VintageBasic.Runtime;
 using VintageBasic.Syntax; // For ValType, Builtin, BinOp
+using System.Collections.Frozen;
 
 namespace VintageBasic.Parsing;
 
 static class Tokenizer
 {
-    static readonly Dictionary<string, KeywordType> Keywords = new(StringComparer.OrdinalIgnoreCase)
+    static readonly FrozenDictionary<string, KeywordType> Keywords = new Dictionary<string, KeywordType>(StringComparer.OrdinalIgnoreCase)
     {
         {"LET", KeywordType.LET}, {"PRINT", KeywordType.PRINT}, {"IF", KeywordType.IF}, {"THEN", KeywordType.THEN},
         {"FOR", KeywordType.FOR}, {"TO", KeywordType.TO}, {"STEP", KeywordType.STEP}, {"NEXT", KeywordType.NEXT},
@@ -17,9 +16,9 @@ static class Tokenizer
         {"RANDOMIZE", KeywordType.RANDOMIZE}, {"DEF", KeywordType.DEF}, {"FN", KeywordType.FN},
         { "OR", KeywordType.OR}, { "AND", KeywordType.AND}, { "NOT", KeywordType.NOT},
 		// Note: ELSE is not in Haskell's KeywordTok but might be useful for parser. Added to enum.
-	};
+	}.ToFrozenDictionary();
 
-    static readonly Dictionary<string, Builtin> Builtins = new(StringComparer.OrdinalIgnoreCase)
+    static readonly FrozenDictionary<string, Builtin> Builtins = new Dictionary<string, Builtin>(StringComparer.OrdinalIgnoreCase)
     {
 		{"ABS", Builtin.Abs},
         {"ASC", Builtin.Asc },
@@ -42,22 +41,22 @@ static class Tokenizer
 	    {"TAB", Builtin.Tab },
 	    {"TAN", Builtin.Tan },
 	    {"VAL", Builtin.Val },
-	};
+	}.ToFrozenDictionary();
 
-    static readonly Dictionary<string, BinOp> Operators = new()
+    static readonly FrozenDictionary<string, BinOp> Operators = new Dictionary<string, BinOp>()
     {
         {"+", BinOp.AddOp}, {"-", BinOp.SubOp}, {"*", BinOp.MulOp}, {"/", BinOp.DivOp},
         {"^", BinOp.PowOp}, {"<>", BinOp.NEOp}, {"<=", BinOp.LEOp}, {">=", BinOp.GEOp},
         {"<", BinOp.LTOp}, {">", BinOp.GTOp}
         // Note: "=" is handled as EqualsToken separately. AND/OR are keywords for BinX.
-    };
+    }.ToFrozenDictionary();
     
     // For longest match, order operators from longest to shortest.
-    static readonly List<string> OrderedOperatorSymbols = Operators.Keys.OrderByDescending(k => k.Length).ToList();
+    static readonly IReadOnlyList<string> OrderedOperatorSymbols = Operators.Keys.OrderByDescending(k => k.Length).ToList();
 
     public static IEnumerable<Tagged<Token>> Tokenize(ScannedLine scannedLine)
     {
-        var tokens = new List<Tagged<Token>>();
+        List<Tagged<Token>> tokens = [];
         string content = scannedLine.Content;
         int currentPositionInContent = 0; // 0-based index into content string
         int lineNumber = scannedLine.LineNumber ?? 0;
@@ -65,21 +64,21 @@ static class Tokenizer
         // Handle REM at the very start of content (after potential line number)
         if (content.StartsWith("REM", StringComparison.OrdinalIgnoreCase) || ((content.Length > 0) && (content[0] == '\''))) // Some BASICs use ' for REM
         {
-            string comment;
+			RemToken token;
             int commentStartColumn = currentPositionInContent;
             if (content[0] == '\'')
             {
-                comment = content.Substring(1);
+				token = new(content[1..]);
                 currentPositionInContent = 1; // Position of "'"
             }
             else
             {
-                comment = content.Length > 3 ? content.Substring(3).TrimStart() : "";
+                token = new(content.Length > 3 ? content[3..].TrimStart() : "");
                 currentPositionInContent = 0; // Position of "REM"
             }
             
-            var remSourcePos = new SourcePosition(lineNumber, commentStartColumn + 1); // 1-based column
-            tokens.Add(new Tagged<Token>(remSourcePos, new RemToken(comment)));
+            SourcePosition remSourcePos = new(lineNumber, commentStartColumn + 1); // 1-based column
+            tokens.Add(new(remSourcePos, token));
             currentPositionInContent = content.Length; // Consume rest of line
         }
 
@@ -101,7 +100,6 @@ static class Tokenizer
                 int stringStart = currentPositionInContent + 1;
                 int stringEnd = stringStart;
                 var sb = new StringBuilder();
-                bool foundEndQuote = false;
                 while (stringEnd < content.Length)
                 {
                     if (content[stringEnd] == '"')
@@ -113,7 +111,6 @@ static class Tokenizer
                         }
                         else // End of string
                         {
-                            foundEndQuote = true;
                             stringEnd++;
                             break;
                         }
@@ -152,7 +149,7 @@ static class Tokenizer
 
             if (numEnd > currentPositionInContent)
             {
-                string potentialNumber = content.Substring(currentPositionInContent, numEnd - currentPositionInContent);
+                string potentialNumber = content[currentPositionInContent..numEnd];
                 if (FloatParser.TryParseFloat(potentialNumber, out double floatVal))
                 {
                     // Check if this number is followed by an identifier char, which means it's part of an identifier (e.g. A1)
@@ -173,11 +170,11 @@ static class Tokenizer
                             if ((prevToken is FloatToken) || (prevToken is VarNameToken) || (prevToken is RParenToken))
 							{
                                 var op = potentialNumber[0] == '+' ? BinOp.AddOp : BinOp.SubOp;
-								tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, tokenStartColumn), new OpToken(op)));
+								tokens.Add(new Tagged<Token>(new(lineNumber, tokenStartColumn), new OpToken(op)));
 							}
 						}
 
-						tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, tokenStartColumn), new FloatToken(floatVal)));
+						tokens.Add(new Tagged<Token>(new(lineNumber, tokenStartColumn), new FloatToken(floatVal)));
                          currentPositionInContent = numEnd;
                          continue;
                     }
@@ -189,9 +186,9 @@ static class Tokenizer
             bool operatorFound = false;
             foreach (var opSymbol in OrderedOperatorSymbols)
             {
-                if (content.Substring(currentPositionInContent).StartsWith(opSymbol, StringComparison.OrdinalIgnoreCase))
+                if (content[currentPositionInContent..].StartsWith(opSymbol, StringComparison.OrdinalIgnoreCase))
                 {
-                    tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, tokenStartColumn), new OpToken(Operators[opSymbol])));
+                    tokens.Add(new Tagged<Token>(new(lineNumber, tokenStartColumn), new OpToken(Operators[opSymbol])));
                     currentPositionInContent += opSymbol.Length;
                     operatorFound = true;
                     break;
@@ -202,25 +199,25 @@ static class Tokenizer
             // 5. Special Characters
             switch (currentChar)
             {
-                case '(': tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, tokenStartColumn), new LParenToken())); currentPositionInContent++; continue;
-                case ')': tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, tokenStartColumn), new RParenToken())); currentPositionInContent++; continue;
-                case ',': tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, tokenStartColumn), new CommaToken())); currentPositionInContent++; continue;
-                case ';': tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, tokenStartColumn), new SemicolonToken())); currentPositionInContent++; continue;
-                case '=': tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, tokenStartColumn), new EqualsToken())); currentPositionInContent++; continue;
-				case '?': tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, tokenStartColumn), new KeywordToken(KeywordType.PRINT))); currentPositionInContent++; continue;
+                case '(': tokens.Add(new(new(lineNumber, tokenStartColumn), new LParenToken())); currentPositionInContent++; continue;
+                case ')': tokens.Add(new(new(lineNumber, tokenStartColumn), new RParenToken())); currentPositionInContent++; continue;
+                case ',': tokens.Add(new(new(lineNumber, tokenStartColumn), new CommaToken())); currentPositionInContent++; continue;
+                case ';': tokens.Add(new(new(lineNumber, tokenStartColumn), new SemicolonToken())); currentPositionInContent++; continue;
+                case '=': tokens.Add(new(new(lineNumber, tokenStartColumn), new EqualsToken())); currentPositionInContent++; continue;
+				case '?': tokens.Add(new(new(lineNumber, tokenStartColumn), new KeywordToken(KeywordType.PRINT))); currentPositionInContent++; continue;
 			}
 
 			// 6. Keywords, Builtins, or Variable Names
 			if (Char.IsLetter(currentChar))
 			{
                 int identEnd = currentPositionInContent;
-				string identifier = content.Substring(currentPositionInContent, identEnd - currentPositionInContent);
+				string identifier = content[currentPositionInContent..identEnd];
 
                 if (!(Builtins.ContainsKey(identifier) || Keywords.ContainsKey(identifier)))
 				    while (identEnd < content.Length && (Char.IsLetterOrDigit(content[identEnd]) || content[identEnd] == '$' || content[identEnd] == '%'))
                     {
                         identEnd++;
-					    identifier = content.Substring(currentPositionInContent, identEnd - currentPositionInContent);
+					    identifier = content[currentPositionInContent..identEnd];
 
 					    if (Builtins.ContainsKey(identifier)) break;
 					    if (Keywords.ContainsKey(identifier)) break;
@@ -251,7 +248,7 @@ static class Tokenizer
                     int colonPos = content.IndexOf(':', dataContentStart);
                     if (colonPos != -1)
                     {
-                        rawDataContent = content.Substring(dataContentStart, colonPos - dataContentStart);
+                        rawDataContent = content[dataContentStart..colonPos];
                         // currentPositionInContent will be set to colonPos by the outer loop later if needed
                         // For now, we tokenize DATA content, and the colon will be the next token.
                         // This needs careful adjustment of currentPositionInContent after adding DataContentToken.
@@ -259,15 +256,15 @@ static class Tokenizer
                     }
                     else
                     {
-                        rawDataContent = content.Substring(dataContentStart);
+                        rawDataContent = content[dataContentStart..];
                         identEnd = content.Length; // Consumed till end of line
                     }
 
-                    tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, tokenStartColumn), new KeywordToken(KeywordType.DATA)));
+                    tokens.Add(new(new(lineNumber, tokenStartColumn), new KeywordToken(KeywordType.DATA)));
                 }
                 else if (Builtins.TryGetValue(identifier, out Builtin builtinFunc))
                 {
-                    tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, tokenStartColumn), new BuiltinFuncToken(builtinFunc)));
+                    tokens.Add(new(new(lineNumber, tokenStartColumn), new BuiltinFuncToken(builtinFunc)));
                     currentPositionInContent = identEnd;
                 }
                 else if (Keywords.TryGetValue(identifier, out KeywordType keywordType))
@@ -276,9 +273,9 @@ static class Tokenizer
                     {
                         // Handle REM comments specially
                         int commentStart = currentPositionInContent + identifier.Length; // Position after "REM"
-                        string comment = content.Substring(commentStart).TrimStart(); // Get the rest of the line as comment
+                        string comment = content[commentStart..].TrimStart(); // Get the rest of the line as comment
                         var remSourcePos = new SourcePosition(lineNumber, tokenStartColumn + 1); // 1-based column for REM
-						tokens.Add(new Tagged<Token>(remSourcePos, new RemToken(comment)));
+						tokens.Add(new(remSourcePos, new RemToken(comment)));
 						currentPositionInContent = content.Length; // Consume rest of line
 					}
                     else
@@ -294,21 +291,21 @@ static class Tokenizer
                     if (identifier.EndsWith('$'))
                     {
                         typeSuffix = ValType.StringType;
-                        namePart = identifier.Substring(0, identifier.Length - 1);
+                        namePart = identifier[..^1];
                     }
                     else if (identifier.EndsWith('%'))
                     {
                         typeSuffix = ValType.IntType;
-                        namePart = identifier.Substring(0, identifier.Length - 1);
+                        namePart = identifier[..^1];
                     }
 
                     if (String.IsNullOrEmpty(namePart) || !Char.IsLetter(namePart[0]))
                     {
-                        tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, tokenStartColumn), new UnknownToken(identifier)));
+                        tokens.Add(new Tagged<Token>(new(lineNumber, tokenStartColumn), new UnknownToken(identifier)));
                     }
                     else
                     {
-                        tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, tokenStartColumn), new VarNameToken(namePart, typeSuffix)));
+                        tokens.Add(new Tagged<Token>(new(lineNumber, tokenStartColumn), new VarNameToken(namePart, typeSuffix)));
                     }
                     currentPositionInContent = identEnd;
                 }
@@ -320,15 +317,15 @@ static class Tokenizer
             {
                 // Tokenize colon as an UnknownToken for now, Parser will handle it.
                 // Or define a specific ColonToken. For simplicity:
-                tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, tokenStartColumn), new UnknownToken(":")));
+                tokens.Add(new Tagged<Token>(new(lineNumber, tokenStartColumn), new UnknownToken(":")));
                 currentPositionInContent++;
                 continue;
             }
-            tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, tokenStartColumn), new UnknownToken(currentChar.ToString())));
+            tokens.Add(new Tagged<Token>(new(lineNumber, tokenStartColumn), new UnknownToken(currentChar.ToString())));
             currentPositionInContent++;
         }
 
-        tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, currentPositionInContent + 1), new EolToken()));
+        tokens.Add(new Tagged<Token>(new(lineNumber, currentPositionInContent + 1), new EolToken()));
         return tokens;
     }
 }

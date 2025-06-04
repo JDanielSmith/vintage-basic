@@ -1,6 +1,8 @@
+using System.Text.RegularExpressions;
+
 namespace VintageBasic.Parsing;
 
-record ScannedLine(int? LineNumber, string Content, int OriginalLineIndex);
+readonly record struct ScannedLine(int? LineNumber, string Content, int OriginalLineIndex);
 
 static class LineScanner
 {
@@ -10,31 +12,15 @@ static class LineScanner
     /// </summary>
     public static IEnumerable<ScannedLine> ScanLines(IEnumerable<string> lines)
     {
-        if (lines is null)
-        {
-            return Enumerable.Empty<ScannedLine>();
-        }
-
-        return lines.Select((line, index) => ProcessLine(line, index));
+        return lines.Select(ProcessLine);
     }
 
-    private static ScannedLine ProcessLine(string line, int originalLineIndex)
+    static ScannedLine ProcessLine(string line, int originalLineIndex)
     {
         string trimmedLine = line.TrimStart(); // Corresponds to dropWhile isSpace
 
-        int numPartLength = 0;
-        foreach (char c in trimmedLine)
-        {
-            if (Char.IsDigit(c))
-            {
-                numPartLength++;
-            }
-            else
-            {
-                break;
-            }
-        }
-
+		var match = Regex.Match(trimmedLine, @"^\d+");
+		int numPartLength = match.Success ? match.Length : 0;
         if (numPartLength == 0) // No numeric part found at the beginning
         {
             // The Haskell version passes 's' (original line) if no numPart.
@@ -44,24 +30,19 @@ static class LineScanner
             // Let's stick to the original line 's' for content if no number.
             return new ScannedLine(null, line, originalLineIndex);
         }
-        else
-        {
-            string numStr = trimmedLine.Substring(0, numPartLength);
-            string statPart = trimmedLine.Substring(numPartLength).TrimStart(); // Corresponds to dropWhile isSpace for statPart
 
-            if (int.TryParse(numStr, out int lineNumber))
-            {
-                return new ScannedLine(lineNumber, statPart, originalLineIndex);
-            }
-            else
-            {
-                // This case should ideally not happen if numPart only contains digits.
-                // However, if numStr is too large for int, TryParse will fail.
-                // Haskell's `read` would throw an error. Here, we might return it as a non-numbered line.
-                // Or, depending on strictness, this could be an error condition.
-                // For now, treat as content if number parsing fails after finding digits.
-                return new ScannedLine(null, line, originalLineIndex); 
-            }
+        var numStr = trimmedLine[..numPartLength];
+		var statPart = trimmedLine[numPartLength..].TrimStart(); // Corresponds to dropWhile isSpace for statPart
+        if (Int32.TryParse(numStr, out var lineNumber))
+        {
+            return new ScannedLine(lineNumber, statPart, originalLineIndex);
         }
+
+        // This case should ideally not happen if numPart only contains digits.
+        // However, if numStr is too large for int, TryParse will fail.
+        // Haskell's `read` would throw an error. Here, we might return it as a non-numbered line.
+        // Or, depending on strictness, this could be an error condition.
+        // For now, treat as content if number parsing fails after finding digits.
+        return new ScannedLine(null, line, originalLineIndex); 
     }
 }

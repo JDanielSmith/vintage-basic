@@ -23,7 +23,7 @@ namespace VintageBasic.Tests.Parsing
             // Assuming LET starts at column 1 for its content after line number and space.
             // Actual column positions from Tokenizer would be used in real scenario.
             // For this example, we'll use placeholder positions or focus on structure.
-            var expectedLetStmt = new LetStmt(expectedScalarVar, expectedLitX);
+            var expectedLetStmt = new LetStatement(expectedScalarVar, expectedLitX);
             // Placeholder source position for the statement itself.
             var expectedTaggedStmt = new Tagged<Statement>(new SourcePosition(10, 1), expectedLetStmt);
             var expectedLine = new Line(10, new List<Tagged<Statement>> { expectedTaggedStmt });
@@ -38,8 +38,8 @@ namespace VintageBasic.Tests.Parsing
             Assert.Single(actualLine.Statements);
             
             var actualTaggedStmt = actualLine.Statements[0];
-            Assert.IsType<LetStmt>(actualTaggedStmt.Value);
-            var actualLetStmt = (LetStmt)actualTaggedStmt.Value;
+            Assert.IsType<LetStatement>(actualTaggedStmt.Value);
+            var actualLetStmt = (LetStatement)actualTaggedStmt.Value;
 
             Assert.IsType<ScalarVar>(actualLetStmt.Variable);
             var actualScalarVar = (ScalarVar)actualLetStmt.Variable;
@@ -62,9 +62,9 @@ namespace VintageBasic.Tests.Parsing
             var line = parsedLines[0];
             Assert.Equal(20, line.Label);
             Assert.Single(line.Statements);
-            Assert.IsType<PrintStmt>(line.Statements[0].Value);
+            Assert.IsType<PrintStatement>(line.Statements[0].Value);
 
-            var printStmt = (PrintStmt)line.Statements[0].Value;
+            var printStmt = (PrintStatement)line.Statements[0].Value;
             Assert.Equal(5, printStmt.Expressions.Count); // "AGE:", NextZoneX, VarX(A), EmptySeparatorX, "!"
 
             Assert.IsType<LitX>(printStmt.Expressions[0]);

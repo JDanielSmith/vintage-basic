@@ -30,12 +30,12 @@ sealed record BuiltinFuncToken(Builtin FuncName) : Token
 
 sealed record VarNameToken(string Name, ValType TypeSuffix) : Token
 {
-    public override string Text => Name + (TypeSuffix == ValType.StringType ? "$" : (TypeSuffix == ValType.IntType ? "%" : ""));
+    public override string Text => Name + TypeSuffix switch { ValType.StringType => "$", ValType.IntType => "%", _ => "" }; // Type suffixes for BASIC variables
 }
 
 sealed record FloatToken(double Value) : Token
 {
-    public override string Text => Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    public override string Text => $"{Value}";
 }
 
 sealed record StringToken(string Value) : Token
@@ -59,7 +59,7 @@ sealed record OpToken(BinOp Op) : Token
         BinOp.GEOp => ">=",
         BinOp.AndOp => "AND", // Assuming keywords for these, parser will handle
         BinOp.OrOp => "OR",   // Assuming keywords for these, parser will handle
-        _ => throw new System.ArgumentOutOfRangeException(nameof(Op), $"Unknown binary operator: {Op}")
+        _ => throw new ArgumentOutOfRangeException(nameof(Op), $"Unknown binary operator: {Op}")
     };
 }
 

@@ -159,7 +159,7 @@ sealed class Parser
 
 		switch (startToken.Value)
         {
-            case RemToken rt: ConsumeToken(); stmtNode = new RemStmt(rt.Comment); break;
+            case RemToken rt: ConsumeToken(); stmtNode = new RemStatement(rt.Comment); break;
             case KeywordToken kt:
                 ConsumeToken(); // Consume keyword
                 switch (kt.Keyword)
@@ -168,20 +168,20 @@ sealed class Parser
                     case KeywordType.PRINT: stmtNode = TryParsePrintStatementContents(); break;
                     case KeywordType.GOTO: stmtNode = TryParseGotoStatementContents(); break;
                     case KeywordType.IF: stmtNode = TryParseIfStatementContents(); break;
-                    case KeywordType.END: stmtNode = new EndStmt(); break;
+                    case KeywordType.END: stmtNode = new EndStatement(); break;
                     case KeywordType.DIM: stmtNode = TryParseDimStatementContents(); break;
                     case KeywordType.FOR: stmtNode = TryParseForStatementContents(); break;
                     case KeywordType.NEXT: stmtNode = TryParseNextStatementContents(); break;
                     case KeywordType.GOSUB: stmtNode = TryParseGosubStatementContents(); break;
-                    case KeywordType.RETURN: stmtNode = new ReturnStmt(); break;
+                    case KeywordType.RETURN: stmtNode = new ReturnStatement(); break;
                     case KeywordType.READ: stmtNode = TryParseReadStatementContents(); break;
                     case KeywordType.DATA: stmtNode = TryParseDataStatementContents(); break;
                     case KeywordType.INPUT: stmtNode = TryParseInputStatementContents(); break;
                     case KeywordType.DEF: stmtNode = TryParseDefFnStatementContents(); break; 
-                    case KeywordType.RANDOMIZE: stmtNode = new RandomizeStmt(); break;
+                    case KeywordType.RANDOMIZE: stmtNode = new RandomizeStatement(); break;
                     case KeywordType.RESTORE: stmtNode = TryParseRestoreStatementContents(); break;
-                    case KeywordType.STOP: stmtNode = new StopStmt(); break;
-                    case KeywordType.REM: stmtNode = new RemStmt( (PeekToken() as StringToken)?.Value ?? (PeekToken() as UnknownToken)?.Content ?? ""); if(PeekToken() is StringToken || PeekToken() is UnknownToken) ConsumeToken(); break;
+                    case KeywordType.STOP: stmtNode = new StopStatement(); break;
+                    case KeywordType.REM: stmtNode = new RemStatement( (PeekToken() as StringToken)?.Value ?? (PeekToken() as UnknownToken)?.Content ?? ""); if(PeekToken() is StringToken || PeekToken() is UnknownToken) ConsumeToken(); break;
                     case KeywordType.ON: stmtNode = TryParseOnGotoOrGosubStatementContents(); break;
                     default: throw new ParseException($"Unhandled keyword '{kt.Keyword}' for statement.", startPos);
                 }
@@ -201,7 +201,7 @@ sealed class Parser
             if (token is FloatToken ft)
             {
                 ConsumeToken(); // Consume the FloatToken
-                return new GotoStmt((int)ft.Value); // Implicit GOTO with line number
+                return new GotoStatement((int)ft.Value); // Implicit GOTO with line number
 			}
 
 			throw new ParseException("Invalid LET statement; expected variable name.", originalStartPos);
@@ -210,7 +210,7 @@ sealed class Parser
         return TryParseLetStatementContents(originalStartPos, letKeywordWasConsumed);
 	}
 
-	LetStmt TryParseLetStatementContents(SourcePosition originalStartPos, bool letKeywordWasConsumed = false)
+	LetStatement TryParseLetStatementContents(SourcePosition originalStartPos, bool letKeywordWasConsumed = false)
     {
         if (!letKeywordWasConsumed && PeekToken() is not VarNameToken) { 
              throw new ParseException("Invalid LET statement; expected variable name.", originalStartPos); 
@@ -220,10 +220,10 @@ sealed class Parser
             throw new ParseException("Expected variable for LET statement.", variableTagged?.Position ?? originalStartPos);
         ConsumeToken<EqualsToken>();
         var expressionTagged = TryParseExpression();
-        return new LetStmt(varXNode.Value, expressionTagged.Value);
+        return new LetStatement(varXNode.Value, expressionTagged.Value);
     }
     
-    PrintStmt TryParsePrintStatementContents()
+    PrintStatement TryParsePrintStatementContents()
     {
         var expressions = new List<Expr>();
         while (PeekToken() is not EolToken && !(PeekToken() is Token t && t.Text == ":"))
@@ -232,13 +232,13 @@ sealed class Parser
             else if (TryConsumeSpecificSymbol(";", out _)) { expressions.Add(new EmptySeparatorX());}
             else { expressions.Add(TryParseExpression().Value); }
         }
-        return new PrintStmt(expressions);
+        return new PrintStatement(expressions);
     }
     
-    GotoStmt TryParseGotoStatementContents() => new((int)ConsumeToken<FloatToken>().Value.Value);
-    GosubStmt TryParseGosubStatementContents() => new((int)ConsumeToken<FloatToken>().Value.Value);
+    GotoStatement TryParseGotoStatementContents() => new((int)ConsumeToken<FloatToken>().Value.Value);
+    GosubStatement TryParseGosubStatementContents() => new((int)ConsumeToken<FloatToken>().Value.Value);
 
-    IfStmt TryParseIfStatementContents()
+    IfStatement TryParseIfStatementContents()
     {
         var condition = TryParseExpression().Value;
         if (!TryConsumeKeyword(KeywordType.THEN, out _))
@@ -250,10 +250,10 @@ sealed class Parser
             if(stmt is not null) thenStatements.Add(stmt); else break;
             if (TryConsumeSpecificSymbol(":", out _)) { if (PeekToken() is EolToken) break; } else break;
         }
-        return new IfStmt(condition, thenStatements);
+        return new IfStatement(condition, thenStatements);
     }
 
-    DimStmt TryParseDimStatementContents()
+    DimStatement TryParseDimStatementContents()
     {
         var declarations = new List<(VarName Name, IReadOnlyList<Expr> Dimensions)>();
         do {
@@ -266,10 +266,10 @@ sealed class Parser
             ConsumeToken<RParenToken>();
             declarations.Add((varName, dims));
         } while (TryConsumeSpecificSymbol(",", out _));
-        return new DimStmt(declarations);
+        return new DimStatement(declarations);
     }
 
-    ForStmt TryParseForStatementContents()
+    ForStatement TryParseForStatementContents()
     {
         var loopVarToken = ConsumeToken<VarNameToken>();
         VarName loopVar = new(loopVarToken.Value.TypeSuffix, loopVarToken.Value.Name);
@@ -279,10 +279,10 @@ sealed class Parser
         Expr limit = TryParseExpression().Value;
         Expr step = new LitX(new FloatLiteral(1.0f)); 
         if(TryConsumeKeyword(KeywordType.STEP, out _)) step = TryParseExpression().Value;
-        return new ForStmt(loopVar, initial, limit, step);
+        return new ForStatement(loopVar, initial, limit, step);
     }
 
-    NextStmt TryParseNextStatementContents()
+    NextStatement TryParseNextStatementContents()
     {
         var vars = new List<VarName>();
         while(PeekToken() is VarNameToken vnt)
@@ -290,18 +290,18 @@ sealed class Parser
             ConsumeToken(); vars.Add(new VarName(vnt.TypeSuffix, vnt.Name));
             if (!TryConsumeSpecificSymbol(",", out _)) break;
         }
-        return new NextStmt(vars.Any() ? vars : null);
+        return new NextStatement(vars.Any() ? vars : null);
     }
     
-    ReadStmt TryParseReadStatementContents()
+    ReadStatement TryParseReadStatementContents()
     {
         var vars = new List<Var>();
         do { vars.Add((TryParseVariableExpression().Value as VarX)?.Value ?? throw new ParseException("Invalid variable in READ.", CurrentSourcePosition())); }
         while(TryConsumeSpecificSymbol(",", out _));
-        return new ReadStmt(vars);
+        return new ReadStatement(vars);
     }
 
-    DataStmt TryParseDataStatementContents()
+    DataStatement TryParseDataStatementContents()
     {
         // After "DATA" keyword, the Tokenizer should provide a DataContentToken
         // which contains the raw string content for the DATA statement.
@@ -309,7 +309,7 @@ sealed class Parser
         if (dataContentToken is DataContentToken dct)
         {
             ConsumeToken(); // Consume the DataContentToken
-            return new DataStmt(dct.RawContent);
+            return new DataStatement(dct.RawContent);
         }
         // If no DataContentToken follows DATA, it means DATA statement is empty or there's a tokenizer issue.
         // An empty DATA statement is valid (e.g., "10 DATA").
@@ -317,13 +317,13 @@ sealed class Parser
         // If the next token is EOL or ':', it's an empty DATA statement.
         if (dataContentToken is EolToken || (dataContentToken is not null && dataContentToken.Text == ":"))
         {
-            return new DataStmt(""); // Empty DATA statement
+            return new DataStatement(""); // Empty DATA statement
         }
         
         throw new ParseException($"Expected data content after DATA keyword, but found {dataContentToken?.Text}", CurrentSourcePosition());
     }
 
-    InputStmt TryParseInputStatementContents()
+    InputStatement TryParseInputStatementContents()
     {
         string? prompt = null;
         if(PeekToken() is StringToken st)
@@ -335,10 +335,10 @@ sealed class Parser
         var vars = new List<Var>();
         do { vars.Add((TryParseVariableExpression().Value as VarX)?.Value ?? throw new ParseException("Invalid variable in INPUT.", CurrentSourcePosition()));}
         while(TryConsumeSpecificSymbol(",", out _));
-        return new InputStmt(prompt, vars);
+        return new InputStatement(prompt, vars);
     }
 
-    DefFnStmt TryParseDefFnStatementContents() 
+    DefFnStatement TryParseDefFnStatementContents() 
     {
         // DEF was consumed. Now expect FN.
         if(!TryConsumeKeyword(KeywordType.FN, out _)) throw new ParseException("Expected FN after DEF.", CurrentSourcePosition());
@@ -356,13 +356,13 @@ sealed class Parser
         ConsumeToken<RParenToken>();
         ConsumeToken<EqualsToken>();
         Expr body = TryParseExpression().Value;
-        return new DefFnStmt(funcName, parameters, body);
+        return new DefFnStatement(funcName, parameters, body);
     }
-    RestoreStmt TryParseRestoreStatementContents()
+    RestoreStatement TryParseRestoreStatementContents()
     {
         int? label = null;
         if(PeekToken() is FloatToken ft) { ConsumeToken(); label = (int)ft.Value; } // Optional label
-        return new RestoreStmt(label);
+        return new RestoreStatement(label);
     }
 
     Statement TryParseOnGotoOrGosubStatementContents()
@@ -396,7 +396,7 @@ sealed class Parser
             throw new ParseException("Expected at least one label in ON...GOTO/GOSUB statement.", CurrentSourcePosition());
         }
 
-        return isGosub ? new OnGosubStmt(indexExpr, labels) : new OnGotoStmt(indexExpr, labels);
+        return isGosub ? new OnGosubStatement(indexExpr, labels) : new OnGotoStatement(indexExpr, labels);
     }
 
 

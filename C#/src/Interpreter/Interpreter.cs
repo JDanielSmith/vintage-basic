@@ -115,7 +115,7 @@ sealed class Interpreter
         var lineData = new List<string>();
         foreach (var taggedStatement in line.Statements)
         {
-            if (taggedStatement.Value is DataStmt dataStmt)
+            if (taggedStatement.Value is DataStatement dataStmt)
             {
                 lineData.AddRange(RuntimeParsingUtils.ParseDataLineContent(dataStmt.Data));
             }
@@ -123,32 +123,32 @@ sealed class Interpreter
         return lineData;
     }
 
-    private void InterpretStatement(Tagged<Statement> taggedStatement)
+    void InterpretStatement(Tagged<Statement> taggedStatement)
     {
         _stateManager.SetCurrentLineNumber(taggedStatement.Position.Line > 0 ? taggedStatement.Position.Line : _stateManager.CurrentLineNumber);
         ExecuteStatement(taggedStatement.Value);
     }
 
-    private void ExecuteStatement(Statement statement)
+    void ExecuteStatement(Statement statement)
     {
         int currentBasicLine = _stateManager.CurrentLineNumber;
 
         switch (statement)
         {
-            case RemStmt _: break;
-            case EndStmt _: case StopStmt _: _programEnded = true; break;
+            case RemStatement _: break;
+            case EndStatement _: case StopStatement _: _programEnded = true; break;
             
-            case GotoStmt gotoStmt:
+            case GotoStatement gotoStmt:
                 if (!_jumpTable.Any(jte => jte.Label == gotoStmt.TargetLabel))
                     throw new BadGotoTargetError(gotoStmt.TargetLabel, currentBasicLine);
                 _stateManager.SetCurrentLineNumber(gotoStmt.TargetLabel);
                 _nextInstructionIsJump = true;
                 break;
             
-            case PrintStmt printStmt: HandlePrintStatement(printStmt, currentBasicLine); break;
-            case LetStmt letStmt: HandleLetStatement(letStmt, currentBasicLine); break;
+            case PrintStatement printStmt: HandlePrintStatement(printStmt, currentBasicLine); break;
+            case LetStatement letStmt: HandleLetStatement(letStmt, currentBasicLine); break;
 
-            case DimStmt dimStmt:
+            case DimStatement dimStmt:
                 foreach (var decl in dimStmt.Declarations)
                 {
                     var bounds = new List<int>();
@@ -161,7 +161,7 @@ sealed class Interpreter
                 }
                 break;
 
-            case IfStmt ifStmt:
+            case IfStatement ifStmt:
                 Val condition = EvaluateExpression(ifStmt.Condition, currentBasicLine);
                 if (condition.AsFloat(currentBasicLine) != 0.0f) 
                 {
@@ -173,7 +173,7 @@ sealed class Interpreter
                 }
                 break;
 
-            case GosubStmt gosubStmt:
+            case GosubStatement gosubStmt:
                 if (!_jumpTable.Any(jte => jte.Label == gosubStmt.TargetLabel))
                     throw new BadGosubTargetError(gosubStmt.TargetLabel, currentBasicLine);
                 _context.State.GosubReturnStack.Push(_currentProgramLineIndex); 
@@ -181,16 +181,16 @@ sealed class Interpreter
                 _nextInstructionIsJump = true;
                 break;
 
-            case ReturnStmt _:
+            case ReturnStatement _:
                 if (!_context.State.GosubReturnStack.Any())
                     throw new BasicRuntimeException("RETURN without GOSUB", currentBasicLine);
                 _currentProgramLineIndex = _context.State.GosubReturnStack.Pop(); 
                 _nextInstructionIsJump = false; 
                 break;
 
-            case RandomizeStmt _: _randomManager.SeedRandomFromTime(); break;
+            case RandomizeStatement _: _randomManager.SeedRandomFromTime(); break;
 
-            case RestoreStmt restoreStmt:
+            case RestoreStatement restoreStmt:
                 if (restoreStmt.TargetLabel.HasValue)
                 {
                     int targetLabel = restoreStmt.TargetLabel.Value;
@@ -205,7 +205,7 @@ sealed class Interpreter
                 }
                 break;
 
-            case ReadStmt readStmt:
+            case ReadStatement readStmt:
                 foreach (var varToRead in readStmt.Variables)
                 {
                     string dataStr = _ioManager.ReadData();
@@ -220,7 +220,7 @@ sealed class Interpreter
                 }
                 break;
             
-            case InputStmt inputStmt:
+            case InputStatement inputStmt:
                 // Improved INPUT statement handling
                 var valuesToAssignThisInput = new List<Val>();
                 var availableInputStrings = new Queue<string>();
@@ -293,7 +293,7 @@ sealed class Interpreter
                 // If availableInputStrings still has items, they are extra and ignored (common BASIC behavior).
                 break;
 
-            case ForStmt forStmt:
+            case ForStatement forStmt:
                 if (_context.State.ForLoopStack.TryPeek(out var existingLoopContext) &&  (existingLoopContext.LoopVariable.Name == forStmt.LoopVariable.Name))
 				{
                     if (existingLoopContext.SingleLine)
@@ -309,9 +309,9 @@ sealed class Interpreter
                 _context.State.ForLoopStack.Push(new ForLoopContext(forStmt.LoopVariable, limitVal, stepVal, _currentProgramLineIndex));
                 break;
 
-            case NextStmt nextStmt:
+            case NextStatement nextStmt:
                 if (!_context.State.ForLoopStack.Any()) throw new BasicRuntimeException("NEXT without FOR", currentBasicLine);
-                var loopVarNamesInNext = nextStmt.LoopVariables ?? new List<VarName> { _context.State.ForLoopStack.Peek().LoopVariable };
+                var loopVarNamesInNext = nextStmt.LoopVariables ?? [_context.State.ForLoopStack.Peek().LoopVariable];
                 foreach (var varNameInNextClause in loopVarNamesInNext)
                 {
                     if (!_context.State.ForLoopStack.Any() || _context.State.ForLoopStack.Peek().LoopVariable.Name != varNameInNextClause.Name)
@@ -342,7 +342,7 @@ sealed class Interpreter
                 }
                 break;
             
-            case DefFnStmt defFnStmt:
+            case DefFnStatement defFnStmt:
                 UserDefinedFunction udf = (argsFromInvocation) => {
                     if (argsFromInvocation.Count != defFnStmt.Parameters.Count) 
                         throw new WrongNumberOfArgumentsError($"Function {defFnStmt.FunctionName} expects {defFnStmt.Parameters.Count} args, got {argsFromInvocation.Count}", _stateManager.CurrentLineNumber);
@@ -367,9 +367,9 @@ sealed class Interpreter
                 _functionManager.SetFunction(defFnStmt.FunctionName, udf);
                 break;
 
-            case DataStmt _: break;
+            case DataStatement _: break;
 
-            case OnGotoStmt onGotoStmt:
+            case OnGotoStatement onGotoStmt:
                 Val indexValGoto = EvaluateExpression(onGotoStmt.Expression, currentBasicLine);
                 int indexGoto = indexValGoto.AsInt(currentBasicLine); 
                 if (indexGoto >= 1 && indexGoto <= onGotoStmt.TargetLabels.Count)
@@ -382,7 +382,7 @@ sealed class Interpreter
                 }
                 break;
 
-            case OnGosubStmt onGosubStmt:
+            case OnGosubStatement onGosubStmt:
                 Val indexValGosub = EvaluateExpression(onGosubStmt.Expression, currentBasicLine);
                 int indexGosub = indexValGosub.AsInt(currentBasicLine);
                 if (indexGosub >= 1 && indexGosub <= onGosubStmt.TargetLabels.Count)
@@ -400,7 +400,7 @@ sealed class Interpreter
         }
     }
 
-    private void HandlePrintStatement(PrintStmt printStmt, int currentBasicLine)
+    void HandlePrintStatement(PrintStatement printStmt, int currentBasicLine)
     {
         foreach (var expr in printStmt.Expressions)
         {
@@ -435,7 +435,7 @@ sealed class Interpreter
         }
     }
 
-    private void HandleLetStatement(LetStmt letStmt, int currentBasicLine)
+    private void HandleLetStatement(LetStatement letStmt, int currentBasicLine)
     {
         Val valueToAssign = EvaluateExpression(letStmt.Expression, currentBasicLine);
         Val coercedValue = Val.CoerceToType(letStmt.Variable.Name.Type, valueToAssign, currentBasicLine, _stateManager);
