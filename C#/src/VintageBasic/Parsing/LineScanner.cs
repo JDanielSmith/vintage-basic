@@ -10,7 +10,7 @@ static class LineScanner
     /// </summary>
     public static IEnumerable<ScannedLine> ScanLines(IEnumerable<string> lines)
     {
-        if (lines == null)
+        if (lines is null)
         {
             return Enumerable.Empty<ScannedLine>();
         }

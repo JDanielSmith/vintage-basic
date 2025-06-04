@@ -80,7 +80,7 @@ sealed class VariableManager
             throw new RedimensionedArrayError($"Array {varName} already dimensioned.");
         }
 
-        if (dimensionUpperBounds == null || !dimensionUpperBounds.Any())
+        if (dimensionUpperBounds is null || !dimensionUpperBounds.Any())
         {
             throw new ArgumentException("Dimension bounds cannot be null or empty.", nameof(dimensionUpperBounds));
         }

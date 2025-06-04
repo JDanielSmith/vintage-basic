@@ -26,7 +26,7 @@ static class RuntimeParsingUtils
     public static List<string> ParseDataLineContent(string rawContent)
     {
         var values = new List<string>();
-        if (rawContent == null) return values;
+        if (rawContent is null) return values;
 
         var current = 0;
         var builder = new StringBuilder();

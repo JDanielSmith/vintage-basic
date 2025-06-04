@@ -36,7 +36,7 @@ sealed class Interpreter
 
     public void ExecuteProgram(IReadOnlyList<Line> programLines)
     {
-        if (programLines == null || !programLines.Any())
+        if (programLines is null || !programLines.Any())
         {
             return;
         }
@@ -214,9 +214,8 @@ sealed class Interpreter
                 foreach (var varToRead in readStmt.Variables)
                 {
                     string dataStr = _ioManager.ReadData();
-                    Val? val = RuntimeParsingUtils.CheckInput(varToRead.Name, dataStr); 
-                    if (val == null) throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", currentBasicLine);
-                    Val coercedVal = Val.CoerceToType(varToRead.Name.Type, val, currentBasicLine, _stateManager);
+                    Val? val = RuntimeParsingUtils.CheckInput(varToRead.Name, dataStr) ?? throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", currentBasicLine);
+					var coercedVal = Val.CoerceToType(varToRead.Name.Type, val, currentBasicLine, _stateManager);
                     if (varToRead is ScalarVar sv) _variableManager.SetScalarVar(sv.VarName, coercedVal);
                     else if (varToRead is ArrVar av)
                     {
@@ -253,10 +252,8 @@ sealed class Interpreter
                         if (!availableInputStrings.Any()) // Need more input values from console
                         {
                             _ioManager.PrintString("? "); // Prompt for more input
-                            string? lineRead = _ioManager.ReadLine();
-                            if (lineRead == null) throw new EndOfInputError(lineNumber: currentBasicLine);
-                            
-                            var parsedLineValues = RuntimeParsingUtils.ParseDataLineContent(lineRead);
+                            string? lineRead = _ioManager.ReadLine() ?? throw new EndOfInputError(lineNumber: currentBasicLine);
+							var parsedLineValues = RuntimeParsingUtils.ParseDataLineContent(lineRead);
                             foreach(var v in parsedLineValues) availableInputStrings.Enqueue(v);
                             
                             if (!availableInputStrings.Any() && inputStmt.Variables.Count > varIndex) 
@@ -274,7 +271,7 @@ sealed class Interpreter
                         string strValueFromInput = availableInputStrings.Dequeue();
                         Val? parsedVal = RuntimeParsingUtils.CheckInput(targetVar.Name, strValueFromInput);
 
-                        if (parsedVal == null)
+                        if (parsedVal is null)
                         {
                             _ioManager.PrintString("!NUMBER EXPECTED - RETRY INPUT LINE\n");
                             retryCurrentInputEntirely = true;
@@ -365,7 +362,7 @@ sealed class Interpreter
                     Val result = EvaluateExpression(defFnStmt.Expression, _stateManager.CurrentLineNumber);
                     foreach(var paramName in defFnStmt.Parameters)
                     {
-                        if(stashedValues.TryGetValue(paramName, out Val? stashedVal) && stashedVal != null)
+                        if(stashedValues.TryGetValue(paramName, out Val? stashedVal) && stashedVal is not null)
                             _variableManager.SetScalarVar(paramName, stashedVal);
                         else 
                             _variableManager.SetScalarVar(paramName, Val.CoerceToType(paramName.Type, paramName.Type == ValType.StringType ? (Val)new StringVal("") : new FloatVal(0), _stateManager.CurrentLineNumber, _stateManager));

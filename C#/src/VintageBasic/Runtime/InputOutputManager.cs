@@ -47,7 +47,7 @@ sealed class InputOutputManager
 
     public void PrintString(string text)
     {
-        if (text == null) return;
+        if (text is null) return;
 
         _state.OutputStream.WriteString(text);
         _state.OutputColumn = CalculateEndColumn(_state.OutputColumn, text);
@@ -64,7 +64,7 @@ sealed class InputOutputManager
         }
 
         string? line = _state.InputStream.ReadLine();
-        if (line == null) // Should be caught by IsEOFAsync, but as a safeguard.
+        if (line is null) // Should be caught by IsEOFAsync, but as a safeguard.
         {
             throw new EndOfInputError(lineNumber: _state.CurrentLineNumber);
         }
@@ -84,7 +84,7 @@ sealed class InputOutputManager
 
     public void RestoreData(IReadOnlyList<string>? specificLineData = null)
     {
-        if (specificLineData != null)
+        if (specificLineData is not null)
         {
             // This interpretation of RESTORE <label> means use ONLY that line's data.
             // More commonly, it means start reading from that line onwards from the global data pool.

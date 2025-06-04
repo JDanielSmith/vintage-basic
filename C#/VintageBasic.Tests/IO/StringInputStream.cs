@@ -21,7 +21,7 @@ namespace VintageBasic.Tests.IO
         public StringInputStream(string singleLine)
         {
             _lines = new Queue<string>();
-            if (singleLine != null)
+            if (singleLine is not null)
             {
                 _lines.Enqueue(singleLine);
             }

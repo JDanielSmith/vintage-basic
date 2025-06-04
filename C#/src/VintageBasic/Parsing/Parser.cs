@@ -69,17 +69,17 @@ sealed class Parser
     {
         var statements = new List<Tagged<Statement>>();
         
-        while (PeekToken() is not EolToken && PeekToken() != null)
+        while (PeekToken() is not EolToken && PeekToken() is not null)
         {
             var statement = TryParseStatement();
-            if (statement != null)
+            if (statement is not null)
             {
                 statements.Add(statement);
             }
             else
             {
                 var currentToken = Peek();
-                if (currentToken != null && !(currentToken.Value is EolToken))
+                if (currentToken is not null && currentToken.Value is not EolToken)
                 {
                     throw new ParseException($"Unexpected token '{currentToken.Value.Text}' when expecting a statement.", currentToken.Position);
                 }
@@ -88,9 +88,9 @@ sealed class Parser
 
             if (TryConsumeSpecificSymbol(":", out _)) 
             {
-                if (PeekToken() is EolToken || PeekToken() == null) break; 
+                if (PeekToken() is EolToken || PeekToken() is null) break; 
             }
-            else if (PeekToken() is not EolToken && PeekToken() != null) 
+            else if (PeekToken() is not EolToken && PeekToken() is not null) 
             {
                 var unexpectedToken = Peek();
                 throw new ParseException($"Expected ':' to separate statements or end of line, but found '{unexpectedToken?.Value.Text}'.", unexpectedToken?.Position);
@@ -98,7 +98,7 @@ sealed class Parser
         }
         
         if (PeekToken() is EolToken) ConsumeToken<EolToken>();
-        else if (PeekToken() != null) throw new ParseException("Expected End of Line after statements.", CurrentSourcePosition());
+        else if (PeekToken() is not null) throw new ParseException("Expected End of Line after statements.", CurrentSourcePosition());
          
         return new Line(_lineNumber, statements);
     }
@@ -121,7 +121,7 @@ sealed class Parser
         var taggedToken = ConsumeToken();
         if (taggedToken.Value is T specificToken)
         {
-            if (expectedText != null && !specificToken.Text.Equals(expectedText, StringComparison.OrdinalIgnoreCase))
+            if (expectedText is not null && !specificToken.Text.Equals(expectedText, StringComparison.OrdinalIgnoreCase))
                 throw new ParseException($"Expected token '{expectedText}' but got '{specificToken.Text}'.", taggedToken.Position);
             return new Tagged<T>(taggedToken.Position, specificToken);
         }
@@ -142,7 +142,7 @@ sealed class Parser
     {
         var current = Peek();
         // Check against Text property for symbols like ':', '=', etc.
-        if (current != null && current.Value.Text.Equals(symbol, StringComparison.OrdinalIgnoreCase)) 
+        if (current is not null && current.Value.Text.Equals(symbol, StringComparison.OrdinalIgnoreCase)) 
         {
             consumedToken = ConsumeToken(); return true;
         }
@@ -247,7 +247,7 @@ sealed class Parser
         while(PeekToken() is not EolToken && !(PeekToken() is Token t && t.Text == ":"))
         {
             var stmt = TryParseStatement();
-            if(stmt != null) thenStatements.Add(stmt); else break;
+            if(stmt is not null) thenStatements.Add(stmt); else break;
             if (TryConsumeSpecificSymbol(":", out _)) { if (PeekToken() is EolToken) break; } else break;
         }
         return new IfStmt(condition, thenStatements);
@@ -315,7 +315,7 @@ sealed class Parser
         // An empty DATA statement is valid (e.g., "10 DATA").
         // The raw content would be empty.
         // If the next token is EOL or ':', it's an empty DATA statement.
-        if (dataContentToken is EolToken || (dataContentToken != null && dataContentToken.Text == ":"))
+        if (dataContentToken is EolToken || (dataContentToken is not null && dataContentToken.Text == ":"))
         {
             return new DataStmt(""); // Empty DATA statement
         }
@@ -418,7 +418,7 @@ sealed class Parser
                 else if(kt.Keyword == KeywordType.OR) { currentOp = BinOp.OrOp; precedence = GetOperatorPrecedence(BinOp.OrOp); }
             }
 
-            if (currentOp == null || precedence < minPrecedence) break;
+            if (currentOp is null || precedence < minPrecedence) break;
             
             ConsumeToken(); 
             int nextMinPrecedence = IsRightAssociative(currentOp.Value) ? precedence : precedence + 1;

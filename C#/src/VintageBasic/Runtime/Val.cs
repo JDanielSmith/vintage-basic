@@ -21,7 +21,7 @@ abstract class Val : IComparable<Val>
 
     public static Val CoerceToType(ValType targetType, Val value, int? lineNumber = null, StateManager? stateManager = null)
     {
-        if (stateManager != null && lineNumber.HasValue) stateManager.SetCurrentLineNumber(lineNumber.Value);
+        if (stateManager is not null && lineNumber.HasValue) stateManager.SetCurrentLineNumber(lineNumber.Value);
 
         if (targetType == value.Type) return value;
 
@@ -49,7 +49,7 @@ abstract class Val : IComparable<Val>
     // Coerces IntVal to FloatVal for expression evaluation if needed, otherwise returns original value.
     public static Val CoerceToExpressionType(Val value, int? lineNumber = null, StateManager? stateManager = null)
     {
-        if (stateManager != null && lineNumber.HasValue) stateManager.SetCurrentLineNumber(lineNumber.Value);
+        if (stateManager is not null && lineNumber.HasValue) stateManager.SetCurrentLineNumber(lineNumber.Value);
 
         if (value is IntVal iv)
         {
@@ -76,7 +76,7 @@ sealed class FloatVal : Val
 
     public override int CompareTo(Val? other)
     {
-        if (other == null) return 1;
+        if (other is null) return 1;
         if (other is FloatVal fv) return Value.CompareTo(fv.Value);
         if (other is IntVal iv) return Value.CompareTo((float)iv.Value); // Promote IntVal to float for comparison
         throw new ArgumentException("Cannot compare FloatVal with " + other.GetType().Name);
@@ -104,7 +104,7 @@ sealed class IntVal : Val
 
     public override int CompareTo(Val? other)
     {
-        if (other == null) return 1;
+        if (other is null) return 1;
         if (other is IntVal iv) return Value.CompareTo(iv.Value);
         if (other is FloatVal fv) return ((float)Value).CompareTo(fv.Value); // Promote self to float for comparison
         throw new ArgumentException("Cannot compare IntVal with " + other.GetType().Name);
@@ -132,7 +132,7 @@ sealed class StringVal : Val
 
     public override int CompareTo(Val? other)
     {
-        if (other == null) return 1;
+        if (other is null) return 1;
         if (other is StringVal sv) return String.Compare(Value, sv.Value, StringComparison.Ordinal);
         throw new ArgumentException("Cannot compare StringVal with " + other.GetType().Name);
     }

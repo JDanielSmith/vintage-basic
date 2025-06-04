@@ -35,7 +35,7 @@ sealed class Tagged<T>
     public override bool Equals(object? obj) => 
         obj is Tagged<T> other && 
         Position.Equals(other.Position) && 
-        (Value?.Equals(other.Value) ?? other.Value == null);
+        (Value?.Equals(other.Value) ?? other.Value is null);
 
     public override int GetHashCode() => HashCode.Combine(Position, Value);
 

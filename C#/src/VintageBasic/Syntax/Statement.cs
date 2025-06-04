@@ -142,8 +142,8 @@ sealed class NextStmt : Statement
     }
     public override bool Equals(object? obj) => 
         obj is NextStmt other && 
-        ((LoopVariables == null && other.LoopVariables == null) || 
-         (LoopVariables != null && other.LoopVariables != null && LoopVariables.SequenceEqual(other.LoopVariables)));
+        ((LoopVariables is null && other.LoopVariables is null) || 
+         (LoopVariables is not null && other.LoopVariables is not null && LoopVariables.SequenceEqual(other.LoopVariables)));
     public override int GetHashCode() => LoopVariables?.Count ?? 0;
     public override string ToString() => $"NextStmt([{String.Join(", ", LoopVariables?.Select(v => v.ToString()) ?? new List<string>())}])";
 }
