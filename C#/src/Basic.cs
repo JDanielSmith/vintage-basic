@@ -73,7 +73,7 @@ sealed class Basic
 
 		BasicStore store = new();
 		// Pass an empty list for initialDataStatements; Interpreter will load from parsed DATA statements.
-		BasicState state = new(consoleInputStream, consoleOutputStream, new List<string>());
+		BasicState state = new(consoleInputStream, consoleOutputStream, []);
 		RuntimeContext context = new(store, state);
 		VintageBasic.Interpreter.Interpreter interpreter = new(context);
 

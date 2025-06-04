@@ -196,7 +196,7 @@ sealed class Parser
 	private Statement TryParseImplicitLetOrGotoStatementContents(SourcePosition originalStartPos, bool letKeywordWasConsumed = false)
 	{
 		var token = PeekToken();
-		if (!letKeywordWasConsumed && !(token is VarNameToken))
+		if (!letKeywordWasConsumed && token is not VarNameToken)
 		{
             if (token is FloatToken ft)
             {
@@ -212,7 +212,7 @@ sealed class Parser
 
 	private LetStmt TryParseLetStatementContents(SourcePosition originalStartPos, bool letKeywordWasConsumed = false)
     {
-        if (!letKeywordWasConsumed && !(PeekToken() is VarNameToken)) { 
+        if (!letKeywordWasConsumed && PeekToken() is not VarNameToken) { 
              throw new ParseException("Invalid LET statement; expected variable name.", originalStartPos); 
         }
         var variableTagged = TryParseVariableExpression();
@@ -235,8 +235,8 @@ sealed class Parser
         return new PrintStmt(expressions);
     }
     
-    private GotoStmt TryParseGotoStatementContents() => new GotoStmt((int)ConsumeToken<FloatToken>().Value.Value);
-    private GosubStmt TryParseGosubStatementContents() => new GosubStmt((int)ConsumeToken<FloatToken>().Value.Value);
+    private GotoStmt TryParseGotoStatementContents() => new((int)ConsumeToken<FloatToken>().Value.Value);
+    private GosubStmt TryParseGosubStatementContents() => new((int)ConsumeToken<FloatToken>().Value.Value);
 
     private IfStmt TryParseIfStatementContents()
     {
@@ -258,7 +258,7 @@ sealed class Parser
         var declarations = new List<(VarName Name, IReadOnlyList<Expr> Dimensions)>();
         do {
             var varNameToken = ConsumeToken<VarNameToken>();
-            VarName varName = new VarName(varNameToken.Value.TypeSuffix, varNameToken.Value.Name);
+            VarName varName = new(varNameToken.Value.TypeSuffix, varNameToken.Value.Name);
             ConsumeToken<LParenToken>();
             var dims = new List<Expr>();
             do { dims.Add(TryParseExpression().Value); }
@@ -272,7 +272,7 @@ sealed class Parser
     private ForStmt TryParseForStatementContents()
     {
         var loopVarToken = ConsumeToken<VarNameToken>();
-        VarName loopVar = new VarName(loopVarToken.Value.TypeSuffix, loopVarToken.Value.Name);
+        VarName loopVar = new(loopVarToken.Value.TypeSuffix, loopVarToken.Value.Name);
         ConsumeToken<EqualsToken>();
         Expr initial = TryParseExpression().Value;
         if(!TryConsumeKeyword(KeywordType.TO, out _)) throw new ParseException("Expected TO in FOR statement.", CurrentSourcePosition());
@@ -343,7 +343,7 @@ sealed class Parser
         // DEF was consumed. Now expect FN.
         if(!TryConsumeKeyword(KeywordType.FN, out _)) throw new ParseException("Expected FN after DEF.", CurrentSourcePosition());
         var funcNameToken = ConsumeToken<VarNameToken>();
-        VarName funcName = new VarName(funcNameToken.Value.TypeSuffix, funcNameToken.Value.Name);
+        VarName funcName = new(funcNameToken.Value.TypeSuffix, funcNameToken.Value.Name);
         ConsumeToken<LParenToken>();
         var parameters = new List<VarName>();
         if(PeekToken() is not RParenToken)
@@ -480,7 +480,7 @@ sealed class Parser
     private Tagged<Expr> TryParseVariableExpression() 
     {
         var varNameTagged = ConsumeToken<VarNameToken>();
-        VarName varName = new VarName(varNameTagged.Value.TypeSuffix, varNameTagged.Value.Name);
+        VarName varName = new(varNameTagged.Value.TypeSuffix, varNameTagged.Value.Name);
         if (PeekToken() is LParenToken) 
         {
             ConsumeToken<LParenToken>(); var dimensions = new List<Expr>();
@@ -517,7 +517,7 @@ sealed class Parser
     {
         ConsumeToken<KeywordToken>("FN"); 
         var funcNameToken = ConsumeToken<VarNameToken>();
-        VarName funcName = new VarName(funcNameToken.Value.TypeSuffix, funcNameToken.Value.Name);
+        VarName funcName = new(funcNameToken.Value.TypeSuffix, funcNameToken.Value.Name);
         ConsumeToken<LParenToken>();
         var args = new List<Expr>();
         if (PeekToken() is not RParenToken)

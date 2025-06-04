@@ -1,9 +1,7 @@
-// src/VintageBasic/Runtime/Errors/InvalidArgumentError.cs
-namespace VintageBasic.Runtime.Errors
+namespace VintageBasic.Runtime.Errors;
+
+sealed class InvalidArgumentError : BasicRuntimeException
 {
-    public class InvalidArgumentError : BasicRuntimeException
-    {
-        public InvalidArgumentError(string message = "Invalid argument", int? lineNumber = null)
-            : base(message, lineNumber) { }
-    }
+    public InvalidArgumentError(string message = "Invalid argument", int? lineNumber = null)
+        : base(message, lineNumber) { }
 }

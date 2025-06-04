@@ -1,9 +1,6 @@
-// src/VintageBasic/Runtime/Errors/NegativeArrayDimError.cs
-namespace VintageBasic.Runtime.Errors
+namespace VintageBasic.Runtime.Errors;
+sealed class NegativeArrayDimError : BasicRuntimeException
 {
-    public class NegativeArrayDimError : BasicRuntimeException
-    {
-        public NegativeArrayDimError(string message = "Negative array dimension", int? lineNumber = null)
-            : base(message, lineNumber) { }
-    }
+    public NegativeArrayDimError(string message = "Negative array dimension", int? lineNumber = null)
+        : base(message, lineNumber) { }
 }

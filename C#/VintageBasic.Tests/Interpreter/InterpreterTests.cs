@@ -8,18 +8,18 @@ namespace VintageBasic.Tests.Interpreter;
 
 public class InterpreterTests
 {
-    private (StringBuilderOutputStream outputStream, RuntimeContext context) ExecuteBasicProgram(string programText, string consoleInput = "")
+    static (StringBuilderOutputStream outputStream, RuntimeContext context) ExecuteBasicProgram(string programText, string consoleInput = "")
     {
         var parsedLines = Parser.ParseProgram(programText);
 
         var inputStream = StringInputStream.FromStringWithNewlines(consoleInput);
-        var outputStream = new StringBuilderOutputStream();
+		StringBuilderOutputStream outputStream = new();
 
-        var store = new BasicStore();
-        // Interpreter now handles loading DATA statements via IOManager from parsed lines
-        var state = new BasicState(inputStream, outputStream, new List<string>()); 
-        var context = new RuntimeContext(store, state);
-        var interpreter = new VintageBasic.Interpreter.Interpreter(context);
+		BasicStore store = new();
+		// Interpreter now handles loading DATA statements via IOManager from parsed lines
+		BasicState state = new(inputStream, outputStream, new List<string>());
+		RuntimeContext context = new(store, state);
+		VintageBasic.Interpreter.Interpreter interpreter = new(context);
 
         interpreter.ExecuteProgram(parsedLines);
         return (outputStream, context);

@@ -1,29 +1,26 @@
-// src/VintageBasic/Runtime/Errors/BasicRuntimeException.cs
 using System;
 
-namespace VintageBasic.Runtime.Errors
+namespace VintageBasic.Runtime.Errors;
+class BasicRuntimeException : Exception
 {
-    public class BasicRuntimeException : Exception
+    public int? LineNumber { get; }
+
+    public BasicRuntimeException(string message, int? lineNumber = null) : base(AppendLinenumber(message, lineNumber))
     {
-        public int? LineNumber { get; }
+        LineNumber = lineNumber;
+    }
 
-        public BasicRuntimeException(string message, int? lineNumber = null) : base(AppendLinenumber(message, lineNumber))
-        {
-            LineNumber = lineNumber;
-        }
+    public BasicRuntimeException(string message, Exception innerException, int? lineNumber = null) : base(AppendLinenumber(message, lineNumber), innerException)
+    {
+        LineNumber = lineNumber;
+    }
 
-        public BasicRuntimeException(string message, Exception innerException, int? lineNumber = null) : base(AppendLinenumber(message, lineNumber), innerException)
+    static string AppendLinenumber(string message, int? lineNumber)
+    {
+        if (lineNumber.HasValue)
         {
-            LineNumber = lineNumber;
+            return $"{message} at line {lineNumber.Value}";
         }
-
-        private static string AppendLinenumber(string message, int? lineNumber)
-        {
-            if (lineNumber.HasValue)
-            {
-                return $"{message} at line {lineNumber.Value}";
-            }
-            return message;
-        }
+        return message;
     }
 }

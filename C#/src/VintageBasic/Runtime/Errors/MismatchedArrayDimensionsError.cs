@@ -1,9 +1,7 @@
-// src/VintageBasic/Runtime/Errors/MismatchedArrayDimensionsError.cs
-namespace VintageBasic.Runtime.Errors
+namespace VintageBasic.Runtime.Errors;
+
+sealed class MismatchedArrayDimensionsError : BasicRuntimeException
 {
-    public class MismatchedArrayDimensionsError : BasicRuntimeException
-    {
-        public MismatchedArrayDimensionsError(string message = "Mismatched array dimensions", int? lineNumber = null)
-            : base(message, lineNumber) { }
-    }
+    public MismatchedArrayDimensionsError(string message = "Mismatched array dimensions", int? lineNumber = null)
+        : base(message, lineNumber) { }
 }

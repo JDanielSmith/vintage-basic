@@ -1,9 +1,7 @@
-// src/VintageBasic/Runtime/Errors/OutOfArrayBoundsError.cs
-namespace VintageBasic.Runtime.Errors
+namespace VintageBasic.Runtime.Errors;
+
+sealed class OutOfArrayBoundsError : BasicRuntimeException
 {
-    public class OutOfArrayBoundsError : BasicRuntimeException
-    {
-        public OutOfArrayBoundsError(string message = "Out of array bounds", int? lineNumber = null)
-            : base(message, lineNumber) { }
-    }
+    public OutOfArrayBoundsError(string message = "Out of array bounds", int? lineNumber = null)
+        : base(message, lineNumber) { }
 }

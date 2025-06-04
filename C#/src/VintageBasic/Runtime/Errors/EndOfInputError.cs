@@ -1,9 +1,7 @@
-// src/VintageBasic/Runtime/Errors/EndOfInputError.cs
-namespace VintageBasic.Runtime.Errors
+namespace VintageBasic.Runtime.Errors;
+
+sealed class EndOfInputError : BasicRuntimeException
 {
-    public class EndOfInputError : BasicRuntimeException
-    {
-        public EndOfInputError(string message = "End of input", int? lineNumber = null)
-            : base(message, lineNumber) { }
-    }
+    public EndOfInputError(string message = "End of input", int? lineNumber = null)
+        : base(message, lineNumber) { }
 }

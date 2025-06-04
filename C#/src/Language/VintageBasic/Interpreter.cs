@@ -16,7 +16,7 @@ sealed class JumpTableEntry
 
 sealed class JumpTable
 {
-	private readonly List<JumpTableEntry> entries = new();
+	readonly List<JumpTableEntry> entries = [];
 
 	public void AddEntry(int label, Action program, List<string> data)
 	{
@@ -65,7 +65,7 @@ static class Interpreter
 		}
 	}
 
-	static List<string> ExtractData(ParsedLine line) => new List<string>();
+	static List<string> ExtractData(ParsedLine line) => new();
 
 	static void SeedRandomFromTime()
 	{

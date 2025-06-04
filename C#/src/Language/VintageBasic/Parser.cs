@@ -239,5 +239,5 @@ sealed class PrintStatement : Statement
 sealed class ParsedLine
 {
 	public int Label { get; set; }
-	public List<Tagged<Statement>> Statements { get; set; } = new List<Tagged<Statement>>();
+	public List<Tagged<Statement>> Statements { get; set; } = [];
 }

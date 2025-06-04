@@ -7,7 +7,7 @@ namespace VintageBasic.Parsing;
 
 static class Tokenizer
 {
-    private static readonly Dictionary<string, KeywordType> Keywords = new Dictionary<string, KeywordType>(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, KeywordType> Keywords = new(StringComparer.OrdinalIgnoreCase)
     {
         {"LET", KeywordType.LET}, {"PRINT", KeywordType.PRINT}, {"IF", KeywordType.IF}, {"THEN", KeywordType.THEN},
         {"FOR", KeywordType.FOR}, {"TO", KeywordType.TO}, {"STEP", KeywordType.STEP}, {"NEXT", KeywordType.NEXT},
@@ -19,7 +19,7 @@ static class Tokenizer
 		// Note: ELSE is not in Haskell's KeywordTok but might be useful for parser. Added to enum.
 	};
 
-    private static readonly Dictionary<string, Builtin> Builtins = new Dictionary<string, Builtin>(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, Builtin> Builtins = new(StringComparer.OrdinalIgnoreCase)
     {
 		{"ABS", Builtin.Abs},
         {"ASC", Builtin.Asc },
@@ -44,7 +44,7 @@ static class Tokenizer
 	    {"VAL", Builtin.Val },
 	};
 
-    private static readonly Dictionary<string, BinOp> Operators = new Dictionary<string, BinOp>
+    private static readonly Dictionary<string, BinOp> Operators = new()
     {
         {"+", BinOp.AddOp}, {"-", BinOp.SubOp}, {"*", BinOp.MulOp}, {"/", BinOp.DivOp},
         {"^", BinOp.PowOp}, {"<>", BinOp.NEOp}, {"<=", BinOp.LEOp}, {">=", BinOp.GEOp},

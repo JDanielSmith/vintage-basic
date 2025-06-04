@@ -1,3 +1,4 @@
+using VintageBasic.Runtime.Errors;
 using VintageBasic.Syntax; // For VarName
 
 namespace VintageBasic.Runtime;
@@ -26,11 +27,6 @@ sealed class BasicArray
             if (size <= 0) throw new System.ArgumentOutOfRangeException(nameof(dimensionSizes), "Dimension size must be positive.");
             totalSize *= size;
         }
-        
-        if (totalSize > int.MaxValue) // Practical limit for array size
-        {
-            throw new System.OutOfMemoryException("Array size too large.");
-        }
 
         Data = new Val[(int)totalSize];
 
@@ -54,7 +50,7 @@ sealed class BasicArray
         for (int i = 0; i < DimensionSizes.Count; i++)
         {
             if (indices[i] < 0 || indices[i] >= DimensionSizes[i])
-                throw new System.IndexOutOfRangeException($"Index {indices[i]} is out of range for dimension {i} (size {DimensionSizes[i]}).");
+                throw new OutOfArrayBoundsError($"Index {indices[i]} is out of range for dimension {i} (size {DimensionSizes[i]}).");
             
             flatIndex += indices[i] * multiplier;
             multiplier *= DimensionSizes[i];

@@ -1,9 +1,7 @@
-// src/VintageBasic/Runtime/Errors/TypeMismatchError.cs
-namespace VintageBasic.Runtime.Errors
+namespace VintageBasic.Runtime.Errors;
+
+sealed class TypeMismatchError : BasicRuntimeException
 {
-    public class TypeMismatchError : BasicRuntimeException
-    {
-        public TypeMismatchError(string message = "Type mismatch", int? lineNumber = null) 
-            : base(message, lineNumber) { }
-    }
+    public TypeMismatchError(string message = "Type mismatch", int? lineNumber = null) 
+        : base(message, lineNumber) { }
 }
