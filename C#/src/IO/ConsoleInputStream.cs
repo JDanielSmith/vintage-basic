@@ -2,7 +2,7 @@ using VintageBasic.Runtime; // For IInputStream
 
 namespace VintageBasic.IO;
 
-public class ConsoleInputStream : IInputStream
+sealed class ConsoleInputStream : IInputStream
 {
     public string? ReadLine()
     {

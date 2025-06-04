@@ -14,7 +14,7 @@ sealed class Interpreter
     readonly RandomManager _randomManager;
     readonly StateManager _stateManager;
     
-    IReadOnlyList<JumpTableEntry> _jumpTable = [];
+    List<JumpTableEntry> _jumpTable = [];
     bool _programEnded;
     int _currentProgramLineIndex = -1; 
     bool _nextInstructionIsJump;
@@ -521,7 +521,7 @@ sealed class Interpreter
         }
     }
     
-    private void CheckArgTypes(Builtin builtinName, IReadOnlyList<ValType> expectedTypes, IReadOnlyList<Val> actualArgs, int currentBasicLine)
+    void CheckArgTypes(Builtin builtinName, List<ValType> expectedTypes, List<Val> actualArgs, int currentBasicLine)
     {
         _stateManager.SetCurrentLineNumber(currentBasicLine); 
         if (expectedTypes.Count != actualArgs.Count)
@@ -578,7 +578,7 @@ sealed class Interpreter
             case Builtin.Str: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("STR$ expects 1 numeric arg", currentBasicLine); float strNum = args[0].AsFloat(currentBasicLine); string strRep = strNum.ToString(CultureInfo.InvariantCulture); if (strNum >= 0 && (strRep.Length == 0 || strRep[0] != '-')) strRep = " " + strRep; return new StringVal(strRep);
             case Builtin.Tab: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("TAB expects 1 numeric arg", currentBasicLine); int tabCol = args[0].AsInt(currentBasicLine); if (tabCol < 1 || tabCol > 255) throw new InvalidArgumentError($"TAB col {tabCol} out of range (1-255)", currentBasicLine); int curCol = _ioManager.OutputColumn + 1; return new StringVal(tabCol > curCol ? new string(' ', tabCol - curCol) : "");
             case Builtin.Tan: CheckArgTypes(Builtin.Tan, new List<ValType> { ValType.FloatType }, args, currentBasicLine); return new FloatVal((float)Math.Tan(args[0].AsFloat(currentBasicLine)));
-            case Builtin.Val: CheckArgTypes(Builtin.Val, new List<ValType> { ValType.StringType }, args, currentBasicLine); string valStr = RuntimeParsingUtils.Trim(((StringVal)args[0]).Value); string numPart = ""; bool d = false; foreach(char c in valStr){if (Char.IsDigit(c)){numPart+=c;d=true;}else if(c=='.'&&!numPart.Contains('.')){numPart+=c;}else if((c=='E'||c=='e')&&!numPart.ToUpper().Contains('E')&&d){numPart+=c;}else if((c=='+'||c=='-')&&(numPart.Length==0||numPart.ToUpper().EndsWith("E"))){numPart+=c;}else if(Char.IsWhiteSpace(c)&&numPart.Length==0){continue;}else break;} if (RuntimeParsingUtils.TryParseFloat(numPart, out float pf)) return new FloatVal(pf); return new FloatVal(0f); 
+            case Builtin.Val: CheckArgTypes(Builtin.Val, new List<ValType> { ValType.StringType }, args, currentBasicLine); string valStr = RuntimeParsingUtils.Trim(((StringVal)args[0]).Value); string numPart = ""; bool d = false; foreach(char c in valStr){if (Char.IsDigit(c)){numPart+=c;d=true;}else if(c=='.'&&!numPart.Contains('.')){numPart+=c;}else if((c=='E'||c=='e')&&!numPart.ToUpper().Contains('E')&&d){numPart+=c;}else if((c=='+'||c=='-')&&(numPart.Length==0||numPart.ToUpper().EndsWith('E'))){numPart+=c;}else if(Char.IsWhiteSpace(c)&&numPart.Length==0){continue;}else break;} if (RuntimeParsingUtils.TryParseFloat(numPart, out float pf)) return new FloatVal(pf); return new FloatVal(0f); 
             default: throw new NotImplementedException($"Builtin function {builtin}. Line: {currentBasicLine}");
         }
     }
