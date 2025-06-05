@@ -29,7 +29,7 @@ public class InterpreterTests
     public void TestPrintStatementOutput()
     {
         // Arrange
-        string programText = "10 PRINT \"HELLO, WORLD!\"";
+        string programText = "10 print \"HELLO, WORLD!\"";
         
         // Act
         var (outputStream, _) = ExecuteBasicProgram(programText);
@@ -44,7 +44,7 @@ public class InterpreterTests
     public void TestLetStatementAndVariableState()
     {
         // Arrange
-        string programText = "10 LET A = 123\n20 LET B$ = \"TEST\"\n30 LET C% = A + 7";
+        string programText = "10 let a = 123\n20 let b$ = \"TEST\"\n30 let c% = A + 7";
         
         // Act
         var (_, context) = ExecuteBasicProgram(programText);

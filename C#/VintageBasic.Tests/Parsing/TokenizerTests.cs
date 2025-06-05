@@ -36,12 +36,12 @@ namespace VintageBasic.Tests.Parsing
         [Fact]
         public void LetStatementTokenizeTest()
         {
-            var scannedLine = new ScannedLine(20, "LET A = 123.45", 1);
+            var scannedLine = new ScannedLine(20, "let a = 123.45", 1);
             var tokens = Tokenizer.Tokenize(scannedLine).ToList();
 
             Assert.Collection(tokens,
                 t => { Assert.IsType<KeywordToken>(t.Value); Assert.Equal(KeywordType.LET, ((KeywordToken)t.Value).Keyword); Assert.Equal(new SourcePosition(20,1), t.Position); },
-                t => { Assert.IsType<VarNameToken>(t.Value); Assert.Equal("A", ((VarNameToken)t.Value).Name); Assert.Equal(ValType.FloatType, ((VarNameToken)t.Value).TypeSuffix); Assert.Equal(new SourcePosition(20,5), t.Position); },
+                t => { Assert.IsType<VarNameToken>(t.Value); Assert.Equal("a", ((VarNameToken)t.Value).Name); Assert.Equal(ValType.FloatType, ((VarNameToken)t.Value).TypeSuffix); Assert.Equal(new SourcePosition(20,5), t.Position); },
                 t => { Assert.IsType<EqualsToken>(t.Value); Assert.Equal(new SourcePosition(20,7), t.Position);},
                 t => { Assert.IsType<FloatToken>(t.Value); Assert.Equal(123.45, ((FloatToken)t.Value).Value, 2); Assert.Equal(new SourcePosition(20,9), t.Position);},
                 t => { Assert.IsType<EolToken>(t.Value); Assert.Equal(new SourcePosition(20,15), t.Position);} // Position after 123.45

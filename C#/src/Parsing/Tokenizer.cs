@@ -6,326 +6,387 @@ namespace VintageBasic.Parsing;
 
 static class Tokenizer
 {
-    static readonly FrozenDictionary<string, KeywordType> Keywords = new Dictionary<string, KeywordType>(StringComparer.OrdinalIgnoreCase)
+	public static IEnumerable<Tagged<Token>> Tokenize(ScannedLine scannedLine)
     {
-        {"LET", KeywordType.LET}, {"PRINT", KeywordType.PRINT}, {"IF", KeywordType.IF}, {"THEN", KeywordType.THEN},
-        {"FOR", KeywordType.FOR}, {"TO", KeywordType.TO}, {"STEP", KeywordType.STEP}, {"NEXT", KeywordType.NEXT},
-        {"GOTO", KeywordType.GOTO}, {"GOSUB", KeywordType.GOSUB}, {"RETURN", KeywordType.RETURN}, {"END", KeywordType.END},
-        {"DATA", KeywordType.DATA}, {"READ", KeywordType.READ}, {"INPUT", KeywordType.INPUT}, {"DIM", KeywordType.DIM},
-        {"REM", KeywordType.REM}, {"ON", KeywordType.ON}, {"RESTORE", KeywordType.RESTORE}, {"STOP", KeywordType.STOP},
-        {"RANDOMIZE", KeywordType.RANDOMIZE}, {"DEF", KeywordType.DEF}, {"FN", KeywordType.FN},
-        { "OR", KeywordType.OR}, { "AND", KeywordType.AND}, { "NOT", KeywordType.NOT},
+		Implementation implementation = new(scannedLine);
+		return implementation.Tokenize();
+    }
+}
+file sealed class Implementation(ScannedLine scannedLine)
+{
+	static readonly FrozenDictionary<string, KeywordType> Keywords = new Dictionary<string, KeywordType>() {
+		{"LET", KeywordType.LET}, {"PRINT", KeywordType.PRINT}, {"IF", KeywordType.IF}, {"THEN", KeywordType.THEN},
+		{"FOR", KeywordType.FOR}, {"TO", KeywordType.TO}, {"STEP", KeywordType.STEP}, {"NEXT", KeywordType.NEXT},
+		{"GOTO", KeywordType.GOTO}, {"GOSUB", KeywordType.GOSUB}, {"RETURN", KeywordType.RETURN}, {"END", KeywordType.END},
+		{"DATA", KeywordType.DATA}, {"READ", KeywordType.READ}, {"INPUT", KeywordType.INPUT}, {"DIM", KeywordType.DIM},
+		{"REM", KeywordType.REM}, {"ON", KeywordType.ON}, {"RESTORE", KeywordType.RESTORE}, {"STOP", KeywordType.STOP},
+		{"RANDOMIZE", KeywordType.RANDOMIZE}, {"DEF", KeywordType.DEF}, {"FN", KeywordType.FN},
+		{ "OR", KeywordType.OR}, { "AND", KeywordType.AND}, { "NOT", KeywordType.NOT},
 		// Note: ELSE is not in Haskell's KeywordTok but might be useful for parser. Added to enum.
+	}.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+	static readonly FrozenDictionary<string, Builtin> Builtins = new Dictionary<string, Builtin>() {
+		{"ABS", Builtin.Abs}, {"ASC", Builtin.Asc }, {"ATN", Builtin.Atn },
+		{"CHR$", Builtin.Chr }, {"COS", Builtin.Cos },
+		{"EXP", Builtin.Exp },
+		{"INT", Builtin.Int },
+		{"LEFT$", Builtin.Left } /* Corresponds to LeftBI */, {"LEN", Builtin.Len }, {"LOG", Builtin.Log },
+		{"MID$", Builtin.Mid } /* Corresponds to MidBI */,
+		{"RIGHT$", Builtin.Right } /* Corresponds to RightBI */, {"RND", Builtin.Rnd },
+		{"SGN", Builtin.Sgn }, {"SIN", Builtin.Sin }, 	{"SPC", Builtin.Spc }, {"SQR", Builtin.Sqr }, {"STR$", Builtin.Str },
+		{"TAB", Builtin.Tab }, {"TAN", Builtin.Tan },
+		{"VAL", Builtin.Val },
+	}.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+	static readonly FrozenDictionary<string, BinOp> Operators = new Dictionary<string, BinOp>() {
+		{"+", BinOp.AddOp}, {"-", BinOp.SubOp}, {"*", BinOp.MulOp}, {"/", BinOp.DivOp},
+		{"^", BinOp.PowOp}, {"<>", BinOp.NEOp}, {"<=", BinOp.LEOp}, {">=", BinOp.GEOp},
+		{"<", BinOp.LTOp}, {">", BinOp.GTOp}
+		// Note: "=" is handled as EqualsToken separately. AND/OR are keywords for BinOpExpression.
 	}.ToFrozenDictionary();
 
-    static readonly FrozenDictionary<string, Builtin> Builtins = new Dictionary<string, Builtin>(StringComparer.OrdinalIgnoreCase)
-    {
-		{"ABS", Builtin.Abs},
-        {"ASC", Builtin.Asc },
-	    {"ATN", Builtin.Atn },
-	    {"CHR$", Builtin.Chr },
-	    {"COS", Builtin.Cos },
-	    {"EXP", Builtin.Exp },
-	    {"INT", Builtin.Int },
-	    {"LEFT$", Builtin.Left },  // Corresponds to LeftBI
-        {"LEN", Builtin.Len },
-	    {"LOG", Builtin.Log },
-	    {"MID$", Builtin.Mid },   // Corresponds to MidBI
-        {"RIGHT$", Builtin.Right }, // Corresponds to RightBI
-        {"RND", Builtin.Rnd },
-	    {"SGN", Builtin.Sgn },
-	    {"SIN", Builtin.Sin },
-	    {"SPC", Builtin.Spc },
-	    {"SQR", Builtin.Sqr },
-	    {"STR$", Builtin.Str },
-	    {"TAB", Builtin.Tab },
-	    {"TAN", Builtin.Tan },
-	    {"VAL", Builtin.Val },
-	}.ToFrozenDictionary();
+	// For longest match, order operators from longest to shortest.
+	static readonly IReadOnlyList<string> OrderedOperatorSymbols = Operators.Keys.OrderByDescending(k => k.Length).ToList();
 
-    static readonly FrozenDictionary<string, BinOp> Operators = new Dictionary<string, BinOp>()
-    {
-        {"+", BinOp.AddOp}, {"-", BinOp.SubOp}, {"*", BinOp.MulOp}, {"/", BinOp.DivOp},
-        {"^", BinOp.PowOp}, {"<>", BinOp.NEOp}, {"<=", BinOp.LEOp}, {">=", BinOp.GEOp},
-        {"<", BinOp.LTOp}, {">", BinOp.GTOp}
-        // Note: "=" is handled as EqualsToken separately. AND/OR are keywords for BinOpExpression.
-    }.ToFrozenDictionary();
-    
-    // For longest match, order operators from longest to shortest.
-    static readonly IReadOnlyList<string> OrderedOperatorSymbols = Operators.Keys.OrderByDescending(k => k.Length).ToList();
+	readonly string content = scannedLine.Content;
+	int currentPositionInContent; // 0-based index into content string
+	int lineNumber = scannedLine.LineNumber ?? 0;
 
-    public static IEnumerable<Tagged<Token>> Tokenize(ScannedLine scannedLine)
-    {
-        List<Tagged<Token>> tokens = [];
-        string content = scannedLine.Content;
-        int currentPositionInContent = 0; // 0-based index into content string
-        int lineNumber = scannedLine.LineNumber ?? 0;
+	Tagged<Token> CreateRemToken()
+	{
+		var tokenContent = content[0] == '\'' ? content[1..] : content.Length > 3 ? content[3..].TrimStart() : ""; // Skip "REM " or "'"
 
-        // Handle REM at the very start of content (after potential line number)
-        if (content.StartsWith("REM", StringComparison.OrdinalIgnoreCase) || ((content.Length > 0) && (content[0] == '\''))) // Some BASICs use ' for REM
-        {
-			RemToken token;
-            int commentStartColumn = currentPositionInContent;
-            if (content[0] == '\'')
-            {
-				token = new(content[1..]);
-                currentPositionInContent = 1; // Position of "'"
-            }
-            else
-            {
-                token = new(content.Length > 3 ? content[3..].TrimStart() : "");
-                currentPositionInContent = 0; // Position of "REM"
-            }
-            
-            SourcePosition remSourcePos = new(lineNumber, commentStartColumn + 1); // 1-based column
-            tokens.Add(new(remSourcePos, token));
-            currentPositionInContent = content.Length; // Consume rest of line
-        }
+		int commentStartColumn = currentPositionInContent;
+		currentPositionInContent = content.Length; // Consume rest of line
+		SourcePosition remSourcePos = new(lineNumber, commentStartColumn + 1); // 1-based column
+		return new(remSourcePos, new RemToken(tokenContent));
+	}
 
-        while (currentPositionInContent < content.Length)
-        {
-            char currentChar = content[currentPositionInContent];
-            int tokenStartColumn = currentPositionInContent + 1; // 1-based column for SourcePosition
+	int tokenStartColumn; // 1-based column for SourcePosition
 
-            // 1. Skip Whitespace
-            if (Char.IsWhiteSpace(currentChar))
-            {
-                currentPositionInContent++;
-                continue;
-            }
+	Tagged<Token> CreateTaggedlToken(Token token)
+	{
+		return new(new(lineNumber, tokenStartColumn), token);
+	}
 
-            // 2. String Literals
-            if (currentChar == '"')
-            {
-                int stringStart = currentPositionInContent + 1;
-                int stringEnd = stringStart;
-                var sb = new StringBuilder();
-                while (stringEnd < content.Length)
-                {
-                    if (content[stringEnd] == '"')
-                    {
-                        if (stringEnd + 1 < content.Length && content[stringEnd + 1] == '"') // Escaped quote ""
-                        {
-                            sb.Append('"');
-                            stringEnd += 2;
-                        }
-                        else // End of string
-                        {
-                            stringEnd++;
-                            break;
-                        }
-                    }
-                    else
-                    {
-                        sb.Append(content[stringEnd]);
-                        stringEnd++;
-                    }
-                }
-                // Even if unterminated, capture what was parsed, as per Haskell example
-                tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, tokenStartColumn), new StringToken(sb.ToString())));
-                currentPositionInContent = stringEnd;
-                continue;
-            }
+	Tagged<Token> CreateStringToken()
+	{
+		int stringStart = currentPositionInContent + 1;
+		int stringEnd = stringStart;
+		var sb = new StringBuilder();
+		while (stringEnd < content.Length)
+		{
+			if (content[stringEnd] == '"')
+			{
+				if (stringEnd + 1 < content.Length && content[stringEnd + 1] == '"') // Escaped quote ""
+				{
+					sb.Append('"');
+					stringEnd += 2;
+				}
+				else // End of string
+				{
+					stringEnd++;
+					break;
+				}
+			}
+			else
+			{
+				sb.Append(content[stringEnd]);
+				stringEnd++;
+			}
+		}
+		// Even if unterminated, capture what was parsed, as per Haskell example
+		currentPositionInContent = stringEnd;
+		return CreateTaggedlToken(new StringToken(sb.ToString()));
+	}
 
-            // 3. Numbers (Try before operators to handle leading +/- signs correctly)
-            // This requires a "longest match" approach or careful ordering with operators.
-            // Let's try to parse a number using a substring and FloatParser.
-            // We need to determine the end of the potential number.
-            int numEnd = currentPositionInContent;
-            while (numEnd < content.Length && (Char.IsDigit(content[numEnd]) || content[numEnd] == '.' || 
-                   ((content[numEnd] == 'E' || content[numEnd] == 'e' || content[numEnd] == 'D' || content[numEnd] == 'd') && numEnd + 1 < content.Length) ||
-                   ((content[numEnd] == '+' || content[numEnd] == '-') && numEnd > currentPositionInContent && (content[numEnd-1] == 'E' || content[numEnd-1] == 'e' || content[numEnd-1] == 'D' || content[numEnd-1] == 'd')) ||
-                   ((content[numEnd] == '+' || content[numEnd] == '-') && numEnd == currentPositionInContent && numEnd + 1 < content.Length && (Char.IsDigit(content[numEnd+1]) || content[numEnd+1] == '.'))
-                   ))
-            {
-                // Special check for E/D followed by sign
-                if ((content[numEnd] == 'E' || content[numEnd] == 'e' || content[numEnd] == 'D' || content[numEnd] == 'd') &&
-                    numEnd + 1 < content.Length && (content[numEnd + 1] == '+' || content[numEnd + 1] == '-'))
-                {
-                    numEnd++; // include the sign
-                }
-                numEnd++;
-            }
+	static bool IsExponentChar(char c)
+	{
+		return c is 'E' or 'e' or  'D' or 'd';
+	}
+	static bool ContainsExponent(string potentialNumber)
+	{
+		return potentialNumber.IndexOfAny([ 'E', 'e', 'D', 'd' ]) >= 0;
+	}
 
-            if (numEnd > currentPositionInContent)
-            {
-                string potentialNumber = content[currentPositionInContent..numEnd];
-                if (FloatParser.TryParseFloat(potentialNumber, out double floatVal))
-                {
-                    // Check if this number is followed by an identifier char, which means it's part of an identifier (e.g. A1)
-                    // unless it's an exponent like 1E2 (handled by TryParseFloat)
-                    bool isPartOfIdentifier = numEnd < content.Length && (content[numEnd] == '$' || content[numEnd] == '%');
-                    if (!isPartOfIdentifier || (potentialNumber.ToUpper().Contains('E') || potentialNumber.ToUpper().Contains('D')))
-                    {
-                        // This looks a lot like a number ... but +1 could either be `1 +1` or `A = +1`.  Take a look
-                        // at the previous token to figure out what do with with a leading '+' or '-'.
-                        Token? prevToken = null;
-                        if ((tokens.Count > 0) && (potentialNumber[0] is '+' or '-'))
-                        {
-                            // If the previous token is an operator, this is a unary operator, otherwise it's a number
-                            prevToken = tokens.Last().Value;
-                        }
-                        if (prevToken is not null)
-                        {
-                            if ((prevToken is FloatToken) || (prevToken is VarNameToken) || (prevToken is RParenToken))
-							{
-                                var op = potentialNumber[0] == '+' ? BinOp.AddOp : BinOp.SubOp;
-								tokens.Add(new Tagged<Token>(new(lineNumber, tokenStartColumn), new OpToken(op)));
-							}
-						}
+	static bool IsSignChar(char c)
+	{
+		return c is '+' or '-';
+	}
+	static bool IsDecimalChar(char c)
+	{
+		return Char.IsDigit(c) || c  is '.'; // Decimal point
+	}
+	bool IsValidNumberChar(int numEnd)
+	{
+		if (numEnd >= content.Length) return false;
 
-						tokens.Add(new Tagged<Token>(new(lineNumber, tokenStartColumn), new FloatToken(floatVal)));
-                         currentPositionInContent = numEnd;
-                         continue;
-                    }
-                }
-            }
+		if (IsDecimalChar(content[numEnd])) return true;
+		if (IsExponentChar(content[numEnd]) && numEnd + 1 < content.Length) return true;
 
+		if (!IsSignChar(content[numEnd])) return false;
+		if (numEnd > currentPositionInContent && IsExponentChar(content[numEnd - 1])) return true;
+		if (numEnd == currentPositionInContent && numEnd + 1 < content.Length && IsDecimalChar(content[numEnd + 1])) return true;
 
-            // 4. Operators (longest match first)
-            bool operatorFound = false;
-            foreach (var opSymbol in OrderedOperatorSymbols)
-            {
-                if (content[currentPositionInContent..].StartsWith(opSymbol, StringComparison.OrdinalIgnoreCase))
-                {
-                    tokens.Add(new Tagged<Token>(new(lineNumber, tokenStartColumn), new OpToken(Operators[opSymbol])));
-                    currentPositionInContent += opSymbol.Length;
-                    operatorFound = true;
-                    break;
-                }
-            }
-            if (operatorFound) continue;
+		return false;
+	}
 
-            // 5. Special Characters
-            switch (currentChar)
-            {
-                case '(': tokens.Add(new(new(lineNumber, tokenStartColumn), new LParenToken())); currentPositionInContent++; continue;
-                case ')': tokens.Add(new(new(lineNumber, tokenStartColumn), new RParenToken())); currentPositionInContent++; continue;
-                case ',': tokens.Add(new(new(lineNumber, tokenStartColumn), new CommaToken())); currentPositionInContent++; continue;
-                case ';': tokens.Add(new(new(lineNumber, tokenStartColumn), new SemicolonToken())); currentPositionInContent++; continue;
-                case '=': tokens.Add(new(new(lineNumber, tokenStartColumn), new EqualsToken())); currentPositionInContent++; continue;
-				case '?': tokens.Add(new(new(lineNumber, tokenStartColumn), new KeywordToken(KeywordType.PRINT))); currentPositionInContent++; continue;
+	static bool IsVariableSuffix(char c)
+	{
+		return c is '$' or '%'; // String or Integer suffix
+	}
+
+	Tagged<Token>? PreviousToken;
+	(Tagged<Token>, Tagged<Token>?)? CreateNumberToken()
+	{
+		// This requires a "longest match" approach or careful ordering with operators.
+		// Let's try to parse a number using a substring and FloatParser.
+		// We need to determine the end of the potential number.
+		int numEnd = currentPositionInContent;
+		while (IsValidNumberChar(numEnd))
+		{
+			if (IsExponentChar(content[numEnd]) && numEnd + 1 < content.Length && IsSignChar(content[numEnd + 1]))
+			{
+				numEnd++; // include the sign
+			}
+			numEnd++;
+		}
+		if (numEnd <= currentPositionInContent)
+			return null;
+
+		string potentialNumber = content[currentPositionInContent..numEnd];
+		if (!FloatParser.TryParseFloat(potentialNumber, out var floatVal))
+			return null;
+
+		// Check if this number is followed by an identifier char, which means it's part of an identifier (e.g. A1)
+		// unless it's an exponent like 1E2 (handled by TryParseFloat)
+		bool isPartOfIdentifier = numEnd < content.Length && IsVariableSuffix(content[numEnd]);
+		bool looks_like_a_number = !isPartOfIdentifier || ContainsExponent(potentialNumber);
+		if (!looks_like_a_number)
+			return null;
+
+		// This looks a lot like a number ... but +1 could either be `1 +1` or `A = +1`.  Take a look
+		// at the previous token to figure out what do with with a leading '+' or '-'.
+		Tagged<Token>? opToken = null;
+		if (PreviousToken is not null)
+		{
+			var prevToken = PreviousToken.Value;
+			if (prevToken is FloatToken or VarNameToken or RParenToken)
+			{
+				var op = potentialNumber[0] == '+' ? BinOp.AddOp : BinOp.SubOp;
+				opToken = CreateTaggedlToken(new OpToken(op));
+			}
+		}
+		currentPositionInContent = numEnd;
+		return (CreateTaggedlToken(new FloatToken(floatVal)), opToken);
+	}
+
+	Tagged<Token>? CreateOpToken()
+	{
+		foreach (var opSymbol in OrderedOperatorSymbols)
+		{
+			if (content[currentPositionInContent..].StartsWith(opSymbol, StringComparison.OrdinalIgnoreCase))
+			{
+				currentPositionInContent += opSymbol.Length;
+				return CreateTaggedlToken(new OpToken(Operators[opSymbol]));
+			}
+		}
+		return null;
+	}
+
+	char currentChar => content[currentPositionInContent];
+	Tagged<Token>? CreateSpecialToken()
+	{
+		Tagged<Token> CreateTaggedlToken_(Token token)
+		{
+			currentPositionInContent++;
+			return CreateTaggedlToken(token);
+		}
+		return currentChar switch
+		{
+			'(' => CreateTaggedlToken_(new LParenToken()),
+			')' => CreateTaggedlToken_(new RParenToken()),
+			',' => CreateTaggedlToken_(new CommaToken()),
+			';' => CreateTaggedlToken_(new SemicolonToken()),
+			'=' => CreateTaggedlToken_(new EqualsToken()),
+			'?' => CreateTaggedlToken_(new KeywordToken(KeywordType.PRINT)),
+			_ => null
+		};
+	}
+
+	Tagged<Token> CreateTokenFromLetter()
+	{
+		int identEnd = currentPositionInContent;
+		string identifier = content[currentPositionInContent..identEnd];
+
+		if (!(Builtins.ContainsKey(identifier) || Keywords.ContainsKey(identifier)))
+			while (identEnd < content.Length && (Char.IsLetterOrDigit(content[identEnd]) || IsVariableSuffix(content[identEnd])))
+			{
+				identEnd++;
+				identifier = content[currentPositionInContent..identEnd];
+
+				if (Builtins.ContainsKey(identifier)) break;
+				if (Keywords.ContainsKey(identifier)) break;
 			}
 
-			// 6. Keywords, Builtins, or Variable Names
-			if (Char.IsLetter(currentChar))
+		// Check for DATA keyword specifically, as they consume the rest of the line differently.
+		if (identifier.Equals("DATA", StringComparison.OrdinalIgnoreCase))
+		{
+			int dataContentStart = currentPositionInContent + 4; // Length of "DATA"
+																 // Skip exactly one space if present, otherwise content starts immediately after DATA
+			if (dataContentStart < content.Length && content[dataContentStart] == ' ')
 			{
-                int identEnd = currentPositionInContent;
-				string identifier = content[currentPositionInContent..identEnd];
-
-                if (!(Builtins.ContainsKey(identifier) || Keywords.ContainsKey(identifier)))
-				    while (identEnd < content.Length && (Char.IsLetterOrDigit(content[identEnd]) || content[identEnd] == '$' || content[identEnd] == '%'))
-                    {
-                        identEnd++;
-					    identifier = content[currentPositionInContent..identEnd];
-
-					    if (Builtins.ContainsKey(identifier)) break;
-					    if (Keywords.ContainsKey(identifier)) break;
-				    }
-
-                // Check for DATA keyword specifically, as they consume the rest of the line differently.
-                if (identifier.Equals("DATA", StringComparison.OrdinalIgnoreCase))
-                {
-                    int dataContentStart = currentPositionInContent + 4; // Length of "DATA"
-                    // Skip exactly one space if present, otherwise content starts immediately after DATA
-                    if (dataContentStart < content.Length && content[dataContentStart] == ' ')
-                    {
-                        dataContentStart++;
-                    }
-                    else if (dataContentStart < content.Length && !Char.IsWhiteSpace(content[dataContentStart]))
-                    {
-                        // No space after DATA, content starts immediately
-                    }
-                    else // Whitespace other than a single space, or end of line
-                    {
-                        while (dataContentStart < content.Length && Char.IsWhiteSpace(content[dataContentStart]))
-                        {
-                            dataContentStart++;
-                        }
-                    }
-
-                    string rawDataContent = "";
-                    int colonPos = content.IndexOf(':', dataContentStart);
-                    if (colonPos != -1)
-                    {
-                        rawDataContent = content[dataContentStart..colonPos];
-                        // currentPositionInContent will be set to colonPos by the outer loop later if needed
-                        // For now, we tokenize DATA content, and the colon will be the next token.
-                        // This needs careful adjustment of currentPositionInContent after adding DataContentToken.
-                        identEnd = colonPos; // The DATA content ends before the colon.
-                    }
-                    else
-                    {
-                        rawDataContent = content[dataContentStart..];
-                        identEnd = content.Length; // Consumed till end of line
-                    }
-
-                    tokens.Add(new(new(lineNumber, tokenStartColumn), new KeywordToken(KeywordType.DATA)));
-                }
-                else if (Builtins.TryGetValue(identifier, out Builtin builtinFunc))
-                {
-                    tokens.Add(new(new(lineNumber, tokenStartColumn), new BuiltinFuncToken(builtinFunc)));
-                    currentPositionInContent = identEnd;
-                }
-                else if (Keywords.TryGetValue(identifier, out KeywordType keywordType))
-                {
-                    if (keywordType == KeywordType.REM)
-                    {
-                        // Handle REM comments specially
-                        int commentStart = currentPositionInContent + identifier.Length; // Position after "REM"
-                        string comment = content[commentStart..].TrimStart(); // Get the rest of the line as comment
-                        var remSourcePos = new SourcePosition(lineNumber, tokenStartColumn + 1); // 1-based column for REM
-						tokens.Add(new(remSourcePos, new RemToken(comment)));
-						currentPositionInContent = content.Length; // Consume rest of line
-					}
-                    else
-                    {
-						tokens.Add(new Tagged<Token>(new SourcePosition(lineNumber, tokenStartColumn), new KeywordToken(keywordType)));
-						currentPositionInContent = identEnd;
-					}
+				dataContentStart++;
+			}
+			else if (dataContentStart < content.Length && !Char.IsWhiteSpace(content[dataContentStart]))
+			{
+				// No space after DATA, content starts immediately
+			}
+			else // Whitespace other than a single space, or end of line
+			{
+				while (dataContentStart < content.Length && Char.IsWhiteSpace(content[dataContentStart]))
+				{
+					dataContentStart++;
 				}
-                else // Variable Name
-                {
-                    string namePart = identifier;
-                    ValType typeSuffix = ValType.FloatType; // Default
-                    if (identifier.EndsWith('$'))
-                    {
-                        typeSuffix = ValType.StringType;
-                        namePart = identifier[..^1];
-                    }
-                    else if (identifier.EndsWith('%'))
-                    {
-                        typeSuffix = ValType.IntType;
-                        namePart = identifier[..^1];
-                    }
+			}
 
-                    if (String.IsNullOrEmpty(namePart) || !Char.IsLetter(namePart[0]))
-                    {
-                        tokens.Add(new Tagged<Token>(new(lineNumber, tokenStartColumn), new UnknownToken(identifier)));
-                    }
-                    else
-                    {
-                        tokens.Add(new Tagged<Token>(new(lineNumber, tokenStartColumn), new VarNameToken(namePart, typeSuffix)));
-                    }
-                    currentPositionInContent = identEnd;
-                }
-                continue;
-            }
+			string rawDataContent = "";
+			int colonPos = content.IndexOf(':', dataContentStart);
+			if (colonPos != -1)
+			{
+				rawDataContent = content[dataContentStart..colonPos];
+				// currentPositionInContent will be set to colonPos by the outer loop later if needed
+				// For now, we tokenize DATA content, and the colon will be the next token.
+				// This needs careful adjustment of currentPositionInContent after adding DataContentToken.
+				identEnd = colonPos; // The DATA content ends before the colon.
+			}
+			else
+			{
+				rawDataContent = content[dataContentStart..];
+				identEnd = content.Length; // Consumed till end of line
+			}
 
-            // 7. If nothing else, it's an UnknownToken (or statement separator ':')
-            if (currentChar == ':')
-            {
-                // Tokenize colon as an UnknownToken for now, Parser will handle it.
-                // Or define a specific ColonToken. For simplicity:
-                tokens.Add(new Tagged<Token>(new(lineNumber, tokenStartColumn), new UnknownToken(":")));
-                currentPositionInContent++;
-                continue;
-            }
-            tokens.Add(new Tagged<Token>(new(lineNumber, tokenStartColumn), new UnknownToken(currentChar.ToString())));
-            currentPositionInContent++;
-        }
+			return CreateTaggedlToken(new KeywordToken(KeywordType.DATA));
+		}
+		if (Builtins.TryGetValue(identifier, out Builtin builtinFunc))
+		{
+			currentPositionInContent = identEnd;
+			return CreateTaggedlToken(new BuiltinFuncToken(builtinFunc));
+		}
+		if (Keywords.TryGetValue(identifier, out KeywordType keywordType))
+		{
+			if (keywordType == KeywordType.REM)
+			{
+				// Handle REM comments specially
+				int commentStart = currentPositionInContent + identifier.Length; // Position after "REM"
+				string comment = content[commentStart..].TrimStart(); // Get the rest of the line as comment
+				SourcePosition remSourcePos = new(lineNumber, tokenStartColumn + 1); // 1-based column for REM
+				currentPositionInContent = content.Length; // Consume rest of line
+				return new(remSourcePos, new RemToken(comment));
+			}
 
-        tokens.Add(new Tagged<Token>(new(lineNumber, currentPositionInContent + 1), new EolToken()));
-        return tokens;
-    }
+			currentPositionInContent = identEnd;
+			return CreateTaggedlToken(new KeywordToken(keywordType));
+		}
+
+		// Variable Name
+		var namePart = identifier;
+		var typeSuffix = ValType.FloatType; // Default
+		var suffix = identifier[^1];
+		if (IsVariableSuffix(suffix))
+		{
+			typeSuffix = suffix == '$' ? ValType.StringType : ValType.IntType;
+			namePart = identifier[..^1];
+		}
+
+		currentPositionInContent = identEnd;
+		if (String.IsNullOrEmpty(namePart) || !Char.IsLetter(namePart[0]))
+		{
+			return CreateTaggedlToken(new UnknownToken(identifier));
+		}
+		return CreateTaggedlToken(new VarNameToken(namePart, typeSuffix));
+	}
+
+	Tagged<Token> CreateUnknownToken()
+	{
+		if (currentChar == ':')
+		{
+			// Tokenize colon as an UnknownToken for now, Parser will handle it.
+			// Or define a specific ColonToken. For simplicity:
+			currentPositionInContent++;
+			return CreateTaggedlToken(new UnknownToken(":"));
+		}
+		var retval = CreateTaggedlToken(new UnknownToken(currentChar.ToString()));
+		currentPositionInContent++; // currentChar uses currentPositionInContent, so increment after creating token
+		return retval;
+	}
+	(Tagged<Token>, Tagged<Token>?)? GetTokens()
+	{
+		tokenStartColumn = currentPositionInContent + 1; // 1-based column for SourcePosition
+
+		// 1. Skip Whitespace
+		if (Char.IsWhiteSpace(currentChar))
+		{
+			currentPositionInContent++;
+			return null;
+		}
+
+		// 2. String Literals
+		if (currentChar == '"')
+		{
+			return (CreateStringToken(), null);
+		}
+
+		// 3. Numbers (Try before operators to handle leading +/- signs correctly)
+		var numberTokens = CreateNumberToken();
+		if (numberTokens is not null)
+		{
+			return numberTokens; // Return the FloatToken and potentially an OpToken
+		}
+
+		// 4. Operators (longest match first)
+		var opToken = CreateOpToken();
+		if (opToken is not null)
+		{
+			return (opToken, null);
+		}
+		// 5. Special Characters
+		var specialToken = CreateSpecialToken();
+		if (specialToken is not null)
+		{
+			return (specialToken, null);
+		}
+
+		// 6. Keywords, Builtins, or Variable Names
+		if (Char.IsLetter(currentChar))
+		{
+			return (CreateTokenFromLetter(), null);
+		}
+
+		// 7. If nothing else, it's an UnknownToken (or statement separator ':')
+		return (CreateUnknownToken(), null);
+	}
+	public IEnumerable<Tagged<Token>> Tokenize()
+	{
+		// Handle REM at the very start of content (after potential line number)
+		if (content.StartsWith("REM", StringComparison.OrdinalIgnoreCase) || ((content.Length > 0) && (content[0] == '\''))) // Some BASICs use ' for REM
+		{
+			yield return CreateRemToken();
+		}
+
+		while (currentPositionInContent < content.Length)
+		{
+			var theTokens = GetTokens();
+			PreviousToken = null;
+			if (theTokens is not null)
+			{
+				if (theTokens.Value.Item2 is not null)
+					yield return theTokens.Value.Item2;
+				PreviousToken = theTokens.Value.Item1;
+				yield return PreviousToken;
+			}
+		}
+
+		yield return new(new(lineNumber, currentPositionInContent + 1), new EolToken());
+	}
 }
