@@ -5,40 +5,30 @@ using System.Globalization; // For CultureInfo
 
 namespace VintageBasic.Interpreter;
 
-sealed class Interpreter
+sealed class Interpreter(RuntimeContext context)
 {
-    readonly RuntimeContext _context;
-    readonly VariableManager _variableManager;
-    readonly InputOutputManager _ioManager;
-    readonly FunctionManager _functionManager;
-    readonly RandomManager _randomManager;
-    readonly StateManager _stateManager;
-    
-    List<JumpTableEntry> _jumpTable = [];
+    readonly RuntimeContext _context = context;
+    readonly VariableManager _variableManager = context.Variables;
+	readonly InputOutputManager _ioManager = context.IO;
+	readonly FunctionManager _functionManager = context.Functions;
+	readonly RandomManager _randomManager = context.Random;
+	readonly StateManager _stateManager = context.ProgramState;
+
+	List<JumpTableEntry> _jumpTable = [];
     bool _programEnded;
     int _currentProgramLineIndex = -1; 
     bool _nextInstructionIsJump;
 
-    public Interpreter(RuntimeContext context)
-    {
-        _context = context ?? throw new ArgumentNullException(nameof(context));
-        _variableManager = context.Variables;
-        _ioManager = context.IO;
-        _functionManager = context.Functions;
-        _randomManager = context.Random;
-        _stateManager = context.ProgramState;
-    }
-
     public void ExecuteProgram(IReadOnlyList<Line> programLines)
     {
-        if (programLines is null || !programLines.Any())
+        if (programLines.Count <= 0)
         {
             return;
         }
 
         var sortedLines = programLines.OrderBy(l => l.Label).ToList();
-        var allDataStrings = new List<string>();
-        var jumpTableBuilder = new List<JumpTableEntry>(sortedLines.Count);
+        List<string> allDataStrings = [];
+		List<JumpTableEntry> jumpTableBuilder = new(sortedLines.Count);
 
         foreach (var line in sortedLines)
         {
@@ -435,7 +425,7 @@ sealed class Interpreter
         }
     }
 
-    private void HandleLetStatement(LetStatement letStmt, int currentBasicLine)
+    void HandleLetStatement(LetStatement letStmt, int currentBasicLine)
     {
         Val valueToAssign = EvaluateExpression(letStmt.Expression, currentBasicLine);
         Val coercedValue = Val.CoerceToType(letStmt.Variable.Name.Type, valueToAssign, currentBasicLine, _stateManager);
@@ -448,7 +438,7 @@ sealed class Interpreter
         else throw new NotImplementedException($"Variable type {letStmt.Variable.GetType().Name} in LET not supported.");
     }
 
-    private List<int> EvaluateIndices(IReadOnlyList<Expression> dimExprs, int currentBasicLine)
+    List<int> EvaluateIndices(IReadOnlyList<Expression> dimExprs, int currentBasicLine)
     {
         var indices = new List<int>();
         foreach (var dimExpr in dimExprs)
@@ -459,7 +449,7 @@ sealed class Interpreter
         return indices;
     }
 
-    private Val EvaluateExpression(Expression expr, int currentBasicLine)
+    Val EvaluateExpression(Expression expr, int currentBasicLine)
     {
          _stateManager.SetCurrentLineNumber(currentBasicLine);
         switch (expr)
@@ -492,7 +482,7 @@ sealed class Interpreter
         }
     }
     
-    private Val EvaluateBinOp(BinOp op, Val v1, Val v2, int currentBasicLine)
+    Val EvaluateBinOp(BinOp op, Val v1, Val v2, int currentBasicLine)
     {
         _stateManager.SetCurrentLineNumber(currentBasicLine);
         Val cV1 = (op == BinOp.AddOp && v1 is StringVal) ? v1 : Val.CoerceToExpressionType(v1, currentBasicLine, _stateManager);
@@ -538,7 +528,7 @@ sealed class Interpreter
         }
     }
 
-    private Val EvaluateBuiltin(Builtin builtin, IReadOnlyList<Expression> argExprs, int currentBasicLine)
+    Val EvaluateBuiltin(Builtin builtin, IReadOnlyList<Expression> argExprs, int currentBasicLine)
     {
         _stateManager.SetCurrentLineNumber(currentBasicLine);
         var args = new List<Val>();

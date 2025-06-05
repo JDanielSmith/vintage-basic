@@ -3,14 +3,9 @@ using VintageBasic.Runtime.Errors;
 
 namespace VintageBasic.Runtime;
 
-sealed class FunctionManager
+sealed class FunctionManager(BasicStore store)
 {
-    private readonly BasicStore _store;
-
-    public FunctionManager(BasicStore store)
-    {
-        _store = store ?? throw new ArgumentNullException(nameof(store));
-    }
+    readonly BasicStore _store = store ?? throw new ArgumentNullException(nameof(store));
 
     public UserDefinedFunction GetFunction(VarName funcName)
     {

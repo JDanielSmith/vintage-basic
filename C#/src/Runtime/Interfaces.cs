@@ -3,8 +3,8 @@ namespace VintageBasic.Runtime;
 interface IInputStream
 {
     string? ReadLine(); // Nullable for EOF
-    bool IsEOF();
-    // Potentially other methods like ReadCharAsync, etc.
+	bool IsEof { get; }
+	// Potentially other methods like ReadCharAsync, etc.
 }
 
 interface IOutputStream

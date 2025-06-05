@@ -2,15 +2,9 @@ using VintageBasic.Syntax; // For ValType
 
 namespace VintageBasic.Runtime;
 
-abstract class Val : IComparable<Val>
+abstract record Val(ValType Type) : IComparable<Val>
 {
-    public abstract ValType Type { get; }
-
     public abstract int CompareTo(Val? other);
-
-    // It's good practice to override Equals and GetHashCode together.
-    public abstract override bool Equals(object? obj);
-    public abstract override int GetHashCode();
 
     // Convenience methods for type checking and casting
     public virtual float AsFloat(int? lineNumber = null) => throw new Errors.TypeMismatchError($"Cannot convert {GetType().Name} to Float", lineNumber);
@@ -57,17 +51,8 @@ abstract class Val : IComparable<Val>
     }
 }
 
-sealed class FloatVal : Val
+sealed record FloatVal(float Value) : Val(ValType.FloatType)
 {
-    public float Value { get; }
-
-    public FloatVal(float value)
-    {
-        Value = value;
-    }
-
-    public override ValType Type => ValType.FloatType;
-
     public override float AsFloat(int? lineNumber = null) => Value;
     public override int AsInt(int? lineNumber = null) => RuntimeContext.FloatToInt(Value); // BASIC INT semantics
     public override string AsString(int? lineNumber = null) => base.AsString(lineNumber); // Or specific formatting if needed, like STR$
@@ -79,27 +64,14 @@ sealed class FloatVal : Val
         if (other is IntVal iv) return Value.CompareTo((float)iv.Value); // Promote IntVal to float for comparison
         throw new ArgumentException("Cannot compare FloatVal with " + other.GetType().Name);
     }
-
-    public override bool Equals(object? obj) => obj is FloatVal other && Value == other.Value;
-    public override int GetHashCode() => Value.GetHashCode();
-    public override string ToString() => Value.ToString(); // Or $"FloatVal({Value})" for debugging
+    public override string ToString() => $"{Value}";
 }
 
-sealed class IntVal : Val
+sealed record IntVal(int Value) : Val(ValType.IntType)
 {
-    public int Value { get; }
-
-    public IntVal(int value)
-    {
-        Value = value;
-    }
-
-    public override ValType Type => ValType.IntType;
-
     public override float AsFloat(int? lineNumber = null) => Value;
     public override int AsInt(int? lineNumber = null) => Value;
     public override string AsString(int? lineNumber = null) => base.AsString(lineNumber);
-
     public override int CompareTo(Val? other)
     {
         if (other is null) return 1;
@@ -107,23 +79,11 @@ sealed class IntVal : Val
         if (other is FloatVal fv) return ((float)Value).CompareTo(fv.Value); // Promote self to float for comparison
         throw new ArgumentException("Cannot compare IntVal with " + other.GetType().Name);
     }
-
-    public override bool Equals(object? obj) => obj is IntVal other && Value == other.Value;
-    public override int GetHashCode() => Value.GetHashCode();
-    public override string ToString() => Value.ToString(); // Or $"IntVal({Value})" for debugging
+	public override string ToString() => $"{Value}";
 }
 
-sealed class StringVal : Val
+sealed record StringVal(string Value) : Val(ValType.StringType)
 {
-    public string Value { get; }
-
-    public StringVal(string value)
-    {
-        Value = value;
-    }
-
-    public override ValType Type => ValType.StringType;
-
     public override float AsFloat(int? lineNumber = null) => base.AsFloat(lineNumber); // Or VAL() semantics
     public override int AsInt(int? lineNumber = null) => base.AsInt(lineNumber);       // Or VAL() then INT()
     public override string AsString(int? lineNumber = null) => Value;
@@ -134,8 +94,5 @@ sealed class StringVal : Val
         if (other is StringVal sv) return String.Compare(Value, sv.Value, StringComparison.Ordinal);
         throw new ArgumentException("Cannot compare StringVal with " + other.GetType().Name);
     }
-
-    public override bool Equals(object? obj) => obj is StringVal other && Value == other.Value;
-    public override int GetHashCode() => Value.GetHashCode();
-    public override string ToString() => Value; // Or $"StringVal(\"{Value}\")" for debugging
+	public override string ToString() => Value;
 }

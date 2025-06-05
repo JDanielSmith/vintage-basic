@@ -1,67 +1,62 @@
-// VintageBasic.Tests/IO/StringInputStream.cs
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using VintageBasic.Runtime;
 
-namespace VintageBasic.Tests.IO
+namespace VintageBasic.Tests.IO;
+sealed class StringInputStream : IInputStream
 {
-    public class StringInputStream : IInputStream
+    readonly Queue<string> _lines;
+    bool _eofReached;
+
+    public StringInputStream(IEnumerable<string> lines)
     {
-        private readonly Queue<string> _lines;
-        private bool _eofReached = false;
+        _lines = new(lines ?? Enumerable.Empty<string>());
+    }
 
-        public StringInputStream(IEnumerable<string> lines)
+    public StringInputStream(string singleLine)
+    {
+        _lines = new();
+        if (singleLine is not null)
         {
-            _lines = new Queue<string>(lines ?? Enumerable.Empty<string>());
+            _lines.Enqueue(singleLine);
         }
-
-        public StringInputStream(string singleLine)
+    }
+    
+    public static StringInputStream FromStringWithNewlines(string input)
+    {
+        if (String.IsNullOrEmpty(input))
         {
-            _lines = new Queue<string>();
-            if (singleLine is not null)
-            {
-                _lines.Enqueue(singleLine);
-            }
+            return new(Enumerable.Empty<string>());
         }
-        
-        public static StringInputStream FromStringWithNewlines(string input)
-        {
-            if (String.IsNullOrEmpty(input))
-            {
-                return new StringInputStream(Enumerable.Empty<string>());
-            }
-            return new StringInputStream(input.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None));
-        }
+        return new(input.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None));
+    }
 
 
-        public string? ReadLine()
+    public string? ReadLine()
+    {
+        if (_lines.Count > 0)
         {
-            if (_lines.Count > 0)
-            {
-                return _lines.Dequeue();
-            }
-            _eofReached = true;
-            return null;
+            return _lines.Dequeue();
         }
+        _eofReached = true;
+        return null;
+    }
 
-        public bool IsEOF()
-        {
-            // This simple version considers EOF if the queue is empty.
-            // More sophisticated checks might be needed if interactions with ReadLineAsync
-            // can change the EOF state in a more complex way (e.g. if ReadLineAsync could block
-            // and wait for more input to be added to the queue later, which is not the case here).
-            if (_lines.Count == 0) _eofReached = true;
-            return _eofReached;
-        }
+		public bool IsEof
+		{
+			get
+			{
+				// This simple version considers EOF if the queue is empty.
+				// More sophisticated checks might be needed if interactions with ReadLineAsync
+				// can change the EOF state in a more complex way (e.g. if ReadLineAsync could block
+				// and wait for more input to be added to the queue later, which is not the case here).
+				if (_lines.Count == 0) _eofReached = true;
+				return _eofReached;
+			}
+		}
 
-        // Helper to simulate adding more input, useful for some test scenarios
-        public void AddLine(string line)
-        {
-            _lines.Enqueue(line);
-            _eofReached = false; // If we add lines, we are no longer at EOF
-        }
+		// Helper to simulate adding more input, useful for some test scenarios
+		public void AddLine(string line)
+    {
+        _lines.Enqueue(line);
+        _eofReached = false; // If we add lines, we are no longer at EOF
     }
 }

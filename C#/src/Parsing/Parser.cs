@@ -5,10 +5,10 @@ namespace VintageBasic.Parsing;
 
 sealed class Parser
 {
-    private readonly IReadOnlyList<Tagged<Token>> _tokens;
-    private int _currentTokenIndex;
-    private readonly int _lineNumber; 
-    private readonly int _originalSourceLineIndex; 
+    readonly IReadOnlyList<Tagged<Token>> _tokens;
+    int _currentTokenIndex;
+    readonly int _lineNumber; 
+    readonly int _originalSourceLineIndex; 
 
     private Parser(IReadOnlyList<Tagged<Token>> tokens, int lineNumber, int originalSourceLineIndex)
     {
@@ -20,7 +20,7 @@ sealed class Parser
 
     public static List<Line> ParseProgram(string programText)
     {
-        var lines = new List<Line>();
+		List<Line> lines = [];
         var scannedLines = LineScanner.ScanLines(programText.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None));
 
         foreach (var scannedLine in scannedLines)
@@ -100,7 +100,7 @@ sealed class Parser
         if (PeekToken() is EolToken) ConsumeToken<EolToken>();
         else if (PeekToken() is not null) throw new ParseException("Expected End of Line after statements.", CurrentSourcePosition());
          
-        return new Line(_lineNumber, statements);
+        return new(_lineNumber, statements);
     }
 
     // --- Token Helper Methods ---
@@ -123,7 +123,7 @@ sealed class Parser
         {
             if (expectedText is not null && !specificToken.Text.Equals(expectedText, StringComparison.OrdinalIgnoreCase))
                 throw new ParseException($"Expected token '{expectedText}' but got '{specificToken.Text}'.", taggedToken.Position);
-            return new Tagged<T>(taggedToken.Position, specificToken);
+            return new(taggedToken.Position, specificToken);
         }
         throw new ParseException($"Expected token type {typeof(T).Name} but got {taggedToken.Value.GetType().Name} ('{taggedToken.Value.Text}').", taggedToken.Position);
     }
@@ -135,7 +135,8 @@ sealed class Parser
         {
             ConsumeToken(); consumedToken = new Tagged<KeywordToken>(current.Position, kt); return true;
         }
-        consumedToken = null; return false;
+        consumedToken = null;
+        return false;
     }
     
     bool TryConsumeSpecificSymbol(string symbol, out Tagged<Token>? consumedToken)
@@ -146,7 +147,8 @@ sealed class Parser
         {
             consumedToken = ConsumeToken(); return true;
         }
-        consumedToken = null; return false;
+        consumedToken = null;
+        return false;
     }
 
     // --- Statement Parsers ---
@@ -190,7 +192,7 @@ sealed class Parser
                 stmtNode = TryParseImplicitLetOrGotoStatementContents(startPos, false);
                 break;
         }
-        return new Tagged<Statement>(startPos, stmtNode);
+        return new(startPos, stmtNode);
     }
 
 	Statement TryParseImplicitLetOrGotoStatementContents(SourcePosition originalStartPos, bool letKeywordWasConsumed = false)
@@ -220,7 +222,7 @@ sealed class Parser
             throw new ParseException("Expected variable for LET statement.", variableTagged?.Position ?? originalStartPos);
         ConsumeToken<EqualsToken>();
         var expressionTagged = TryParseExpression();
-        return new LetStatement(varXNode.Value, expressionTagged.Value);
+        return new(varXNode.Value, expressionTagged.Value);
     }
     
     PrintStatement TryParsePrintStatementContents()
@@ -232,7 +234,7 @@ sealed class Parser
             else if (TryConsumeSpecificSymbol(";", out _)) { expressions.Add(new EmptyZoneExpression());}
             else { expressions.Add(TryParseExpression().Value); }
         }
-        return new PrintStatement(expressions);
+        return new(expressions);
     }
     
     GotoStatement TryParseGotoStatementContents() => new((int)ConsumeToken<FloatToken>().Value.Value);
@@ -250,7 +252,7 @@ sealed class Parser
             if(stmt is not null) thenStatements.Add(stmt); else break;
             if (TryConsumeSpecificSymbol(":", out _)) { if (PeekToken() is EolToken) break; } else break;
         }
-        return new IfStatement(condition, thenStatements);
+        return new(condition, thenStatements);
     }
 
     DimStatement TryParseDimStatementContents()
@@ -266,7 +268,7 @@ sealed class Parser
             ConsumeToken<RParenToken>();
             declarations.Add((varName, dims));
         } while (TryConsumeSpecificSymbol(",", out _));
-        return new DimStatement(declarations);
+        return new(declarations);
     }
 
     ForStatement TryParseForStatementContents()
@@ -276,29 +278,29 @@ sealed class Parser
         ConsumeToken<EqualsToken>();
         Expression initial = TryParseExpression().Value;
         if(!TryConsumeKeyword(KeywordType.TO, out _)) throw new ParseException("Expected TO in FOR statement.", CurrentSourcePosition());
-        Expression limit = TryParseExpression().Value;
+        var limit = TryParseExpression().Value;
         Expression step = new LiteralExpression(new FloatLiteral(1.0f)); 
         if(TryConsumeKeyword(KeywordType.STEP, out _)) step = TryParseExpression().Value;
-        return new ForStatement(loopVar, initial, limit, step);
+        return new(loopVar, initial, limit, step);
     }
 
     NextStatement TryParseNextStatementContents()
     {
-        var vars = new List<VarName>();
+        List<VarName> vars = [];
         while(PeekToken() is VarNameToken vnt)
         {
             ConsumeToken(); vars.Add(new VarName(vnt.TypeSuffix, vnt.Name));
             if (!TryConsumeSpecificSymbol(",", out _)) break;
         }
-        return new NextStatement(vars.Any() ? vars : null);
+        return new(vars.Any() ? vars : null);
     }
     
     ReadStatement TryParseReadStatementContents()
     {
-        var vars = new List<Var>();
+        List<Var> vars = [];
         do { vars.Add((TryParseVariableExpression().Value as VarExpression)?.Value ?? throw new ParseException("Invalid variable in READ.", CurrentSourcePosition())); }
         while(TryConsumeSpecificSymbol(",", out _));
-        return new ReadStatement(vars);
+        return new(vars);
     }
 
     DataStatement TryParseDataStatementContents()
@@ -309,7 +311,7 @@ sealed class Parser
         if (dataContentToken is DataContentToken dct)
         {
             ConsumeToken(); // Consume the DataContentToken
-            return new DataStatement(dct.RawContent);
+            return new(dct.RawContent);
         }
         // If no DataContentToken follows DATA, it means DATA statement is empty or there's a tokenizer issue.
         // An empty DATA statement is valid (e.g., "10 DATA").
@@ -317,7 +319,7 @@ sealed class Parser
         // If the next token is EOL or ':', it's an empty DATA statement.
         if (dataContentToken is EolToken || (dataContentToken is not null && dataContentToken.Text == ":"))
         {
-            return new DataStatement(""); // Empty DATA statement
+            return new(""); // Empty DATA statement
         }
         
         throw new ParseException($"Expected data content after DATA keyword, but found {dataContentToken?.Text}", CurrentSourcePosition());
@@ -328,14 +330,15 @@ sealed class Parser
         string? prompt = null;
         if(PeekToken() is StringToken st)
         {
-            ConsumeToken(); prompt = st.Value;
+            ConsumeToken();
+            prompt = st.Value;
             if(!TryConsumeSpecificSymbol(";", out _) && !TryConsumeSpecificSymbol(",", out _)) 
                 throw new ParseException("Expected ; or , after INPUT prompt String.", CurrentSourcePosition());
         }
-        var vars = new List<Var>();
+        List<Var> vars = [];
         do { vars.Add((TryParseVariableExpression().Value as VarExpression)?.Value ?? throw new ParseException("Invalid variable in INPUT.", CurrentSourcePosition()));}
         while(TryConsumeSpecificSymbol(",", out _));
-        return new InputStatement(prompt, vars);
+        return new(prompt, vars);
     }
 
     DefFnStatement TryParseDefFnStatementContents() 
@@ -345,24 +348,24 @@ sealed class Parser
         var funcNameToken = ConsumeToken<VarNameToken>();
         VarName funcName = new(funcNameToken.Value.TypeSuffix, funcNameToken.Value.Name);
         ConsumeToken<LParenToken>();
-        var parameters = new List<VarName>();
+        List<VarName> parameters = [];
         if(PeekToken() is not RParenToken)
         {
             do { 
                 var paramToken = ConsumeToken<VarNameToken>();
-                parameters.Add(new VarName(paramToken.Value.TypeSuffix, paramToken.Value.Name));
+                parameters.Add(new(paramToken.Value.TypeSuffix, paramToken.Value.Name));
             } while(TryConsumeSpecificSymbol(",", out _));
         }
         ConsumeToken<RParenToken>();
         ConsumeToken<EqualsToken>();
-        Expression body = TryParseExpression().Value;
-        return new DefFnStatement(funcName, parameters, body);
+        var body = TryParseExpression().Value;
+        return new(funcName, parameters, body);
     }
     RestoreStatement TryParseRestoreStatementContents()
     {
         int? label = null;
         if(PeekToken() is FloatToken ft) { ConsumeToken(); label = (int)ft.Value; } // Optional label
-        return new RestoreStatement(label);
+        return new(label);
     }
 
     Statement TryParseOnGotoOrGosubStatementContents()
@@ -403,10 +406,10 @@ sealed class Parser
     // --- Expression Parsing (Recursive Descent with Precedence) ---
     Tagged<Expression> TryParseExpression(int minPrecedence = 0) 
     {
-        Tagged<Expression> lhs = TryParseUnaryExpression(); 
+        var lhs = TryParseUnaryExpression(); 
         while (true)
         {
-            Token? opToken = PeekToken();
+            var opToken = PeekToken();
             BinOp? currentOp = null;
             int precedence = -1;
 
@@ -422,8 +425,8 @@ sealed class Parser
             
             ConsumeToken(); 
             int nextMinPrecedence = IsRightAssociative(currentOp.Value) ? precedence : precedence + 1;
-            Tagged<Expression> rhs = TryParseExpression(nextMinPrecedence);
-            lhs = new Tagged<Expression>(lhs.Position, new BinOpExpression(currentOp.Value, lhs.Value, rhs.Value));
+            var rhs = TryParseExpression(nextMinPrecedence);
+            lhs = new(lhs.Position, new BinOpExpression(currentOp.Value, lhs.Value, rhs.Value));
         }
         return lhs;
     }
@@ -435,12 +438,12 @@ sealed class Parser
         {
             ConsumeToken();
             var operand = TryParseExpression(GetOperatorPrecedence(BinOp.SubOp, true)); 
-            return new Tagged<Expression>(tokenTagged.Position, new MinusExpression(operand.Value));
+            return new(tokenTagged.Position, new MinusExpression(operand.Value));
         }
         if (TryConsumeKeyword(KeywordType.NOT, out var notTokenTagged)) 
         {
             var operand = TryParseExpression(GetOperatorPrecedenceForNot()); 
-            return new Tagged<Expression>(notTokenTagged!.Position, new NotExpression(operand.Value));
+            return new(notTokenTagged!.Position, new NotExpression(operand.Value));
         }
         return TryParsePowerExpression(); 
     }
@@ -452,7 +455,7 @@ sealed class Parser
         {
             ConsumeToken(); 
             var rhs = TryParseUnaryExpression(); 
-            lhs = new Tagged<Expression>(lhs.Position, new BinOpExpression(BinOp.PowOp, lhs.Value, rhs.Value));
+            lhs = new(lhs.Position, new BinOpExpression(BinOp.PowOp, lhs.Value, rhs.Value));
         }
         return lhs;
     }
@@ -460,16 +463,16 @@ sealed class Parser
     Tagged<Expression> TryParseAtom()
     {
         var taggedToken = Peek() ?? throw new ParseException("Unexpected end of expression, expected atom.", CurrentSourcePosition());
-        Token token = taggedToken.Value;
-        SourcePosition pos = taggedToken.Position;
+        var token = taggedToken.Value;
+        var pos = taggedToken.Position;
 
         switch (token)
         {
-            case FloatToken ft: ConsumeToken(); return new Tagged<Expression>(pos, new LiteralExpression(new FloatLiteral((float)ft.Value)));
-            case StringToken st: ConsumeToken(); return new Tagged<Expression>(pos, new LiteralExpression(new StringLiteral(st.Value)));
+            case FloatToken ft: ConsumeToken(); return new(pos, new LiteralExpression(new FloatLiteral((float)ft.Value)));
+            case StringToken st: ConsumeToken(); return new(pos, new LiteralExpression(new StringLiteral(st.Value)));
             case LParenToken:
                 ConsumeToken(); var expr = TryParseExpression(); ConsumeToken<RParenToken>(); 
-                return new Tagged<Expression>(pos, new ParenExpression(expr.Value));
+                return new(pos, new ParenExpression(expr.Value));
             case VarNameToken: return TryParseVariableExpression(); 
             case BuiltinFuncToken: return TryParseBuiltinFunctionCall();
             case KeywordToken kt when kt.Keyword == KeywordType.FN: return TryParseUserFunctionCall();
@@ -483,23 +486,24 @@ sealed class Parser
         VarName varName = new(varNameTagged.Value.TypeSuffix, varNameTagged.Value.Name);
         if (PeekToken() is LParenToken) 
         {
-            ConsumeToken<LParenToken>(); var dimensions = new List<Expression>();
+            ConsumeToken<LParenToken>();
+            List<Expression> dimensions = [];
             if (PeekToken() is not RParenToken)
             {
                 do { dimensions.Add(TryParseExpression().Value); } 
                 while (TryConsumeSpecificSymbol(",", out _));
             }
             ConsumeToken<RParenToken>();
-            return new Tagged<Expression>(varNameTagged.Position, new VarExpression(new ArrVar(varName, dimensions)));
+            return new(varNameTagged.Position, new VarExpression(new ArrVar(varName, dimensions)));
         }
-        return new Tagged<Expression>(varNameTagged.Position, new VarExpression(new ScalarVar(varName)));
+        return new(varNameTagged.Position, new VarExpression(new ScalarVar(varName)));
     }
 
     Tagged<Expression> TryParseBuiltinFunctionCall()
     {
         var builtinTokenTagged = ConsumeToken<BuiltinFuncToken>();
-        Builtin builtin = builtinTokenTagged.Value.FuncName;
-        var args = new List<Expression>();
+        var builtin = builtinTokenTagged.Value.FuncName;
+        List<Expression> args = [];
         if (PeekToken() is LParenToken) 
         {
             ConsumeToken<LParenToken>();
@@ -510,7 +514,7 @@ sealed class Parser
             }
             ConsumeToken<RParenToken>();
         }
-        return new Tagged<Expression>(builtinTokenTagged.Position, new BuiltinExpression(builtin, args));
+        return new(builtinTokenTagged.Position, new BuiltinExpression(builtin, args));
     }
     
     Tagged<Expression> TryParseUserFunctionCall() 
@@ -519,14 +523,14 @@ sealed class Parser
         var funcNameToken = ConsumeToken<VarNameToken>();
         VarName funcName = new(funcNameToken.Value.TypeSuffix, funcNameToken.Value.Name);
         ConsumeToken<LParenToken>();
-        var args = new List<Expression>();
+        List<Expression> args = [];
         if (PeekToken() is not RParenToken)
         {
             do { args.Add(TryParseExpression().Value); }
             while (TryConsumeSpecificSymbol(",", out _));
         }
         ConsumeToken<RParenToken>();
-        return new Tagged<Expression>(funcNameToken.Position, new FnExpression(funcName, args));
+        return new(funcNameToken.Position, new FnExpression(funcName, args));
     }
 
     static int GetOperatorPrecedenceForNot() => 2; 

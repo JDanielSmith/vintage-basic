@@ -14,11 +14,11 @@ static class RuntimeParsingUtils
     
     public static List<string> ParseDataLineContent(string rawContent)
     {
-        var values = new List<string>();
+        List<string> values = [];
         if (rawContent is null) return values;
 
         var current = 0;
-        var builder = new StringBuilder();
+		StringBuilder builder = new();
         bool inQuotes = false;
 
         while (current < rawContent.Length)
@@ -109,7 +109,7 @@ static class RuntimeParsingUtils
         else if (Math.Abs(f) >= 1e-4 && Math.Abs(f) < 1e7 || f == 0.0)
         {
             s = f.ToString("0.#######", CultureInfo.InvariantCulture);
-             if (s.Contains("."))
+             if (s.Contains('.'))
             {
                 s = s.TrimEnd('0').TrimEnd('.');
             }

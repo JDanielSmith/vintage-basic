@@ -3,29 +3,20 @@ using VintageBasic.Syntax;
 
 namespace VintageBasic.Runtime;
 
-sealed class VariableManager
+sealed class VariableManager(BasicStore store)
 {
-    private readonly BasicStore _store;
-    public static readonly IReadOnlyList<int> DefaultDimensionBounds = new List<int> { 11 }.AsReadOnly(); // For 0-10 elements
-
-    public VariableManager(BasicStore store)
-    {
-        _store = store ?? throw new ArgumentNullException(nameof(store));
-    }
+    readonly BasicStore _store = store;
+	public static readonly IReadOnlyList<int> DefaultDimensionBounds = [ 11 ]; // For 0-10 elements
 
     private static Val GetDefaultValue(ValType type)
     {
-        switch (type)
+        return type switch
         {
-            case ValType.FloatType:
-                return new FloatVal(0f);
-            case ValType.IntType:
-                return new IntVal(0);
-            case ValType.StringType:
-                return new StringVal("");
-            default:
-                throw new ArgumentOutOfRangeException(nameof(type), "Invalid ValType for default value.");
-        }
+            ValType.FloatType => new FloatVal(0f),
+            ValType.IntType => new IntVal(0),
+            ValType.StringType => new StringVal(""),
+            _ => throw new ArgumentOutOfRangeException(nameof(type), "Invalid ValType for default value.")
+        };
     }
 
     static string GetVarName(VarName varName)
@@ -44,7 +35,6 @@ sealed class VariableManager
                 return _store.ScalarVariables[key];
             }
 		}
-
         return GetDefaultValue(varName.Type);
     }
 
@@ -68,21 +58,21 @@ sealed class VariableManager
                 return;
 			}
 		}
-
 		_store.ScalarVariables[varName] = value;
     }
 
     public BasicArray DimArray(VarName varName, IReadOnlyList<int> dimensionUpperBounds)
     {
-        if (_store.ArrayVariables.ContainsKey(varName))
+		var name = GetVarName(varName);
+        foreach (var key in _store.ArrayVariables.Keys)
         {
-            throw new RedimensionedArrayError($"Array {varName} already dimensioned.");
+            if (GetVarName(key) == name)
+            {
+                throw new RedimensionedArrayError($"Array {varName} already dimensioned.");
+            }
         }
 
-        if (dimensionUpperBounds is null || !dimensionUpperBounds.Any())
-        {
-            throw new ArgumentException("Dimension bounds cannot be null or empty.", nameof(dimensionUpperBounds));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(dimensionUpperBounds.Count, nameof(dimensionUpperBounds));
 
         foreach (var bound in dimensionUpperBounds)
         {
@@ -96,27 +86,27 @@ sealed class VariableManager
         
         // Convert BASIC upper bounds (e.g., 10 in DIM A(10)) to array dimension sizes (e.g., 11 for 0-10).
         var dimensionSizes = dimensionUpperBounds.Select(b => b + 1).ToList();
-
-
-        var newArray = new BasicArray(dimensionSizes);
+		BasicArray newArray = new(dimensionSizes);
 
         // Initialize array elements to default values.
-        Val defaultValue = GetDefaultValue(varName.Type);
-        for (int i = 0; i < newArray.Data.Length; i++)
-        {
-            newArray.Data[i] = defaultValue;
-        }
+        var defaultValue = GetDefaultValue(varName.Type);
+		Array.Fill(newArray.Data, defaultValue);
 
         _store.ArrayVariables[varName] = newArray;
         return newArray;
     }
     
-    private BasicArray GetOrDimArray(VarName varName, int numDimensions)
+    BasicArray GetOrDimArray(VarName varName, int numDimensions)
     {
-        if (_store.ArrayVariables.TryGetValue(varName, out BasicArray? existingArray))
-        {
-            return existingArray;
-        }
+		var name = GetVarName(varName);
+		foreach (var key in _store.ArrayVariables.Keys)
+		{
+			if (GetVarName(key) == name)
+			{
+				return _store.ArrayVariables[key];
+			}
+		}
+
         // Implicitly dimension with default bounds if accessed before DIM
         var defaultUpperBounds = Enumerable.Repeat(DefaultDimensionBounds[0] - 1, numDimensions).ToList();
         return DimArray(varName, defaultUpperBounds);
@@ -125,8 +115,7 @@ sealed class VariableManager
 
     public Val GetArrayVar(VarName varName, IReadOnlyList<int> indices)
     {
-        BasicArray array = GetOrDimArray(varName, indices.Count);
-
+        var array = GetOrDimArray(varName, indices.Count);
         if (array.DimensionSizes.Count != indices.Count)
         {
             throw new MismatchedArrayDimensionsError($"Array {varName} expects {array.DimensionSizes.Count} dimensions, but received {indices.Count}.");
@@ -138,9 +127,9 @@ sealed class VariableManager
         {
             return array.GetValue(indices);
         }
-        catch (IndexOutOfRangeException)
+        catch (IndexOutOfRangeException ex)
         {
-            throw new OutOfArrayBoundsError($"Index out of bounds for array {varName}.");
+            throw new OutOfArrayBoundsError($"Index out of bounds for array {varName}.", ex);
         }
     }
 
@@ -153,8 +142,7 @@ sealed class VariableManager
             // throw new TypeMismatchError($"Cannot assign {value.Type} to array {varName} of type {varName.Type}");
         }
 
-        BasicArray array = GetOrDimArray(varName, indices.Count);
-        
+        var array = GetOrDimArray(varName, indices.Count);        
         if (array.DimensionSizes.Count != indices.Count)
         {
             throw new MismatchedArrayDimensionsError($"Array {varName} expects {array.DimensionSizes.Count} dimensions, but received {indices.Count}.");
@@ -165,9 +153,9 @@ sealed class VariableManager
         {
              array.SetValue(indices, value);
         }
-        catch (IndexOutOfRangeException)
+        catch (IndexOutOfRangeException ex)
         {
-            throw new OutOfArrayBoundsError($"Index out of bounds for array {varName}.");
+            throw new OutOfArrayBoundsError($"Index out of bounds for array {varName}.", ex);
         }
     }
 }

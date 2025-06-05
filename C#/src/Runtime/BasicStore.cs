@@ -19,12 +19,12 @@ sealed class BasicArray
 
     public BasicArray(IReadOnlyList<int> dimensionSizes)
     {
-        DimensionSizes = new List<int>(dimensionSizes); // Make a copy
+        DimensionSizes = [.. dimensionSizes]; // Make a copy
 
         long totalSize = 1;
         foreach (int size in dimensionSizes)
         {
-            if (size <= 0) throw new System.ArgumentOutOfRangeException(nameof(dimensionSizes), "Dimension size must be positive.");
+            if (size <= 0) throw new ArgumentOutOfRangeException(nameof(dimensionSizes), "Dimension size must be positive.");
             totalSize *= size;
         }
 
@@ -73,23 +73,16 @@ sealed class BasicArray
     }
 }
 
-sealed class BasicStore
+sealed class BasicStore()
 {
     // Scalar variables: VarName -> Val
     // Using Val directly instead of IORef Val, as C# objects are reference types.
     // Direct mutation of Val objects (if they were mutable) or replacing them in the dictionary.
-    public Dictionary<VarName, Val> ScalarVariables { get; }
+    public Dictionary<VarName, Val> ScalarVariables { get; } = new();
 
     // Array variables: VarName -> BasicArray
-    public Dictionary<VarName, BasicArray> ArrayVariables { get; }
+    public Dictionary<VarName, BasicArray> ArrayVariables { get; } = new();
 
-    // User-defined functions: VarName -> UserDefinedFunction
-    public Dictionary<VarName, UserDefinedFunction> UserFunctions { get; }
-
-    public BasicStore()
-    {
-        ScalarVariables = new Dictionary<VarName, Val>();
-        ArrayVariables = new Dictionary<VarName, BasicArray>();
-        UserFunctions = new Dictionary<VarName, UserDefinedFunction>();
-    }
+	// User-defined functions: VarName -> UserDefinedFunction
+	public Dictionary<VarName, UserDefinedFunction> UserFunctions { get; } = new();
 }

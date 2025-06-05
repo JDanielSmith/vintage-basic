@@ -53,7 +53,7 @@ sealed class InputOutputManager
     {
         _state.OutputStream.Flush(); // Ensure any pending output (like a prompt) is written.
         
-        if ( _state.InputStream.IsEOF())
+        if ( _state.InputStream.IsEof)
         {
             throw new EndOfInputError(lineNumber: _state.CurrentLineNumber);
         }

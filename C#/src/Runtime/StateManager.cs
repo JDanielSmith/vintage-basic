@@ -1,13 +1,8 @@
 namespace VintageBasic.Runtime;
 
-sealed class StateManager
+sealed class StateManager(BasicState state)
 {
-    private readonly BasicState _state;
-
-    public StateManager(BasicState state)
-    {
-        _state = state ?? throw new ArgumentNullException(nameof(state));
-    }
+    readonly BasicState _state = state ?? throw new ArgumentNullException(nameof(state));
 
 	public int CurrentLineNumber => _state.CurrentLineNumber;
 

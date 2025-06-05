@@ -1,13 +1,8 @@
 namespace VintageBasic.Runtime;
 
-sealed class RandomManager
+sealed class RandomManager(BasicState state)
 {
-    private readonly BasicState _state;
-
-    public RandomManager(BasicState state)
-    {
-        _state = state ?? throw new ArgumentNullException(nameof(state));
-    }
+    readonly BasicState _state = state ?? throw new ArgumentNullException(nameof(state));
 
     public void SeedRandom(int seed)
     {
