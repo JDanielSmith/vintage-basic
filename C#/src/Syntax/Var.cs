@@ -26,9 +26,9 @@ sealed class ScalarVar : Var
 sealed class ArrVar : Var
 {
     public VarName VarName { get; }
-    public IReadOnlyList<Expr> Dimensions { get; }
+    public IReadOnlyList<Expression> Dimensions { get; }
 
-    public ArrVar(VarName varName, IReadOnlyList<Expr> dimensions)
+    public ArrVar(VarName varName, IReadOnlyList<Expression> dimensions)
     {
         VarName = varName;
         Dimensions = dimensions;

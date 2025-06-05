@@ -404,14 +404,14 @@ sealed class Interpreter
     {
         foreach (var expr in printStmt.Expressions)
         {
-            if (expr is NextZoneX)
+            if (expr is NextZoneExpression)
             {
                 int currentColumn = _ioManager.OutputColumn;
                 int spacesToNextZone = InputOutputManager.ZoneWidth - (currentColumn % InputOutputManager.ZoneWidth);
                 if (currentColumn > 0 && (currentColumn % InputOutputManager.ZoneWidth == 0)) spacesToNextZone = InputOutputManager.ZoneWidth;
                 if (spacesToNextZone > 0 && spacesToNextZone <= InputOutputManager.ZoneWidth) _ioManager.PrintString(new string(' ', spacesToNextZone));
             }
-            else if (expr is EmptySeparatorX) { /* No space */ }
+            else if (expr is EmptyZoneExpression) { /* No space */ }
             else
             {
                 Val val = EvaluateExpression(expr, currentBasicLine);
@@ -448,7 +448,7 @@ sealed class Interpreter
         else throw new NotImplementedException($"Variable type {letStmt.Variable.GetType().Name} in LET not supported.");
     }
 
-    private List<int> EvaluateIndices(IReadOnlyList<Expr> dimExprs, int currentBasicLine)
+    private List<int> EvaluateIndices(IReadOnlyList<Expression> dimExprs, int currentBasicLine)
     {
         var indices = new List<int>();
         foreach (var dimExpr in dimExprs)
@@ -459,35 +459,35 @@ sealed class Interpreter
         return indices;
     }
 
-    private Val EvaluateExpression(Expr expr, int currentBasicLine)
+    private Val EvaluateExpression(Expression expr, int currentBasicLine)
     {
          _stateManager.SetCurrentLineNumber(currentBasicLine);
         switch (expr)
         {
-            case LitX l: return l.Value switch { FloatLiteral f => new FloatVal(f.Value), StringLiteral s => new StringVal(s.Value), _ => throw new NotSupportedException()};
-            case VarX v: 
+            case LiteralExpression l: return l.Value switch { FloatLiteral f => new FloatVal(f.Value), StringLiteral s => new StringVal(s.Value), _ => throw new NotSupportedException()};
+            case VarExpression v: 
                 Val val = v.Value switch { ScalarVar sv => _variableManager.GetScalarVar(sv.VarName), ArrVar av => _variableManager.GetArrayVar(av.VarName, EvaluateIndices(av.Dimensions, currentBasicLine)), _ => throw new NotSupportedException()};
                 return Val.CoerceToExpressionType(val, currentBasicLine, _stateManager); 
-            case ParenX p: return EvaluateExpression(p.Inner, currentBasicLine);
-            case MinusX m:
+            case ParenExpression p: return EvaluateExpression(p.Inner, currentBasicLine);
+            case MinusExpression m:
                 Val op = EvaluateExpression(m.Right, currentBasicLine);
                 Val numOpM = Val.CoerceToExpressionType(op, currentBasicLine, _stateManager); 
                 if (numOpM is FloatVal fv) return new FloatVal(-fv.Value);
                 throw new TypeMismatchError("Numeric operand for unary minus.", currentBasicLine);
-            case NotX n: 
+            case NotExpression n: 
                 Val notOp = EvaluateExpression(n.Right, currentBasicLine);
                 Val numOpN = Val.CoerceToExpressionType(notOp, currentBasicLine, _stateManager); 
                 if (numOpN is FloatVal fvN) return new FloatVal(fvN.Value == 0.0f ? -1.0f : 0.0f); 
                 throw new TypeMismatchError("Numeric operand for NOT.", currentBasicLine);
-            case BinX b: return EvaluateBinOp(b.Op, EvaluateExpression(b.Left, currentBasicLine), EvaluateExpression(b.Right, currentBasicLine), currentBasicLine);
-            case BuiltinX bi: return EvaluateBuiltin(bi.Builtin, bi.Args, currentBasicLine);
-            case FnX fn: 
+            case BinOpExpression b: return EvaluateBinOp(b.Op, EvaluateExpression(b.Left, currentBasicLine), EvaluateExpression(b.Right, currentBasicLine), currentBasicLine);
+            case BuiltinExpression bi: return EvaluateBuiltin(bi.Builtin, bi.Args, currentBasicLine);
+            case FnExpression fn: 
                 UserDefinedFunction udf = _functionManager.GetFunction(fn.FunctionName); 
                 var fnArgs = new List<Val>();
                 foreach(var argExpr in fn.Args) fnArgs.Add(EvaluateExpression(argExpr, currentBasicLine));
                 return udf(fnArgs); 
-            case NextZoneX _: return new StringVal("<Special:NextZone>"); 
-            case EmptySeparatorX _: return new StringVal("<Special:EmptySeparator>"); 
+            case NextZoneExpression _: return new StringVal("<Special:NextZone>"); 
+            case EmptyZoneExpression _: return new StringVal("<Special:EmptySeparator>"); 
             default: throw new NotImplementedException($"Expression type {expr.GetType().Name} not implemented. Line: {currentBasicLine}");
         }
     }
@@ -538,7 +538,7 @@ sealed class Interpreter
         }
     }
 
-    private Val EvaluateBuiltin(Builtin builtin, IReadOnlyList<Expr> argExprs, int currentBasicLine)
+    private Val EvaluateBuiltin(Builtin builtin, IReadOnlyList<Expression> argExprs, int currentBasicLine)
     {
         _stateManager.SetCurrentLineNumber(currentBasicLine);
         var args = new List<Val>();

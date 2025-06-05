@@ -119,7 +119,7 @@ sealed class StringVal : Val
 
     public StringVal(string value)
     {
-        Value = value ?? throw new ArgumentNullException(nameof(value));
+        Value = value;
     }
 
     public override ValType Type => ValType.StringType;

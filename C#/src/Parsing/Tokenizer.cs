@@ -48,7 +48,7 @@ static class Tokenizer
         {"+", BinOp.AddOp}, {"-", BinOp.SubOp}, {"*", BinOp.MulOp}, {"/", BinOp.DivOp},
         {"^", BinOp.PowOp}, {"<>", BinOp.NEOp}, {"<=", BinOp.LEOp}, {">=", BinOp.GEOp},
         {"<", BinOp.LTOp}, {">", BinOp.GTOp}
-        // Note: "=" is handled as EqualsToken separately. AND/OR are keywords for BinX.
+        // Note: "=" is handled as EqualsToken separately. AND/OR are keywords for BinOpExpression.
     }.ToFrozenDictionary();
     
     // For longest match, order operators from longest to shortest.

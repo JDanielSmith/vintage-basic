@@ -19,7 +19,7 @@ namespace VintageBasic.Tests.Parsing
             var expectedVarName = new VarName(ValType.FloatType, "A");
             var expectedScalarVar = new ScalarVar(expectedVarName);
             var expectedLiteral = new FloatLiteral(123.0f);
-            var expectedLitX = new LitX(expectedLiteral);
+            var expectedLitX = new LiteralExpression(expectedLiteral);
             // Assuming LET starts at column 1 for its content after line number and space.
             // Actual column positions from Tokenizer would be used in real scenario.
             // For this example, we'll use placeholder positions or focus on structure.
@@ -46,8 +46,8 @@ namespace VintageBasic.Tests.Parsing
             Assert.Equal(expectedScalarVar.VarName.Name, actualScalarVar.VarName.Name);
             Assert.Equal(expectedScalarVar.VarName.Type, actualScalarVar.VarName.Type);
 
-            Assert.IsType<LitX>(actualLetStmt.Expression);
-            var actualLitX = (LitX)actualLetStmt.Expression;
+            Assert.IsType<LiteralExpression>(actualLetStmt.Expression);
+            var actualLitX = (LiteralExpression)actualLetStmt.Expression;
             Assert.IsType<FloatLiteral>(actualLitX.Value);
             Assert.Equal(expectedLiteral.Value, ((FloatLiteral)actualLitX.Value).Value, 5); // Precision for float comparison
         }
@@ -65,20 +65,20 @@ namespace VintageBasic.Tests.Parsing
             Assert.IsType<PrintStatement>(line.Statements[0].Value);
 
             var printStmt = (PrintStatement)line.Statements[0].Value;
-            Assert.Equal(5, printStmt.Expressions.Count); // "AGE:", NextZoneX, VarX(A), EmptySeparatorX, "!"
+            Assert.Equal(5, printStmt.Expressions.Count); // "AGE:", NextZoneExpression, VarExpression(A), EmptyZoneExpression, "!"
 
-            Assert.IsType<LitX>(printStmt.Expressions[0]);
-            Assert.Equal("AGE:", ((StringLiteral)((LitX)printStmt.Expressions[0]).Value).Value);
+            Assert.IsType<LiteralExpression>(printStmt.Expressions[0]);
+            Assert.Equal("AGE:", ((StringLiteral)((LiteralExpression)printStmt.Expressions[0]).Value).Value);
             
-            Assert.IsType<NextZoneX>(printStmt.Expressions[1]); // Comma results in NextZoneX
+            Assert.IsType<NextZoneExpression>(printStmt.Expressions[1]); // Comma results in NextZoneExpression
 
-            Assert.IsType<VarX>(printStmt.Expressions[2]);
-            Assert.Equal("A", ((VarName)((VarX)printStmt.Expressions[2]).Value.Name).Name);
+            Assert.IsType<VarExpression>(printStmt.Expressions[2]);
+            Assert.Equal("A", ((VarName)((VarExpression)printStmt.Expressions[2]).Value.Name).Name);
 
-            Assert.IsType<EmptySeparatorX>(printStmt.Expressions[3]); // Semicolon results in EmptySeparatorX
+            Assert.IsType<EmptyZoneExpression>(printStmt.Expressions[3]); // Semicolon results in EmptyZoneExpression
             
-            Assert.IsType<LitX>(printStmt.Expressions[4]);
-            Assert.Equal("!", ((StringLiteral)((LitX)printStmt.Expressions[4]).Value).Value);
+            Assert.IsType<LiteralExpression>(printStmt.Expressions[4]);
+            Assert.Equal("!", ((StringLiteral)((LiteralExpression)printStmt.Expressions[4]).Value).Value);
         }
     }
 }
