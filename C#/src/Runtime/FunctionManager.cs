@@ -5,7 +5,7 @@ namespace VintageBasic.Runtime;
 
 sealed class FunctionManager(BasicStore store)
 {
-    readonly BasicStore _store = store ?? throw new ArgumentNullException(nameof(store));
+    readonly BasicStore _store = store;
 
     public UserDefinedFunction GetFunction(VarName funcName)
     {

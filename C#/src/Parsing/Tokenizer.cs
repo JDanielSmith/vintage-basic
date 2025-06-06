@@ -4,6 +4,8 @@ using System.Collections.Frozen;
 
 namespace VintageBasic.Parsing;
 
+using TokenPair = (Tagged<Token>, Tagged<Token>?);
+
 static class Tokenizer
 {
 	public static IEnumerable<Tagged<Token>> Tokenize(ScannedLine scannedLine)
@@ -58,8 +60,7 @@ file sealed class Implementation(ScannedLine scannedLine)
 
 		int commentStartColumn = currentPositionInContent;
 		currentPositionInContent = content.Length; // Consume rest of line
-		SourcePosition remSourcePos = new(lineNumber, commentStartColumn + 1); // 1-based column
-		return new(remSourcePos, new RemToken(tokenContent));
+		return new(new(lineNumber, commentStartColumn + 1), new RemToken(tokenContent)); // 1-based column
 	}
 
 	int tokenStartColumn; // 1-based column for SourcePosition
@@ -73,7 +74,7 @@ file sealed class Implementation(ScannedLine scannedLine)
 	{
 		int stringStart = currentPositionInContent + 1;
 		int stringEnd = stringStart;
-		var sb = new StringBuilder();
+		StringBuilder sb = new();
 		while (stringEnd < content.Length)
 		{
 			if (content[stringEnd] == '"')
@@ -95,8 +96,7 @@ file sealed class Implementation(ScannedLine scannedLine)
 				stringEnd++;
 			}
 		}
-		// Even if unterminated, capture what was parsed, as per Haskell example
-		currentPositionInContent = stringEnd;
+		currentPositionInContent = stringEnd; // Even if unterminated, capture what was parsed, as per Haskell example
 		return CreateTaggedlToken(new StringToken(sb.ToString()));
 	}
 
@@ -108,7 +108,6 @@ file sealed class Implementation(ScannedLine scannedLine)
 	{
 		return potentialNumber.IndexOfAny([ 'E', 'e', 'D', 'd' ]) >= 0;
 	}
-
 	static bool IsSignChar(char c)
 	{
 		return c is '+' or '-';
@@ -137,7 +136,7 @@ file sealed class Implementation(ScannedLine scannedLine)
 	}
 
 	Tagged<Token>? PreviousToken;
-	(Tagged<Token>, Tagged<Token>?)? CreateNumberToken()
+	TokenPair? CreateNumberToken()
 	{
 		// This requires a "longest match" approach or careful ordering with operators.
 		// Let's try to parse a number using a substring and FloatParser.
@@ -268,21 +267,20 @@ file sealed class Implementation(ScannedLine scannedLine)
 
 			return CreateTaggedlToken(new KeywordToken(KeywordType.DATA));
 		}
-		if (Builtins.TryGetValue(identifier, out Builtin builtinFunc))
+		if (Builtins.TryGetValue(identifier, out var builtinFunc))
 		{
 			currentPositionInContent = identEnd;
 			return CreateTaggedlToken(new BuiltinFuncToken(builtinFunc));
 		}
-		if (Keywords.TryGetValue(identifier, out KeywordType keywordType))
+		if (Keywords.TryGetValue(identifier, out var keywordType))
 		{
 			if (keywordType == KeywordType.REM)
 			{
 				// Handle REM comments specially
 				int commentStart = currentPositionInContent + identifier.Length; // Position after "REM"
 				string comment = content[commentStart..].TrimStart(); // Get the rest of the line as comment
-				SourcePosition remSourcePos = new(lineNumber, tokenStartColumn + 1); // 1-based column for REM
 				currentPositionInContent = content.Length; // Consume rest of line
-				return new(remSourcePos, new RemToken(comment));
+				return new(new(lineNumber, tokenStartColumn + 1), new RemToken(comment)); // 1-based column for REM
 			}
 
 			currentPositionInContent = identEnd;
@@ -295,7 +293,7 @@ file sealed class Implementation(ScannedLine scannedLine)
 		var suffix = identifier[^1];
 		if (IsVariableSuffix(suffix))
 		{
-			typeSuffix = suffix == '$' ? ValType.StringType : ValType.IntType;
+			typeSuffix = suffix is '$' ? ValType.StringType : ValType.IntType;
 			namePart = identifier[..^1];
 		}
 
@@ -320,7 +318,8 @@ file sealed class Implementation(ScannedLine scannedLine)
 		currentPositionInContent++; // currentChar uses currentPositionInContent, so increment after creating token
 		return retval;
 	}
-	(Tagged<Token>, Tagged<Token>?)? GetTokens()
+
+	TokenPair? GetTokens()
 	{
 		tokenStartColumn = currentPositionInContent + 1; // 1-based column for SourcePosition
 
@@ -332,27 +331,24 @@ file sealed class Implementation(ScannedLine scannedLine)
 		}
 
 		// 2. String Literals
-		if (currentChar == '"')
+		if (currentChar is '"')
 		{
 			return (CreateStringToken(), null);
 		}
 
 		// 3. Numbers (Try before operators to handle leading +/- signs correctly)
-		var numberTokens = CreateNumberToken();
-		if (numberTokens is not null)
+		if (CreateNumberToken() is TokenPair numberTokens)
 		{
 			return numberTokens; // Return the FloatToken and potentially an OpToken
 		}
 
 		// 4. Operators (longest match first)
-		var opToken = CreateOpToken();
-		if (opToken is not null)
+		if (CreateOpToken() is Tagged<Token> opToken)
 		{
 			return (opToken, null);
 		}
 		// 5. Special Characters
-		var specialToken = CreateSpecialToken();
-		if (specialToken is not null)
+		if (CreateSpecialToken() is Tagged<Token> specialToken)
 		{
 			return (specialToken, null);
 		}

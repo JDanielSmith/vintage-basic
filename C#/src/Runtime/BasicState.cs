@@ -2,8 +2,8 @@ namespace VintageBasic.Runtime;
 
 sealed class BasicState(IInputStream inputStream, IOutputStream outputStream, IReadOnlyList<string> initialDataStatements, int initialSeed = 0)
 {
-    public IInputStream InputStream { get; set; } = inputStream ?? throw new ArgumentNullException(nameof(inputStream));
-	public IOutputStream OutputStream { get; set; } = outputStream ?? throw new ArgumentNullException(nameof(outputStream));
+    public IInputStream InputStream { get; set; } = inputStream;
+	public IOutputStream OutputStream { get; set; } = outputStream;
 
 	public int CurrentLineNumber { get; set; } 
     public int OutputColumn { get; set; } 

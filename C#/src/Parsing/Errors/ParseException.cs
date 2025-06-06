@@ -24,9 +24,9 @@ sealed class ParseException : Exception
 
     static string FormatMessage(string message, SourcePosition? position)
     {
-        if (position.HasValue)
+        if (position is not null)
         {
-            return $"Parse error at {position.Value}: {message}";
+            return $"Parse error at {position}: {message}";
         }
         return $"Parse error: {message}";
     }

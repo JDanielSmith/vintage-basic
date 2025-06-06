@@ -12,7 +12,7 @@ sealed class Parser
 
     private Parser(IReadOnlyList<Tagged<Token>> tokens, int lineNumber, int originalSourceLineIndex)
     {
-        _tokens = tokens ?? throw new ArgumentNullException(nameof(tokens));
+        _tokens = tokens;
         _currentTokenIndex = 0;
         _lineNumber = lineNumber;
         _originalSourceLineIndex = originalSourceLineIndex;
@@ -21,7 +21,7 @@ sealed class Parser
     public static List<Line> ParseProgram(string programText)
     {
 		List<Line> lines = [];
-        var scannedLines = LineScanner.ScanLines(programText.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None));
+        var scannedLines = LineScanner.ScanLines(programText.Split([ "\r\n", "\r", "\n" ], StringSplitOptions.None));
 
         foreach (var scannedLine in scannedLines)
         {
@@ -44,11 +44,11 @@ sealed class Parser
             
             if (!tokensForLine.Any() || (tokensForLine.Count == 1 && tokensForLine[0].Value is EolToken))
             {
-                lines.Add(new Line(scannedLine.LineNumber.Value, new List<Tagged<Statement>>()));
+                lines.Add(new(scannedLine.LineNumber.Value, new List<Tagged<Statement>>()));
                 continue;
             }
 
-            var parserInstance = new Parser(tokensForLine, scannedLine.LineNumber.Value, scannedLine.OriginalLineIndex);
+			Parser parserInstance = new(tokensForLine, scannedLine.LineNumber.Value, scannedLine.OriginalLineIndex);
             try
             {
                 Line parsedLine = parserInstance.ParseSingleLine();
@@ -59,7 +59,7 @@ sealed class Parser
                 throw new ParseException(
                     $"Error on BASIC line {scannedLine.LineNumber.Value} (source file line {scannedLine.OriginalLineIndex + 1}): {ex.Message}", 
                     ex.InnerException ?? ex, 
-                    ex.Position ?? new SourcePosition(scannedLine.LineNumber.Value, 1));
+                    ex.Position ?? new(scannedLine.LineNumber.Value, 1));
             }
         }
         return lines;
@@ -67,7 +67,7 @@ sealed class Parser
 
     Line ParseSingleLine()
     {
-        var statements = new List<Tagged<Statement>>();
+        List<Tagged<Statement>> statements = [];
         
         while (PeekToken() is not EolToken && PeekToken() is not null)
         {

@@ -2,8 +2,8 @@ namespace VintageBasic.Runtime;
 
 sealed class RuntimeContext(BasicStore store, BasicState state)
 {
-    public BasicStore Store { get; } = store ?? throw new System.ArgumentNullException(nameof(store));
-	public BasicState State { get; } = state ?? throw new System.ArgumentNullException(nameof(state));
+    public BasicStore Store { get; } = store;
+    public BasicState State { get; } = state;
 
 	public VariableManager Variables { get; } = new(store);
 	public FunctionManager Functions { get; } = new(store);

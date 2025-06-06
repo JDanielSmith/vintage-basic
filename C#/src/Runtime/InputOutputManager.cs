@@ -2,24 +2,16 @@ using VintageBasic.Runtime.Errors;
 
 namespace VintageBasic.Runtime;
 
-sealed class InputOutputManager
+sealed class InputOutputManager(BasicState state)
 {
-    readonly BasicState _state;
+    readonly BasicState _state = state;
     List<string> _dataQueue = [];
     int _dataReadPointer;
     public const int ZoneWidth = 14; // As defined in BasicMonad.hs
 
-    public InputOutputManager(BasicState state)
-    {
-        _state = state ?? throw new ArgumentNullException(nameof(state));
-        // Initialize _dataQueue from BasicState if it has initial data.
-        // However, BasicState's allDataStatements is private and readonly.
-        // For now, _dataQueue starts empty and is populated by SetDataStrings.
-    }
-
     public void SetDataStrings(IReadOnlyList<string> allDataStrings)
     {
-        _dataQueue = new List<string>(allDataStrings ?? new List<string>());
+        _dataQueue = [.. allDataStrings ?? [] ];
         _dataReadPointer = 0; // Reset pointer when new data is set
     }
 
@@ -28,7 +20,7 @@ sealed class InputOutputManager
         int currentColumn = startColumn;
         foreach (char c in text)
         {
-            if (c == '\n' || c == '\r')
+            if (c is '\n' or '\r')
             {
                 currentColumn = 0;
             }
@@ -42,8 +34,6 @@ sealed class InputOutputManager
 
     public void PrintString(string text)
     {
-        if (text is null) return;
-
         _state.OutputStream.WriteString(text);
         _state.OutputColumn = CalculateEndColumn(_state.OutputColumn, text);
         _state.OutputStream.Flush();
