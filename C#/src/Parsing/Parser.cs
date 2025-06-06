@@ -44,7 +44,7 @@ sealed class Parser
             
             if (!tokensForLine.Any() || (tokensForLine.Count == 1 && tokensForLine[0].Value is EolToken))
             {
-                lines.Add(new(scannedLine.LineNumber.Value, new List<Tagged<Statement>>()));
+                lines.Add(new(scannedLine.LineNumber.Value, []));
                 continue;
             }
 

@@ -88,13 +88,6 @@ static class RuntimeParsingUtils
              values.Add(builder.ToString().Trim()); // Trim unquoted items
         }
         
-        // If rawContent was empty, values will be empty.
-        // If rawContent was "   ", values will contain one "" (empty string).
-        // If rawContent was ",", values will contain two "" (empty strings).
-        // If rawContent was " , ", values will be ["",""].
-        // If rawContent was "\"\"", values will be [""] (empty string, not an empty list).
-        // If rawContent was "\" \"", values will be [" "] (string with a space).
-
         return values;
     }
 

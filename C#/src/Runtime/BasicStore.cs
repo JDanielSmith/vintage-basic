@@ -29,13 +29,6 @@ sealed class BasicArray
         }
 
         Data = new Val[(int)totalSize];
-
-        // Initialize array elements to default values based on type (implicitly handled by Val subclasses if needed,
-        // but BASIC often initializes numeric arrays to 0 and string arrays to empty strings).
-        // For now, they will be null, which needs to be handled during access.
-        // Or, we could initialize them here if we knew the type, but arrays in BASIC can be untyped until first assignment.
-        // Let's assume they are initialized to a default Val of a certain type if we can determine it,
-        // or handle nulls during access. For now, they are just null.
     }
 
     // Helper to calculate the flat index from multi-dimensional indices.

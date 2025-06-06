@@ -1,15 +1,12 @@
 namespace VintageBasic.Runtime;
 
-sealed class RuntimeContext(BasicStore store, BasicState state)
+sealed record RuntimeContext(BasicStore Store, BasicState State)
 {
-    public BasicStore Store { get; } = store;
-    public BasicState State { get; } = state;
-
-	public VariableManager Variables { get; } = new(store);
-	public FunctionManager Functions { get; } = new(store);
-	public InputOutputManager IO { get; } = new(state);
-	public RandomManager Random { get; } = new(state);
-	public StateManager ProgramState { get; } = new(state);
+	public VariableManager Variables { get; } = new(Store);
+	public FunctionManager Functions { get; } = new(Store);
+	public InputOutputManager IO { get; } = new(State);
+	public RandomManager Random { get; } = new(State);
+	public StateManager ProgramState { get; } = new(State);
 
     /// <summary>
     /// Converts a double to an int, similar to BASIC's INT function (floor).
