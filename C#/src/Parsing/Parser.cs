@@ -8,14 +8,11 @@ sealed class Parser
     readonly IReadOnlyList<Tagged<Token>> _tokens;
     int _currentTokenIndex;
     readonly int _lineNumber; 
-    readonly int _originalSourceLineIndex; 
 
-    private Parser(IReadOnlyList<Tagged<Token>> tokens, int lineNumber, int originalSourceLineIndex)
+    private Parser(IReadOnlyList<Tagged<Token>> tokens, int lineNumber)
     {
         _tokens = tokens;
-        _currentTokenIndex = 0;
         _lineNumber = lineNumber;
-        _originalSourceLineIndex = originalSourceLineIndex;
     }
 
     public static List<Line> ParseProgram(string programText)
@@ -48,10 +45,10 @@ sealed class Parser
                 continue;
             }
 
-			Parser parserInstance = new(tokensForLine, scannedLine.LineNumber.Value, scannedLine.OriginalLineIndex);
+			Parser parserInstance = new(tokensForLine, scannedLine.LineNumber.Value);
             try
             {
-                Line parsedLine = parserInstance.ParseSingleLine();
+                var parsedLine = parserInstance.ParseSingleLine();
                 lines.Add(parsedLine);
             }
             catch (ParseException ex)
@@ -69,7 +66,7 @@ sealed class Parser
     {
         List<Tagged<Statement>> statements = [];
         
-        while (PeekToken() is not EolToken && PeekToken() is not null)
+        while (!EndOfLine)
         {
             var statement = TryParseStatement();
             if (statement is not null)
@@ -88,19 +85,21 @@ sealed class Parser
 
             if (TryConsumeSpecificSymbol(":", out _)) 
             {
-                if (PeekToken() is EolToken || PeekToken() is null) break; 
+                if (EndOfLine) break; 
             }
-            else if (PeekToken() is not EolToken && PeekToken() is not null) 
+            else if (!EndOfLine) 
             {
                 var unexpectedToken = Peek();
                 throw new ParseException($"Expected ':' to separate statements or end of line, but found '{unexpectedToken?.Value.Text}'.", unexpectedToken?.Position);
             }
         }
-        
-        if (PeekToken() is EolToken) ConsumeToken<EolToken>();
-        else if (PeekToken() is not null) throw new ParseException("Expected End of Line after statements.", CurrentSourcePosition());
-         
-        return new(_lineNumber, statements);
+
+		if (PeekToken() is EolToken)
+			ConsumeToken<EolToken>();
+		else if (PeekToken() is not null)
+			throw new ParseException("Expected End of Line after statements.", CurrentSourcePosition());
+
+		return new(_lineNumber, statements);
     }
 
     // --- Token Helper Methods ---
@@ -108,9 +107,14 @@ sealed class Parser
     Token? PeekToken(int offset = 0) => Peek(offset)?.Value;
     SourcePosition CurrentSourcePosition() => Peek()?.Position ?? new SourcePosition(_lineNumber, _tokens.LastOrDefault()?.Position.Column + 1 ?? (_tokens.FirstOrDefault()?.Position.Column ?? 1));
 
-    Tagged<Token> ConsumeToken()
+	bool EndOfLine => PeekToken() is EolToken || PeekToken() is null;
+
+	bool EndOfStatement => EndOfLine || (PeekToken() is Token t && t.Text is ":");
+
+	Tagged<Token> ConsumeToken()
     {
-        if (_currentTokenIndex >= _tokens.Count) throw new ParseException("Unexpected end of tokens.", CurrentSourcePosition());
+        if (_currentTokenIndex >= _tokens.Count)
+            throw new ParseException("Unexpected end of tokens.", CurrentSourcePosition());
         var token = _tokens[_currentTokenIndex];
         _currentTokenIndex++;
         return token;
@@ -152,46 +156,58 @@ sealed class Parser
     }
 
     // --- Statement Parsers ---
-    Tagged<Statement>? TryParseStatement()
+    Statement TryParseKeywordStatement(KeywordType keywordType, SourcePosition startPos)
+    {
+		RemStatement CreateRemStatement()
+        {
+            var token = PeekToken();
+            if (token is StringToken or UnknownToken) ConsumeToken();
+            return new((token as StringToken)?.Value ?? (token as UnknownToken)?.Content ?? "");
+		}
+
+		ConsumeToken(); // Consume keyword
+		return keywordType switch {
+            KeywordType.LET => TryParseLetStatementContents(startPos, true),
+            KeywordType.PRINT => ParsePrintStatementContents(),
+            KeywordType.GOTO => TryParseGotoStatementContents(),
+            KeywordType.IF => ParseIfStatementContents(),
+            KeywordType.END => new EndStatement(),
+            KeywordType.DIM => TryParseDimStatementContents(),
+            KeywordType.FOR => ParseForStatementContents(),
+            KeywordType.NEXT => TryParseNextStatementContents(),
+            KeywordType.GOSUB => TryParseGosubStatementContents(),
+            KeywordType.RETURN => new ReturnStatement(),
+            KeywordType.READ => TryParseReadStatementContents(),
+            KeywordType.DATA => TryParseDataStatementContents(),
+            KeywordType.INPUT => TryParseInputStatementContents(),
+            KeywordType.DEF => TryParseDefFnStatementContents(),
+            KeywordType.RANDOMIZE => new RandomizeStatement(),
+            KeywordType.RESTORE => TryParseRestoreStatementContents(),
+            KeywordType.STOP => new StopStatement(),
+            KeywordType.REM => CreateRemStatement(),
+            KeywordType.ON => ParseOnGotoOrGosubStatementContents(),
+            _ => throw new ParseException($"Unhandled keyword '{keywordType}' for statement.", startPos)
+		};
+	}
+
+	Tagged<Statement>? TryParseStatement()
     {
         var startToken = Peek() ?? throw new ParseException("Unexpected end of line.", CurrentSourcePosition());
         if (startToken.Value is EolToken) return null;
-        SourcePosition startPos = startToken.Position;
-        Statement? stmtNode = null;
+        var startPos = startToken.Position;
 
-		switch (startToken.Value)
+		RemStatement CreateRemStatement(RemToken rt)
+		{
+			ConsumeToken();
+            return new(rt.Comment);
+		}
+
+		var stmtNode = startToken.Value switch
         {
-            case RemToken rt: ConsumeToken(); stmtNode = new RemStatement(rt.Comment); break;
-            case KeywordToken kt:
-                ConsumeToken(); // Consume keyword
-                switch (kt.Keyword)
-                {
-                    case KeywordType.LET: stmtNode = TryParseLetStatementContents(startPos, true); break;
-                    case KeywordType.PRINT: stmtNode = TryParsePrintStatementContents(); break;
-                    case KeywordType.GOTO: stmtNode = TryParseGotoStatementContents(); break;
-                    case KeywordType.IF: stmtNode = TryParseIfStatementContents(); break;
-                    case KeywordType.END: stmtNode = new EndStatement(); break;
-                    case KeywordType.DIM: stmtNode = TryParseDimStatementContents(); break;
-                    case KeywordType.FOR: stmtNode = TryParseForStatementContents(); break;
-                    case KeywordType.NEXT: stmtNode = TryParseNextStatementContents(); break;
-                    case KeywordType.GOSUB: stmtNode = TryParseGosubStatementContents(); break;
-                    case KeywordType.RETURN: stmtNode = new ReturnStatement(); break;
-                    case KeywordType.READ: stmtNode = TryParseReadStatementContents(); break;
-                    case KeywordType.DATA: stmtNode = TryParseDataStatementContents(); break;
-                    case KeywordType.INPUT: stmtNode = TryParseInputStatementContents(); break;
-                    case KeywordType.DEF: stmtNode = TryParseDefFnStatementContents(); break; 
-                    case KeywordType.RANDOMIZE: stmtNode = new RandomizeStatement(); break;
-                    case KeywordType.RESTORE: stmtNode = TryParseRestoreStatementContents(); break;
-                    case KeywordType.STOP: stmtNode = new StopStatement(); break;
-                    case KeywordType.REM: stmtNode = new RemStatement( (PeekToken() as StringToken)?.Value ?? (PeekToken() as UnknownToken)?.Content ?? ""); if(PeekToken() is StringToken || PeekToken() is UnknownToken) ConsumeToken(); break;
-                    case KeywordType.ON: stmtNode = TryParseOnGotoOrGosubStatementContents(); break;
-                    default: throw new ParseException($"Unhandled keyword '{kt.Keyword}' for statement.", startPos);
-                }
-                break;
-            default:
-                stmtNode = TryParseImplicitLetOrGotoStatementContents(startPos, false);
-                break;
-        }
+            RemToken rt => CreateRemStatement(rt),
+            KeywordToken kt  => TryParseKeywordStatement(kt.Keyword, startPos),
+            _ => TryParseImplicitLetOrGotoStatementContents(startPos, false)
+        };
         return new(startPos, stmtNode);
     }
 
@@ -221,38 +237,45 @@ sealed class Parser
         if (variableTagged?.Value is not VarExpression varXNode)
             throw new ParseException("Expected variable for LET statement.", variableTagged?.Position ?? originalStartPos);
         ConsumeToken<EqualsToken>();
-        var expressionTagged = TryParseExpression();
+        var expressionTagged = ParseExpression();
         return new(varXNode.Value, expressionTagged.Value);
     }
-    
-    PrintStatement TryParsePrintStatementContents()
+
+	PrintStatement ParsePrintStatementContents()
     {
-        var expressions = new List<Expression>();
-        while (PeekToken() is not EolToken && !(PeekToken() is Token t && t.Text == ":"))
+        IEnumerable<Expression> GetPrintStatementContents()
         {
-            if (TryConsumeSpecificSymbol(",", out _)) { expressions.Add(new NextZoneExpression()); if (PeekToken() is EolToken || (PeekToken() is Token tc && tc.Text == ":") ) {} } 
-            else if (TryConsumeSpecificSymbol(";", out _)) { expressions.Add(new EmptyZoneExpression());}
-            else { expressions.Add(TryParseExpression().Value); }
-        }
-        return new(expressions);
-    }
-    
-    GotoStatement TryParseGotoStatementContents() => new((int)ConsumeToken<FloatToken>().Value.Value);
+			while (!EndOfStatement)
+			{
+                if (TryConsumeSpecificSymbol(",", out _)) yield return new NextZoneExpression();
+                else if (TryConsumeSpecificSymbol(";", out _)) yield return new EmptyZoneExpression();
+                else yield return ParseExpression().Value;
+			}
+		}
+        // Enumerate now so that results are fixed.
+        return new([.. GetPrintStatementContents()]);
+	}
+
+	GotoStatement TryParseGotoStatementContents() => new((int)ConsumeToken<FloatToken>().Value.Value);
     GosubStatement TryParseGosubStatementContents() => new((int)ConsumeToken<FloatToken>().Value.Value);
 
-    IfStatement TryParseIfStatementContents()
+    IfStatement ParseIfStatementContents()
     {
-        var condition = TryParseExpression().Value;
+        var condition = ParseExpression().Value;
         if (!TryConsumeKeyword(KeywordType.THEN, out _))
             throw new ParseException("Expected THEN after IF condition.", CurrentSourcePosition());
-        var thenStatements = new List<Tagged<Statement>>();
-        while(PeekToken() is not EolToken && !(PeekToken() is Token t && t.Text == ":"))
+
+        IEnumerable<Tagged<Statement>> GetIfStatementContents()
         {
-            var stmt = TryParseStatement();
-            if(stmt is not null) thenStatements.Add(stmt); else break;
-            if (TryConsumeSpecificSymbol(":", out _)) { if (PeekToken() is EolToken) break; } else break;
-        }
-        return new(condition, thenStatements);
+			while (!EndOfStatement)
+			{
+				var stmt = TryParseStatement();
+				if (stmt is not null)
+                    yield return stmt;
+			}
+		}
+		// Enumerate now so that results are fixed.
+		return new(condition, [.. GetIfStatementContents()]);
     }
 
     DimStatement TryParseDimStatementContents()
@@ -263,7 +286,7 @@ sealed class Parser
             VarName varName = new(varNameToken.Value.TypeSuffix, varNameToken.Value.Name);
             ConsumeToken<LParenToken>();
             var dims = new List<Expression>();
-            do { dims.Add(TryParseExpression().Value); }
+            do { dims.Add(ParseExpression().Value); }
             while (TryConsumeSpecificSymbol(",", out _));
             ConsumeToken<RParenToken>();
             declarations.Add((varName, dims));
@@ -271,16 +294,18 @@ sealed class Parser
         return new(declarations);
     }
 
-    ForStatement TryParseForStatementContents()
+    ForStatement ParseForStatementContents()
     {
         var loopVarToken = ConsumeToken<VarNameToken>();
         VarName loopVar = new(loopVarToken.Value.TypeSuffix, loopVarToken.Value.Name);
         ConsumeToken<EqualsToken>();
-        Expression initial = TryParseExpression().Value;
-        if(!TryConsumeKeyword(KeywordType.TO, out _)) throw new ParseException("Expected TO in FOR statement.", CurrentSourcePosition());
-        var limit = TryParseExpression().Value;
+        var initial = ParseExpression().Value;
+        if(!TryConsumeKeyword(KeywordType.TO, out _))
+            throw new ParseException("Expected TO in FOR statement.", CurrentSourcePosition());
+        var limit = ParseExpression().Value;
         Expression step = new LiteralExpression(new FloatLiteral(1.0f)); 
-        if(TryConsumeKeyword(KeywordType.STEP, out _)) step = TryParseExpression().Value;
+        if(TryConsumeKeyword(KeywordType.STEP, out _))
+            step = ParseExpression().Value;
         return new(loopVar, initial, limit, step);
     }
 
@@ -358,7 +383,7 @@ sealed class Parser
         }
         ConsumeToken<RParenToken>();
         ConsumeToken<EqualsToken>();
-        var body = TryParseExpression().Value;
+        var body = ParseExpression().Value;
         return new(funcName, parameters, body);
     }
     RestoreStatement TryParseRestoreStatementContents()
@@ -368,45 +393,47 @@ sealed class Parser
         return new(label);
     }
 
-    Statement TryParseOnGotoOrGosubStatementContents()
+    Statement ParseOnGotoOrGosubStatementContents()
     {
-        // ON was already consumed. Expect an expression.
-        var indexExpr = TryParseExpression().Value;
-        
-        bool isGosub = false;
-        if (TryConsumeKeyword(KeywordType.GOTO, out _))
-        {
-            isGosub = false;
-        }
-        else if (TryConsumeKeyword(KeywordType.GOSUB, out _))
-        {
-            isGosub = true;
-        }
-        else
-        {
-            throw new ParseException("Expected GOTO or GOSUB after expression in ON statement.", CurrentSourcePosition());
-        }
+		// ON was already consumed. Expect an expression.
+		var indexExpr = ParseExpression().Value;
 
-        var labels = new List<int>();
-        do
-        {
-            var labelToken = ConsumeToken<FloatToken>(); // Line numbers are parsed as FloatTokens by current Tokenizer
-            labels.Add((int)labelToken.Value.Value);
-        } while (TryConsumeSpecificSymbol(",", out _));
+		bool isGosub;
+		if (TryConsumeKeyword(KeywordType.GOTO, out _))
+		{
+			isGosub = false;
+		}
+		else if (TryConsumeKeyword(KeywordType.GOSUB, out _))
+		{
+			isGosub = true;
+		}
+		else
+		{
+			throw new ParseException("Expected GOTO or GOSUB after expression in ON statement.", CurrentSourcePosition());
+		}
 
-        if (!labels.Any())
-        {
-            throw new ParseException("Expected at least one label in ON...GOTO/GOSUB statement.", CurrentSourcePosition());
-        }
+		IEnumerable<int> GetLabels()
+		{
+			do
+			{
+				var labelToken = ConsumeToken<FloatToken>(); // Line numbers are parsed as FloatTokens by current Tokenizer
+				yield return (int)labelToken.Value.Value;
+			} while (TryConsumeSpecificSymbol(",", out _));
+		}
+		var labels = GetLabels();
+		if (!labels.Any())
+		{
+			throw new ParseException("Expected at least one label in ON...GOTO/GOSUB statement.", CurrentSourcePosition());
+		}
 
-        return isGosub ? new OnGosubStatement(indexExpr, labels) : new OnGotoStatement(indexExpr, labels);
-    }
-
+        var labels_ = labels.ToList();
+		return isGosub ? new OnGosubStatement(indexExpr, labels_) : new OnGotoStatement(indexExpr, labels_);
+	}
 
     // --- Expression Parsing (Recursive Descent with Precedence) ---
-    Tagged<Expression> TryParseExpression(int minPrecedence = 0) 
+    Tagged<Expression> ParseExpression(int minPrecedence = 0) 
     {
-        var lhs = TryParseUnaryExpression(); 
+        var lhs = ParseUnaryExpression(); 
         while (true)
         {
             var opToken = PeekToken();
@@ -425,36 +452,36 @@ sealed class Parser
             
             ConsumeToken(); 
             int nextMinPrecedence = IsRightAssociative(currentOp.Value) ? precedence : precedence + 1;
-            var rhs = TryParseExpression(nextMinPrecedence);
+            var rhs = ParseExpression(nextMinPrecedence);
             lhs = new(lhs.Position, new BinOpExpression(currentOp.Value, lhs.Value, rhs.Value));
         }
         return lhs;
     }
     
-    Tagged<Expression> TryParseUnaryExpression()
+    Tagged<Expression> ParseUnaryExpression()
     {
         var tokenTagged = Peek() ?? throw new ParseException("Unexpected end of expression.", CurrentSourcePosition());
         if (tokenTagged.Value is OpToken opTok && opTok.Op == BinOp.SubOp) 
         {
             ConsumeToken();
-            var operand = TryParseExpression(GetOperatorPrecedence(BinOp.SubOp, true)); 
+            var operand = ParseExpression(GetOperatorPrecedence(BinOp.SubOp, true)); 
             return new(tokenTagged.Position, new MinusExpression(operand.Value));
         }
         if (TryConsumeKeyword(KeywordType.NOT, out var notTokenTagged)) 
         {
-            var operand = TryParseExpression(GetOperatorPrecedenceForNot()); 
+            var operand = ParseExpression(GetOperatorPrecedenceForNot()); 
             return new(notTokenTagged!.Position, new NotExpression(operand.Value));
         }
-        return TryParsePowerExpression(); 
+        return ParsePowerExpression(); 
     }
 
-    Tagged<Expression> TryParsePowerExpression()
+    Tagged<Expression> ParsePowerExpression()
     {
         var lhs = TryParseAtom();
         while(PeekToken() is OpToken op && op.Op == BinOp.PowOp)
         {
             ConsumeToken(); 
-            var rhs = TryParseUnaryExpression(); 
+            var rhs = ParseUnaryExpression(); 
             lhs = new(lhs.Position, new BinOpExpression(BinOp.PowOp, lhs.Value, rhs.Value));
         }
         return lhs;
@@ -471,7 +498,7 @@ sealed class Parser
             case FloatToken ft: ConsumeToken(); return new(pos, new LiteralExpression(new FloatLiteral((float)ft.Value)));
             case StringToken st: ConsumeToken(); return new(pos, new LiteralExpression(new StringLiteral(st.Value)));
             case LParenToken:
-                ConsumeToken(); var expr = TryParseExpression(); ConsumeToken<RParenToken>(); 
+                ConsumeToken(); var expr = ParseExpression(); ConsumeToken<RParenToken>(); 
                 return new(pos, new ParenExpression(expr.Value));
             case VarNameToken: return TryParseVariableExpression(); 
             case BuiltinFuncToken: return TryParseBuiltinFunctionCall();
@@ -490,7 +517,7 @@ sealed class Parser
             List<Expression> dimensions = [];
             if (PeekToken() is not RParenToken)
             {
-                do { dimensions.Add(TryParseExpression().Value); } 
+                do { dimensions.Add(ParseExpression().Value); } 
                 while (TryConsumeSpecificSymbol(",", out _));
             }
             ConsumeToken<RParenToken>();
@@ -509,7 +536,7 @@ sealed class Parser
             ConsumeToken<LParenToken>();
             if (PeekToken() is not RParenToken)
             {
-                do { args.Add(TryParseExpression().Value); }
+                do { args.Add(ParseExpression().Value); }
                 while (TryConsumeSpecificSymbol(",", out _));
             }
             ConsumeToken<RParenToken>();
@@ -526,7 +553,7 @@ sealed class Parser
         List<Expression> args = [];
         if (PeekToken() is not RParenToken)
         {
-            do { args.Add(TryParseExpression().Value); }
+            do { args.Add(ParseExpression().Value); }
             while (TryConsumeSpecificSymbol(",", out _));
         }
         ConsumeToken<RParenToken>();

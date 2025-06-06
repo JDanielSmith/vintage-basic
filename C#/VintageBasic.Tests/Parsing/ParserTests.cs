@@ -26,7 +26,7 @@ namespace VintageBasic.Tests.Parsing
             var expectedLetStmt = new LetStatement(expectedScalarVar, expectedLitX);
             // Placeholder source position for the statement itself.
             var expectedTaggedStmt = new Tagged<Statement>(new SourcePosition(10, 1), expectedLetStmt);
-            var expectedLine = new Line(10, new List<Tagged<Statement>> { expectedTaggedStmt });
+			Line expectedLine = new(10, [expectedTaggedStmt]);
 
             // Act
             var parsedLines = Parser.ParseProgram(programText);
@@ -65,20 +65,21 @@ namespace VintageBasic.Tests.Parsing
             Assert.IsType<PrintStatement>(line.Statements[0].Value);
 
             var printStmt = (PrintStatement)line.Statements[0].Value;
-            Assert.Equal(5, printStmt.Expressions.Count); // "AGE:", NextZoneExpression, VarExpression(A), EmptyZoneExpression, "!"
+            var printStmtExpressions = printStmt.Expressions.ToList();
+			Assert.Equal(5, printStmtExpressions.Count); // "AGE:", NextZoneExpression, VarExpression(A), EmptyZoneExpression, "!"
 
-            Assert.IsType<LiteralExpression>(printStmt.Expressions[0]);
-            Assert.Equal("AGE:", ((StringLiteral)((LiteralExpression)printStmt.Expressions[0]).Value).Value);
+            Assert.IsType<LiteralExpression>(printStmtExpressions[0]);
+            Assert.Equal("AGE:", ((StringLiteral)((LiteralExpression)printStmtExpressions[0]).Value).Value);
             
-            Assert.IsType<NextZoneExpression>(printStmt.Expressions[1]); // Comma results in NextZoneExpression
+            Assert.IsType<NextZoneExpression>(printStmtExpressions[1]); // Comma results in NextZoneExpression
 
-            Assert.IsType<VarExpression>(printStmt.Expressions[2]);
-            Assert.Equal("A", ((VarName)((VarExpression)printStmt.Expressions[2]).Value.Name).Name);
+            Assert.IsType<VarExpression>(printStmtExpressions[2]);
+            Assert.Equal("A", ((VarName)((VarExpression)printStmtExpressions[2]).Value.Name).Name);
 
-            Assert.IsType<EmptyZoneExpression>(printStmt.Expressions[3]); // Semicolon results in EmptyZoneExpression
+            Assert.IsType<EmptyZoneExpression>(printStmtExpressions[3]); // Semicolon results in EmptyZoneExpression
             
-            Assert.IsType<LiteralExpression>(printStmt.Expressions[4]);
-            Assert.Equal("!", ((StringLiteral)((LiteralExpression)printStmt.Expressions[4]).Value).Value);
+            Assert.IsType<LiteralExpression>(printStmtExpressions[4]);
+            Assert.Equal("!", ((StringLiteral)((LiteralExpression)printStmtExpressions[4]).Value).Value);
         }
     }
 }

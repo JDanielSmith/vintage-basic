@@ -52,7 +52,7 @@ file sealed class Implementation(ScannedLine scannedLine)
 
 	readonly string content = scannedLine.Content;
 	int currentPositionInContent; // 0-based index into content string
-	int lineNumber = scannedLine.LineNumber ?? 0;
+	readonly int lineNumber = scannedLine.LineNumber ?? 0;
 
 	Tagged<Token> CreateRemToken()
 	{
@@ -193,7 +193,7 @@ file sealed class Implementation(ScannedLine scannedLine)
 		return null;
 	}
 
-	char currentChar => content[currentPositionInContent];
+	char CurrentChar => content[currentPositionInContent];
 	Tagged<Token>? CreateSpecialToken()
 	{
 		Tagged<Token> CreateTaggedlToken_(Token token)
@@ -201,7 +201,7 @@ file sealed class Implementation(ScannedLine scannedLine)
 			currentPositionInContent++;
 			return CreateTaggedlToken(token);
 		}
-		return currentChar switch
+		return CurrentChar switch
 		{
 			'(' => CreateTaggedlToken_(new LParenToken()),
 			')' => CreateTaggedlToken_(new RParenToken()),
@@ -231,40 +231,6 @@ file sealed class Implementation(ScannedLine scannedLine)
 		// Check for DATA keyword specifically, as they consume the rest of the line differently.
 		if (identifier.Equals("DATA", StringComparison.OrdinalIgnoreCase))
 		{
-			int dataContentStart = currentPositionInContent + 4; // Length of "DATA"
-																 // Skip exactly one space if present, otherwise content starts immediately after DATA
-			if (dataContentStart < content.Length && content[dataContentStart] == ' ')
-			{
-				dataContentStart++;
-			}
-			else if (dataContentStart < content.Length && !Char.IsWhiteSpace(content[dataContentStart]))
-			{
-				// No space after DATA, content starts immediately
-			}
-			else // Whitespace other than a single space, or end of line
-			{
-				while (dataContentStart < content.Length && Char.IsWhiteSpace(content[dataContentStart]))
-				{
-					dataContentStart++;
-				}
-			}
-
-			string rawDataContent = "";
-			int colonPos = content.IndexOf(':', dataContentStart);
-			if (colonPos != -1)
-			{
-				rawDataContent = content[dataContentStart..colonPos];
-				// currentPositionInContent will be set to colonPos by the outer loop later if needed
-				// For now, we tokenize DATA content, and the colon will be the next token.
-				// This needs careful adjustment of currentPositionInContent after adding DataContentToken.
-				identEnd = colonPos; // The DATA content ends before the colon.
-			}
-			else
-			{
-				rawDataContent = content[dataContentStart..];
-				identEnd = content.Length; // Consumed till end of line
-			}
-
 			return CreateTaggedlToken(new KeywordToken(KeywordType.DATA));
 		}
 		if (Builtins.TryGetValue(identifier, out var builtinFunc))
@@ -307,15 +273,15 @@ file sealed class Implementation(ScannedLine scannedLine)
 
 	Tagged<Token> CreateUnknownToken()
 	{
-		if (currentChar == ':')
+		if (CurrentChar == ':')
 		{
 			// Tokenize colon as an UnknownToken for now, Parser will handle it.
 			// Or define a specific ColonToken. For simplicity:
 			currentPositionInContent++;
 			return CreateTaggedlToken(new UnknownToken(":"));
 		}
-		var retval = CreateTaggedlToken(new UnknownToken(currentChar.ToString()));
-		currentPositionInContent++; // currentChar uses currentPositionInContent, so increment after creating token
+		var retval = CreateTaggedlToken(new UnknownToken(CurrentChar.ToString()));
+		currentPositionInContent++; // CurrentChar uses currentPositionInContent, so increment after creating token
 		return retval;
 	}
 
@@ -324,14 +290,14 @@ file sealed class Implementation(ScannedLine scannedLine)
 		tokenStartColumn = currentPositionInContent + 1; // 1-based column for SourcePosition
 
 		// 1. Skip Whitespace
-		if (Char.IsWhiteSpace(currentChar))
+		if (Char.IsWhiteSpace(CurrentChar))
 		{
 			currentPositionInContent++;
 			return null;
 		}
 
 		// 2. String Literals
-		if (currentChar is '"')
+		if (CurrentChar is '"')
 		{
 			return (CreateStringToken(), null);
 		}
@@ -354,7 +320,7 @@ file sealed class Implementation(ScannedLine scannedLine)
 		}
 
 		// 6. Keywords, Builtins, or Variable Names
-		if (Char.IsLetter(currentChar))
+		if (Char.IsLetter(CurrentChar))
 		{
 			return (CreateTokenFromLetter(), null);
 		}

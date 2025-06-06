@@ -52,7 +52,7 @@ sealed record NextStatement(IReadOnlyList<VarName>? LoopVariables) : Statement /
     public override string ToString() => $"{nameof(NextStatement)}([{String.Join(", ", LoopVariables?.Select(v => v.ToString()) ?? [])}])";
 }
 
-sealed record PrintStatement(IReadOnlyList<Expression> Expressions) : Statement
+sealed record PrintStatement(IEnumerable<Expression> Expressions) : Statement
 {
     public override string ToString() => $"{nameof(PrintStatement)}([{String.Join(", ", Expressions.Select(e => e.ToString()))}])";
 }
