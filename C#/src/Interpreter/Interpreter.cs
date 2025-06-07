@@ -1,7 +1,8 @@
-using VintageBasic.Syntax;
+using System.Collections.Frozen;
+using System.Globalization;
 using VintageBasic.Runtime;
 using VintageBasic.Runtime.Errors;
-using System.Globalization; // For CultureInfo
+using VintageBasic.Syntax;
 
 namespace VintageBasic.Interpreter;
 
@@ -528,24 +529,42 @@ sealed class Interpreter(RuntimeContext context)
         }
     }
 
-    Val EvaluateBuiltin(Builtin builtin, IReadOnlyList<Expression> argExprs, int currentBasicLine)
+    static readonly FrozenDictionary<Builtin, List<ValType>> BuiltinArgTypes = new Dictionary<Builtin, List<ValType>>() {
+        { Builtin.Abs, [ ValType.FloatType ] }, { Builtin.Asc, [ ValType.StringType ] }, { Builtin.Atn, [ ValType.FloatType ] },
+        { Builtin.Cos, [ ValType.FloatType ] },
+        { Builtin.Exp, [ ValType.FloatType ] },
+        { Builtin.Left, [ ValType.StringType, ValType.FloatType ] }, { Builtin.Len, [ ValType.StringType ] }, { Builtin.Log, [ ValType.FloatType ] },
+        { Builtin.Right, [ ValType.StringType, ValType.FloatType ] },
+		{ Builtin.Sin, [ ValType.FloatType ] }, { Builtin.Sqr, [ ValType.FloatType ] },
+		{ Builtin.Tan, [ ValType.FloatType ] },
+		{ Builtin.Val, [ ValType.StringType] },
+    }.ToFrozenDictionary();
+
+	Val EvaluateBuiltin(Builtin builtin, IReadOnlyList<Expression> argExprs, int currentBasicLine)
     {
         _stateManager.SetCurrentLineNumber(currentBasicLine);
-        var args = new List<Val>();
-        foreach (var argExpr in argExprs) args.Add(EvaluateExpression(argExpr, currentBasicLine)); 
 
-        switch (builtin)
+        List<Val> args = [];
+        foreach (var argExpr in argExprs)
+            args.Add(EvaluateExpression(argExpr, currentBasicLine)); 
+
+        if (BuiltinArgTypes.TryGetValue(builtin, out var expectedTypes))
         {
-            case Builtin.Abs: CheckArgTypes(Builtin.Abs,[ ValType.FloatType ], args, currentBasicLine); return new FloatVal(Math.Abs(args[0].AsFloat(currentBasicLine)));
-            case Builtin.Asc: CheckArgTypes(Builtin.Asc, [ ValType.StringType ], args, currentBasicLine); string ascStr = ((StringVal)args[0]).Value; if (String.IsNullOrEmpty(ascStr)) throw new InvalidArgumentError("ASC argument is empty", currentBasicLine); return new FloatVal(ascStr[0]); 
-            case Builtin.Atn: CheckArgTypes(Builtin.Atn, [ ValType.FloatType ], args, currentBasicLine); return new FloatVal((float)Math.Atan(args[0].AsFloat(currentBasicLine)));
+            CheckArgTypes(builtin, expectedTypes, args, currentBasicLine);
+        }
+
+		switch (builtin)
+        {
+            case Builtin.Abs: return new FloatVal(Math.Abs(args[0].AsFloat(currentBasicLine)));
+            case Builtin.Asc: string ascStr = ((StringVal)args[0]).Value; if (String.IsNullOrEmpty(ascStr)) throw new InvalidArgumentError("ASC argument is empty", currentBasicLine); return new FloatVal(ascStr[0]); 
+            case Builtin.Atn: return new FloatVal((float)Math.Atan(args[0].AsFloat(currentBasicLine)));
             case Builtin.Chr: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("CHR$ expects 1 numeric arg", currentBasicLine); int chrCode = args[0].AsInt(currentBasicLine); if (chrCode < 0 || chrCode > 255) throw new InvalidArgumentError($"CHR$ code {chrCode} out of range (0-255)", currentBasicLine); return new StringVal(((char)chrCode).ToString());
-            case Builtin.Cos: CheckArgTypes(Builtin.Cos, [ValType.FloatType], args, currentBasicLine); return new FloatVal((float)Math.Cos(args[0].AsFloat(currentBasicLine)));
-            case Builtin.Exp: CheckArgTypes(Builtin.Exp, [ValType.FloatType], args, currentBasicLine); return new FloatVal((float)Math.Exp(args[0].AsFloat(currentBasicLine)));
+            case Builtin.Cos: return new FloatVal((float)Math.Cos(args[0].AsFloat(currentBasicLine)));
+            case Builtin.Exp: return new FloatVal((float)Math.Exp(args[0].AsFloat(currentBasicLine)));
             case Builtin.Int: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("INT expects 1 numeric arg", currentBasicLine); return new FloatVal((float)Math.Floor(args[0].AsFloat(currentBasicLine)));
-            case Builtin.Left: CheckArgTypes(Builtin.Left, [ ValType.StringType, ValType.FloatType ], args, currentBasicLine); string leftStr = ((StringVal)args[0]).Value; int leftN = args[1].AsInt(currentBasicLine); if (leftN < 0) leftN = 0; return new StringVal(leftStr.Substring(0, Math.Min(leftN, leftStr.Length)));
-            case Builtin.Len: CheckArgTypes(Builtin.Len, [ValType.StringType], args, currentBasicLine); return new FloatVal(((StringVal)args[0]).Value.Length); 
-            case Builtin.Log: CheckArgTypes(Builtin.Log, [ValType.FloatType], args, currentBasicLine); float logArg = args[0].AsFloat(currentBasicLine); if (logArg <= 0) throw new InvalidArgumentError("LOG argument must be > 0", currentBasicLine); return new FloatVal((float)Math.Log(logArg));
+            case Builtin.Left: string leftStr = ((StringVal)args[0]).Value; int leftN = args[1].AsInt(currentBasicLine); if (leftN < 0) leftN = 0; return new StringVal(leftStr.Substring(0, Math.Min(leftN, leftStr.Length)));
+            case Builtin.Len: return new FloatVal(((StringVal)args[0]).Value.Length); 
+            case Builtin.Log: float logArg = args[0].AsFloat(currentBasicLine); if (logArg <= 0) throw new InvalidArgumentError("LOG argument must be > 0", currentBasicLine); return new FloatVal((float)Math.Log(logArg));
             case Builtin.Mid:
                 if (args.Count < 2 || args.Count > 3) throw new WrongNumberOfArgumentsError("MID$ expects 2 or 3 args", currentBasicLine);
                 CheckArgTypes(Builtin.Mid, [ValType.StringType, ValType.FloatType], args.Take(2).ToList(), currentBasicLine);
@@ -559,16 +578,16 @@ sealed class Interpreter(RuntimeContext context)
                 midStart--; // Adjust to 0-based index for Substring
                 if (midStart + midLen > midStr.Length) midLen = midStr.Length - midStart;
                 return new StringVal(midStr.Substring(midStart, midLen));
-            case Builtin.Right: CheckArgTypes(Builtin.Right, [ValType.StringType, ValType.FloatType], args, currentBasicLine); string rightStr = ((StringVal)args[0]).Value; int rightN = args[1].AsInt(currentBasicLine); if (rightN < 0) rightN = 0; return new StringVal(rightStr.Substring(Math.Max(0, rightStr.Length - rightN)));
+            case Builtin.Right: string rightStr = ((StringVal)args[0]).Value; int rightN = args[1].AsInt(currentBasicLine); if (rightN < 0) rightN = 0; return new StringVal(rightStr.Substring(Math.Max(0, rightStr.Length - rightN)));
             case Builtin.Rnd: float rndArg = (args.Any()) ? args[0].AsFloat(currentBasicLine) : 1.0f; if (rndArg < 0) _randomManager.SeedRandom((int)rndArg); double rndVal = (rndArg == 0) ? _randomManager.PreviousRandomValue : _randomManager.GetRandomValue(); return new FloatVal((float)rndVal);
             case Builtin.Sgn: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("SGN expects 1 numeric arg", currentBasicLine); return new FloatVal(Math.Sign(args[0].AsFloat(currentBasicLine)));
-            case Builtin.Sin: CheckArgTypes(Builtin.Sin, [ValType.FloatType], args, currentBasicLine); return new FloatVal((float)Math.Sin(args[0].AsFloat(currentBasicLine)));
+            case Builtin.Sin: return new FloatVal((float)Math.Sin(args[0].AsFloat(currentBasicLine)));
             case Builtin.Spc: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("SPC expects 1 numeric arg", currentBasicLine); int spcCount = args[0].AsInt(currentBasicLine); if (spcCount < 0) spcCount=0; return new StringVal(new string(' ', Math.Min(spcCount, 255))); 
-            case Builtin.Sqr: CheckArgTypes(Builtin.Sqr, [ValType.FloatType], args, currentBasicLine); float sqrArg = args[0].AsFloat(currentBasicLine); if (sqrArg < 0) throw new InvalidArgumentError("SQR argument < 0", currentBasicLine); return new FloatVal((float)Math.Sqrt(sqrArg));
+            case Builtin.Sqr: float sqrArg = args[0].AsFloat(currentBasicLine); if (sqrArg < 0) throw new InvalidArgumentError("SQR argument < 0", currentBasicLine); return new FloatVal((float)Math.Sqrt(sqrArg));
             case Builtin.Str: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("STR$ expects 1 numeric arg", currentBasicLine); float strNum = args[0].AsFloat(currentBasicLine); string strRep = strNum.ToString(CultureInfo.InvariantCulture); if (strNum >= 0 && (strRep.Length == 0 || strRep[0] != '-')) strRep = " " + strRep; return new StringVal(strRep);
             case Builtin.Tab: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("TAB expects 1 numeric arg", currentBasicLine); int tabCol = args[0].AsInt(currentBasicLine); if (tabCol < 1 || tabCol > 255) throw new InvalidArgumentError($"TAB col {tabCol} out of range (1-255)", currentBasicLine); int curCol = _ioManager.OutputColumn + 1; return new StringVal(tabCol > curCol ? new string(' ', tabCol - curCol) : "");
-            case Builtin.Tan: CheckArgTypes(Builtin.Tan, [ValType.FloatType], args, currentBasicLine); return new FloatVal((float)Math.Tan(args[0].AsFloat(currentBasicLine)));
-            case Builtin.Val: CheckArgTypes(Builtin.Val, [ValType.StringType], args, currentBasicLine); string valStr = RuntimeParsingUtils.Trim(((StringVal)args[0]).Value); string numPart = ""; bool d = false; foreach(char c in valStr){if (Char.IsDigit(c)){numPart+=c;d=true;}else if(c=='.'&&!numPart.Contains('.')){numPart+=c;}else if((c=='E'||c=='e')&&!numPart.ToUpper().Contains('E')&&d){numPart+=c;}else if((c=='+'||c=='-')&&(numPart.Length==0||numPart.ToUpper().EndsWith('E'))){numPart+=c;}else if(Char.IsWhiteSpace(c)&&numPart.Length==0){continue;}else break;} if (RuntimeParsingUtils.TryParseFloat(numPart, out float pf)) return new FloatVal(pf); return new FloatVal(0f); 
+            case Builtin.Tan: return new FloatVal((float)Math.Tan(args[0].AsFloat(currentBasicLine)));
+            case Builtin.Val: string valStr = RuntimeParsingUtils.Trim(((StringVal)args[0]).Value); string numPart = ""; bool d = false; foreach(char c in valStr){if (Char.IsDigit(c)){numPart+=c;d=true;}else if(c=='.'&&!numPart.Contains('.')){numPart+=c;}else if((c=='E'||c=='e')&&!numPart.ToUpper().Contains('E')&&d){numPart+=c;}else if((c=='+'||c=='-')&&(numPart.Length==0||numPart.ToUpper().EndsWith('E'))){numPart+=c;}else if(Char.IsWhiteSpace(c)&&numPart.Length==0){continue;}else break;} if (RuntimeParsingUtils.TryParseFloat(numPart, out float pf)) return new FloatVal(pf); return new FloatVal(0f); 
             default: throw new NotImplementedException($"Builtin function {builtin}. Line: {currentBasicLine}");
         }
     }
