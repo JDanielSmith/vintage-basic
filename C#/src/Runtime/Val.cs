@@ -13,33 +13,44 @@ abstract record Val(ValType Type) : IComparable<Val>
 
     public static Val CoerceToType(ValType targetType, Val value, int? lineNumber = null, StateManager? stateManager = null)
     {
-        if (stateManager is not null && lineNumber.HasValue) stateManager.SetCurrentLineNumber(lineNumber.Value);
-
-        if (targetType == value.Type) return value;
-
-        switch (targetType)
-        {
-            case ValType.FloatType:
-                if (value is IntVal iv) return new FloatVal(iv.Value);
-                if (value is FloatVal) return value;
-                break;
-            case ValType.IntType:
-                if (value is FloatVal fv) return new IntVal(RuntimeContext.FloatToInt(fv.Value));
-                if (value is IntVal) return value;
-                break;
-            case ValType.StringType:
-                if (value is StringVal) return value; 
-                // BASIC usually doesn't implicitly convert numbers to strings on assignment. STR$() is used.
-                // However, if it were to, it would be like:
-                // if (value is FloatVal fvStr) return new StringVal(RuntimeParsingUtils.PrintFloat(fvStr.Value).Trim());
-                // if (value is IntVal ivStr) return new StringVal(ivStr.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                break;
-        }
+		if (targetType == ValType.FloatType) return CoerceToType<FloatVal>(value, lineNumber, stateManager);
+        if (targetType == ValType.IntType) return CoerceToType<IntVal>(value, lineNumber, stateManager);
+        if (targetType == ValType.StringType) return CoerceToType<StringVal>(value, lineNumber, stateManager);
         throw new Errors.TypeMismatchError($"Cannot coerce {value.Type} to {targetType}", lineNumber ?? stateManager?.CurrentLineNumber);
     }
+	public static Val CoerceToType<TTargetType>(Val value, int? lineNumber = null, StateManager? stateManager = null) where TTargetType : Val
+	{
+		if (stateManager is not null && lineNumber.HasValue) stateManager.SetCurrentLineNumber(lineNumber.Value);
 
-    // Coerces IntVal to FloatVal for expression evaluation if needed, otherwise returns original value.
-    public static Val CoerceToExpressionType(Val value, int? lineNumber = null, StateManager? stateManager = null)
+        var targetType = typeof(TTargetType);
+		if (targetType == value.GetType()) return value;
+
+        if (targetType == typeof(Val)) return value; // Allow Val as a generic target type
+        if (targetType == typeof(FloatVal))
+        {
+			if (value is IntVal iv) return new FloatVal(iv.Value);
+			if (value is FloatVal) return value;
+		}
+		if (targetType == typeof(IntVal))
+		{
+			if (value is FloatVal fv) return new IntVal(RuntimeContext.FloatToInt(fv.Value));
+			if (value is IntVal) return value;
+		}
+		if (targetType == typeof(StringVal))
+		{
+			if (value is StringVal) return value;
+			// BASIC usually doesn't implicitly convert numbers to strings on assignment. STR$() is used.
+			// However, if it were to, it would be like:
+			// if (value is FloatVal fvStr) return new StringVal(RuntimeParsingUtils.PrintFloat(fvStr.Value).Trim());
+			// if (value is IntVal ivStr) return new StringVal(ivStr.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+		}
+
+		throw new Errors.TypeMismatchError($"Cannot coerce {value.Type} to {targetType}", lineNumber ?? stateManager?.CurrentLineNumber);
+	}
+
+
+	// Coerces IntVal to FloatVal for expression evaluation if needed, otherwise returns original value.
+	public static Val CoerceToExpressionType(Val value, int? lineNumber = null, StateManager? stateManager = null)
     {
         if (stateManager is not null && lineNumber.HasValue) stateManager.SetCurrentLineNumber(lineNumber.Value);
 

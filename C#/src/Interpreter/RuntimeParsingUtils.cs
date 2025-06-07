@@ -123,24 +123,15 @@ static class RuntimeParsingUtils
     {
         string stringToParse = (targetVarName.Type == ValType.StringType) ? inputString : inputString.Trim();
 
-        switch (targetVarName.Type)
+        if (targetVarName.Type == ValType.StringType) return new StringVal(stringToParse);
+        else if (targetVarName.Type == ValType.FloatType)
         {
-            case ValType.StringType:
-                return new StringVal(stringToParse); 
-            case ValType.FloatType:
-                if (TryParseFloat(stringToParse, out float fv)) 
-                {
-                    return new FloatVal(fv);
-                }
-                return null; 
-            case ValType.IntType:
-                if (TryParseFloat(stringToParse, out float fvForInt)) 
-                {
-                    return new IntVal(RuntimeContext.FloatToInt(fvForInt));
-                }
-                return null; 
-            default:
-                return null; 
-        }
+			if (TryParseFloat(stringToParse, out var fv)) return new FloatVal(fv);
+		}
+        else if (targetVarName.Type == ValType.IntType)
+        {
+			if (TryParseFloat(stringToParse, out var fvForInt)) return new IntVal(RuntimeContext.FloatToInt(fvForInt));
+		}
+        return null;
     }
 }

@@ -30,7 +30,7 @@ sealed record BuiltinFuncToken(Builtin FuncName) : Token
 
 sealed record VarNameToken(string Name, ValType TypeSuffix) : Token
 {
-    public override string Text => Name + TypeSuffix switch { ValType.StringType => "$", ValType.IntType => "%", _ => "" }; // Type suffixes for BASIC variables
+    public override string Text => Name + (TypeSuffix == ValType.StringType ? "$" : TypeSuffix == ValType.IntType ? "%" : ""); // Type suffixes for BASIC variables
 }
 
 sealed record FloatToken(double Value) : Token

@@ -10,13 +10,10 @@ sealed class VariableManager(BasicStore store)
 
     private static Val GetDefaultValue(ValType type)
     {
-        return type switch
-        {
-            ValType.FloatType => new FloatVal(0f),
-            ValType.IntType => new IntVal(0),
-            ValType.StringType => new StringVal(""),
-            _ => throw new ArgumentOutOfRangeException(nameof(type), "Invalid ValType for default value.")
-        };
+        if (type == ValType.FloatType) return new FloatVal(0f);
+        if (type == ValType.IntType) return new IntVal(0);
+        if (type == ValType.StringType) return new StringVal("");
+        throw new ArgumentOutOfRangeException(nameof(type), "Invalid ValType for default value.");
     }
 
     static string GetVarName(VarName varName)
