@@ -1,13 +1,13 @@
 namespace VintageBasic.Syntax;
 
-abstract record Literal(ValType Type) { }
+abstract record Literal { }
 
-sealed record FloatLiteral(float Value) : Literal(ValType.FloatType)
+sealed record FloatLiteral(float Value) : Literal
 {
     public override string ToString() => $"{nameof(FloatLiteral)}(({Value})";
 }
 
-sealed record StringLiteral(string Value) : Literal(ValType.StringType)
+sealed record StringLiteral(string Value) : Literal
 {
     public override string ToString() => $"{nameof(StringLiteral)}(\"{Value}\")";
 }

@@ -1,4 +1,5 @@
-using VintageBasic.Syntax; // For ValType, Builtin, BinOp
+using VintageBasic.Syntax;
+using VintageBasic.Runtime;
 
 namespace VintageBasic.Parsing;
 
@@ -28,9 +29,9 @@ sealed record BuiltinFuncToken(Builtin FuncName) : Token
     public override string Text => FuncName.ToString().ToUpperInvariant(); // Match BASIC naming
 }
 
-sealed record VarNameToken(string Name, ValType TypeSuffix) : Token
+sealed record VarNameToken(string Name, Val Val) : Token
 {
-    public override string Text => Name + (TypeSuffix == ValType.StringType ? "$" : TypeSuffix == ValType.IntType ? "%" : ""); // Type suffixes for BASIC variables
+	public override string Text => Name + Val.Suffix;
 }
 
 sealed record FloatToken(double Value) : Token

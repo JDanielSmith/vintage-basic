@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using VintageBasic.Runtime.Errors;
 using VintageBasic.Syntax;
 
@@ -7,14 +8,6 @@ sealed class VariableManager(BasicStore store)
 {
     readonly BasicStore _store = store;
 	public static readonly IReadOnlyList<int> DefaultDimensionBounds = [ 11 ]; // For 0-10 elements
-
-    private static Val GetDefaultValue(ValType type)
-    {
-        if (type == ValType.FloatType) return new FloatVal(0f);
-        if (type == ValType.IntType) return new IntVal(0);
-        if (type == ValType.StringType) return new StringVal("");
-        throw new ArgumentOutOfRangeException(nameof(type), "Invalid ValType for default value.");
-    }
 
     static string GetVarName(VarName varName)
     {
@@ -27,17 +20,17 @@ sealed class VariableManager(BasicStore store)
         var name = GetVarName(varName);
 		foreach (var key in _store.ScalarVariables.Keys)
         {
-            if ((GetVarName(key) == name) && (key.Type == varName.Type))
+            if ((GetVarName(key) == name) && varName.IsSameType(key))
             {
                 return _store.ScalarVariables[key];
             }
 		}
-        return GetDefaultValue(varName.Type);
+        return varName.DefaultValue;
     }
 
     public void SetScalarVar(VarName varName, Val value)
     {
-        if (varName.Type != value.Type)
+        if (!varName.IsSameType(value))
         {
             // This check might be too strict for BASIC, which often allows implicit conversion.
             // However, for a strongly-typed internal representation, it's safer.
@@ -49,7 +42,7 @@ sealed class VariableManager(BasicStore store)
 		var name = GetVarName(varName);
 		foreach (var key in _store.ScalarVariables.Keys)
 		{
-			if ((GetVarName(key) == name) && (key.Type == varName.Type))
+			if ((GetVarName(key) == name) && varName.IsSameType(key))
 			{
 				_store.ScalarVariables[key] = value;
                 return;
@@ -86,8 +79,7 @@ sealed class VariableManager(BasicStore store)
 		BasicArray newArray = new(dimensionSizes);
 
         // Initialize array elements to default values.
-        var defaultValue = GetDefaultValue(varName.Type);
-		Array.Fill(newArray.Data, defaultValue);
+		Array.Fill(newArray.Data, varName.DefaultValue);
 
         _store.ArrayVariables[varName] = newArray;
         return newArray;
@@ -132,7 +124,7 @@ sealed class VariableManager(BasicStore store)
 
     public void SetArrayVar(VarName varName, IReadOnlyList<int> indices, Val value)
     {
-        if (varName.Type != value.Type)
+        if (!varName.IsSameType(value))
         {
             // Similar to SetScalarVar, consider type coercion strategy.
             // For now, strict.

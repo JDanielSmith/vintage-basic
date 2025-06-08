@@ -36,17 +36,17 @@ sealed class Interpreter(RuntimeContext context)
             var lineData = CollectDataFromLine(line); // Uses refined ParseDataLineContent
             allDataStrings.AddRange(lineData);
             
-            var currentLine = line; 
-            Action programAction = () =>
-            {
-                foreach (var taggedStatement in currentLine.Statements)
-                {
-                    _stateManager.SetCurrentLineNumber(currentLine.Label); 
-                    InterpretStatement(taggedStatement);
-                    if (_programEnded || _nextInstructionIsJump) break; 
-                }
-            };
-            jumpTableBuilder.Add(new JumpTableEntry(currentLine.Label, programAction, lineData));
+            var currentLine = line;
+			void programAction()
+			{
+				foreach (var taggedStatement in currentLine.Statements)
+				{
+					_stateManager.SetCurrentLineNumber(currentLine.Label);
+					InterpretStatement(taggedStatement);
+					if (_programEnded || _nextInstructionIsJump) break;
+				}
+			}
+			jumpTableBuilder.Add(new JumpTableEntry(currentLine.Label, programAction, lineData));
         }
         _jumpTable = jumpTableBuilder;
         _ioManager.SetDataStrings(allDataStrings); 
@@ -201,8 +201,9 @@ sealed class Interpreter(RuntimeContext context)
                 {
                     string dataStr = _ioManager.ReadData();
                     Val? val = RuntimeParsingUtils.CheckInput(varToRead.Name, dataStr) ?? throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", currentBasicLine);
-					var coercedVal = Val.CoerceToType(varToRead.Name.Type, val, currentBasicLine, _stateManager);
-                    if (varToRead is ScalarVar sv) _variableManager.SetScalarVar(sv.VarName, coercedVal);
+					var coercedVal = Val.CoerceToType(varToRead.GetValType(), val, currentBasicLine, _stateManager);
+                    if (varToRead is ScalarVar sv)
+                        _variableManager.SetScalarVar(sv.VarName, coercedVal);
                     else if (varToRead is ArrVar av)
                     {
                         var indices = EvaluateIndices(av.Dimensions, currentBasicLine);
@@ -264,7 +265,7 @@ sealed class Interpreter(RuntimeContext context)
                             availableInputStrings.Clear(); // Discard remaining values from this erroneous line
                             break; // Break from variables loop, outer do-while will retry entire INPUT
                         }
-                        valuesToAssignThisInput.Add(Val.CoerceToType(targetVar.Name.Type, parsedVal, currentBasicLine, _stateManager));
+                        valuesToAssignThisInput.Add(Val.CoerceToType(targetVar.GetValType(), parsedVal, currentBasicLine, _stateManager));
                     }
 
                 } while (retryCurrentInputEntirely);
@@ -295,7 +296,7 @@ sealed class Interpreter(RuntimeContext context)
                 Val startVal = EvaluateExpression(forStmt.InitialValue, currentBasicLine);
                 Val limitVal = EvaluateExpression(forStmt.LimitValue, currentBasicLine);
                 Val stepVal = EvaluateExpression(forStmt.StepValue, currentBasicLine);
-                Val coercedStartVal = Val.CoerceToType(forStmt.LoopVariable.Type, startVal, currentBasicLine, _stateManager);
+                Val coercedStartVal = forStmt.LoopVariable.CoerceToType(startVal, currentBasicLine, _stateManager);
                 _variableManager.SetScalarVar(forStmt.LoopVariable, coercedStartVal);
                 _context.State.ForLoopStack.Push(new ForLoopContext(forStmt.LoopVariable, limitVal, stepVal, _currentProgramLineIndex));
                 break;
@@ -307,15 +308,15 @@ sealed class Interpreter(RuntimeContext context)
                 {
                     if (!_context.State.ForLoopStack.Any() || _context.State.ForLoopStack.Peek().LoopVariable.Name != varNameInNextClause.Name)
                         throw new BasicRuntimeException($"NEXT variable {varNameInNextClause.Name} does not match current FOR loop variable", currentBasicLine);
-                    ForLoopContext currentLoop = _context.State.ForLoopStack.Peek();
-                    Val currentValue = _variableManager.GetScalarVar(currentLoop.LoopVariable);
-                    Val addedValue = EvaluateBinOp(BinOp.AddOp, currentValue, currentLoop.StepValue, currentBasicLine);
-                    Val newLoopVal = Val.CoerceToType(currentLoop.LoopVariable.Type, addedValue, currentBasicLine, _stateManager);
+                    var currentLoop = _context.State.ForLoopStack.Peek();
+                    var currentValue = _variableManager.GetScalarVar(currentLoop.LoopVariable);
+                    var addedValue = EvaluateBinOp(BinOp.AddOp, currentValue, currentLoop.StepValue, currentBasicLine);
+                    var newLoopVal = currentLoop.LoopVariable.CoerceToType(addedValue, currentBasicLine, _stateManager);
                     _variableManager.SetScalarVar(currentLoop.LoopVariable, newLoopVal);
-                    float step = currentLoop.StepValue.AsFloat(currentBasicLine); 
-                    float limit = currentLoop.LimitValue.AsFloat(currentBasicLine); 
-                    float current = newLoopVal.AsFloat(currentBasicLine); 
-                    bool loopContinues = (step >= 0) ? (current <= limit) : (current >= limit);
+                    var step = currentLoop.StepValue.AsFloat(currentBasicLine); 
+                    var limit = currentLoop.LimitValue.AsFloat(currentBasicLine); 
+                    var current = newLoopVal.AsFloat(currentBasicLine); 
+                    var loopContinues = (step >= 0) ? (current <= limit) : (current >= limit);
                     if (loopContinues)
                     {
 						currentLoop.SingleLine = _currentProgramLineIndex == currentLoop.LoopStartLineIndex; ;
@@ -343,17 +344,20 @@ sealed class Interpreter(RuntimeContext context)
                         var paramName = defFnStmt.Parameters[i];
                         try { stashedValues[paramName] = _variableManager.GetScalarVar(paramName); } 
                         catch { stashedValues[paramName] = null; } 
-                        _variableManager.SetScalarVar(paramName, Val.CoerceToType(paramName.Type, argsFromInvocation[i], _stateManager.CurrentLineNumber, _stateManager));
+                        _variableManager.SetScalarVar(paramName, paramName.CoerceToType(argsFromInvocation[i], _stateManager.CurrentLineNumber, _stateManager));
                     }
                     Val result = EvaluateExpression(defFnStmt.Expression, _stateManager.CurrentLineNumber);
                     foreach(var paramName in defFnStmt.Parameters)
                     {
-                        if(stashedValues.TryGetValue(paramName, out Val? stashedVal) && stashedVal is not null)
+                        if (stashedValues.TryGetValue(paramName, out Val? stashedVal) && stashedVal is not null)
                             _variableManager.SetScalarVar(paramName, stashedVal);
-                        else 
-                            _variableManager.SetScalarVar(paramName, Val.CoerceToType(paramName.Type, paramName.Type == ValType.StringType ? (Val)new StringVal("") : new FloatVal(0), _stateManager.CurrentLineNumber, _stateManager));
+                        else
+                        {
+                            Val val = paramName.GetValType() == typeof(StringVal) ? StringVal.Empty : FloatVal.Empty;
+							_variableManager.SetScalarVar(paramName, paramName.CoerceToType(val, _stateManager.CurrentLineNumber, _stateManager));
+                        }
                     }
-                    return Val.CoerceToType(defFnStmt.FunctionName.Type, result, _stateManager.CurrentLineNumber, _stateManager);
+                    return defFnStmt.FunctionName.CoerceToType(result, _stateManager.CurrentLineNumber, _stateManager);
                 };
                 _functionManager.SetFunction(defFnStmt.FunctionName, udf);
                 break;
@@ -428,8 +432,8 @@ sealed class Interpreter(RuntimeContext context)
 
     void HandleLetStatement(LetStatement letStmt, int currentBasicLine)
     {
-        Val valueToAssign = EvaluateExpression(letStmt.Expression, currentBasicLine);
-        Val coercedValue = Val.CoerceToType(letStmt.Variable.Name.Type, valueToAssign, currentBasicLine, _stateManager);
+        var valueToAssign = EvaluateExpression(letStmt.Expression, currentBasicLine);
+        var coercedValue = Val.CoerceToType(letStmt.Variable.GetValType(), valueToAssign, currentBasicLine, _stateManager);
         if (letStmt.Variable is ScalarVar sv) _variableManager.SetScalarVar(sv.VarName, coercedValue);
         else if (letStmt.Variable is ArrVar av)
         {
@@ -493,7 +497,7 @@ sealed class Interpreter(RuntimeContext context)
             case BinOp.AddOp:
                 if (cV1 is StringVal s1 && cV2 is StringVal s2) return new StringVal(s1.Value + s2.Value);
                 if (cV1 is FloatVal f1 && cV2 is FloatVal f2) return new FloatVal(f1.Value + f2.Value);
-                throw new TypeMismatchError($"Cannot ADD types {cV1.Type} and {cV2.Type}", currentBasicLine);
+                throw new TypeMismatchError($"Cannot ADD types {cV1.TypeName} and {cV2.TypeName}", currentBasicLine);
             case BinOp.SubOp: return new FloatVal(cV1.AsFloat(currentBasicLine) - cV2.AsFloat(currentBasicLine));
             case BinOp.MulOp: return new FloatVal(cV1.AsFloat(currentBasicLine) * cV2.AsFloat(currentBasicLine));
             case BinOp.DivOp:
@@ -502,7 +506,8 @@ sealed class Interpreter(RuntimeContext context)
                 return new FloatVal(cV1.AsFloat(currentBasicLine) / divisor);
             case BinOp.PowOp: return new FloatVal((float)Math.Pow(cV1.AsFloat(currentBasicLine), cV2.AsFloat(currentBasicLine)));
             case BinOp.EqOp: case BinOp.NEOp: case BinOp.LTOp: case BinOp.LEOp: case BinOp.GTOp: case BinOp.GEOp:
-                if (v1.Type != v2.Type) throw new TypeMismatchError($"Cannot compare types {v1.Type} and {v2.Type}", currentBasicLine);
+                if (!v1.IsSameType(v2))
+                    throw new TypeMismatchError($"Cannot compare types {v1.TypeName} and {v2.TypeName}", currentBasicLine);
                 int cr = v1.CompareTo(v2); 
                 bool res = op switch { BinOp.EqOp => cr == 0, BinOp.NEOp => cr != 0, BinOp.LTOp => cr < 0, BinOp.LEOp => cr <= 0, BinOp.GTOp => cr > 0, BinOp.GEOp => cr >= 0, _ => false };
                 return new FloatVal(res ? -1.0f : 0.0f); 
@@ -512,7 +517,7 @@ sealed class Interpreter(RuntimeContext context)
         }
     }
     
-    void CheckArgTypes(Builtin builtinName, List<ValType> expectedTypes, List<Val> actualArgs, int currentBasicLine)
+    void CheckArgTypes(Builtin builtinName, List<Val> expectedTypes, List<Val> actualArgs, int currentBasicLine)
     {
         _stateManager.SetCurrentLineNumber(currentBasicLine); 
         if (expectedTypes.Count != actualArgs.Count)
@@ -523,26 +528,37 @@ sealed class Interpreter(RuntimeContext context)
 
         for (int i = 0; i < Math.Min(expectedTypes.Count, actualArgs.Count) ; i++)
         {
-            if (expectedTypes[i] == ValType.IntType && actualArgs[i].Type == ValType.FloatType) continue; 
-            if (expectedTypes[i] != actualArgs[i].Type)
-                throw new TypeMismatchError($"For {builtinName} argument {i+1}: expected {expectedTypes[i]}, got {actualArgs[i].Type}", currentBasicLine);
+            if ((expectedTypes[i].GetType() == typeof(IntVal)) && (actualArgs[i].GetType() == typeof(FloatVal))) continue; 
+            if (!expectedTypes[i].IsSameType(actualArgs[i]))
+                throw new TypeMismatchError($"For {builtinName} argument {i+1}: expected {expectedTypes[i]}, got {actualArgs[i].TypeName}", currentBasicLine);
         }
     }
 
-    static readonly FrozenDictionary<Builtin, List<ValType>> BuiltinArgTypes = new Dictionary<Builtin, List<ValType>>() {
-        { Builtin.Abs, [ ValType.FloatType ] }, { Builtin.Asc, [ ValType.StringType ] }, { Builtin.Atn, [ ValType.FloatType ] },
-        { Builtin.Cos, [ ValType.FloatType ] },
-        { Builtin.Exp, [ ValType.FloatType ] },
-        { Builtin.Left, [ ValType.StringType, ValType.FloatType ] }, { Builtin.Len, [ ValType.StringType ] }, { Builtin.Log, [ ValType.FloatType ] },
-        { Builtin.Right, [ ValType.StringType, ValType.FloatType ] },
-		{ Builtin.Sin, [ ValType.FloatType ] }, { Builtin.Sqr, [ ValType.FloatType ] },
-		{ Builtin.Tan, [ ValType.FloatType ] },
-		{ Builtin.Val, [ ValType.StringType] },
+    static readonly FrozenDictionary<Builtin, List<Val>> BuiltinArgTypes = new Dictionary<Builtin, List<Val>>() {
+        { Builtin.Abs, [ FloatVal.Empty ] }, { Builtin.Asc, [ StringVal.Empty ] }, { Builtin.Atn, [ FloatVal.Empty ] },
+        { Builtin.Cos, [ FloatVal.Empty ] },
+        { Builtin.Exp, [ FloatVal.Empty ] },
+        { Builtin.Left, [ StringVal.Empty, FloatVal.Empty ] }, { Builtin.Len, [ StringVal.Empty ] }, { Builtin.Log, [ FloatVal.Empty ] },
+        { Builtin.Right, [ StringVal.Empty, FloatVal.Empty ] },
+		{ Builtin.Sin, [ FloatVal.Empty ] }, { Builtin.Sqr, [ FloatVal.Empty ] },
+		{ Builtin.Tan, [ FloatVal.Empty ] },
+		{ Builtin.Val, [ StringVal.Empty] },
     }.ToFrozenDictionary();
+
+	static bool HasNumericArg0(IReadOnlyList<Val> args)
+	{
+        return (args.Count == 1) && args[0].IsNumeric;
+	}
 
 	Val EvaluateBuiltin(Builtin builtin, IReadOnlyList<Expression> argExprs, int currentBasicLine)
     {
-        _stateManager.SetCurrentLineNumber(currentBasicLine);
+		void ThrowIfNotNumericArg0(IReadOnlyList<Val> args, string message)
+		{
+			if (!HasNumericArg0(args))
+				throw new TypeMismatchError(message, currentBasicLine);
+		}
+
+		_stateManager.SetCurrentLineNumber(currentBasicLine);
 
         List<Val> args = [];
         foreach (var argExpr in argExprs)
@@ -558,36 +574,39 @@ sealed class Interpreter(RuntimeContext context)
             case Builtin.Abs: return new FloatVal(Math.Abs(args[0].AsFloat(currentBasicLine)));
             case Builtin.Asc: string ascStr = ((StringVal)args[0]).Value; if (String.IsNullOrEmpty(ascStr)) throw new InvalidArgumentError("ASC argument is empty", currentBasicLine); return new FloatVal(ascStr[0]); 
             case Builtin.Atn: return new FloatVal((float)Math.Atan(args[0].AsFloat(currentBasicLine)));
-            case Builtin.Chr: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("CHR$ expects 1 numeric arg", currentBasicLine); int chrCode = args[0].AsInt(currentBasicLine); if (chrCode < 0 || chrCode > 255) throw new InvalidArgumentError($"CHR$ code {chrCode} out of range (0-255)", currentBasicLine); return new StringVal(((char)chrCode).ToString());
+            case Builtin.Chr: ThrowIfNotNumericArg0(args, "CHR$ expects 1 numeric arg"); int chrCode = args[0].AsInt(currentBasicLine); if (chrCode < 0 || chrCode > 255) throw new InvalidArgumentError($"CHR$ code {chrCode} out of range (0-255)", currentBasicLine); return new StringVal(((char)chrCode).ToString());
             case Builtin.Cos: return new FloatVal((float)Math.Cos(args[0].AsFloat(currentBasicLine)));
             case Builtin.Exp: return new FloatVal((float)Math.Exp(args[0].AsFloat(currentBasicLine)));
-            case Builtin.Int: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("INT expects 1 numeric arg", currentBasicLine); return new FloatVal((float)Math.Floor(args[0].AsFloat(currentBasicLine)));
+            case Builtin.Int: ThrowIfNotNumericArg0(args, "INT expects 1 numeric arg"); return new FloatVal((float)Math.Floor(args[0].AsFloat(currentBasicLine)));
             case Builtin.Left: string leftStr = ((StringVal)args[0]).Value; int leftN = args[1].AsInt(currentBasicLine); if (leftN < 0) leftN = 0; return new StringVal(leftStr.Substring(0, Math.Min(leftN, leftStr.Length)));
             case Builtin.Len: return new FloatVal(((StringVal)args[0]).Value.Length); 
             case Builtin.Log: float logArg = args[0].AsFloat(currentBasicLine); if (logArg <= 0) throw new InvalidArgumentError("LOG argument must be > 0", currentBasicLine); return new FloatVal((float)Math.Log(logArg));
             case Builtin.Mid:
-                if (args.Count < 2 || args.Count > 3) throw new WrongNumberOfArgumentsError("MID$ expects 2 or 3 args", currentBasicLine);
-                CheckArgTypes(Builtin.Mid, [ValType.StringType, ValType.FloatType], args.Take(2).ToList(), currentBasicLine);
-                if(args.Count == 3 && args[2].Type != ValType.FloatType && args[2].Type != ValType.IntType) throw new TypeMismatchError("MID$ length arg must be numeric", currentBasicLine);
+                if (args.Count < 2 || args.Count > 3)
+                    throw new WrongNumberOfArgumentsError("MID$ expects 2 or 3 args", currentBasicLine);
+                CheckArgTypes(Builtin.Mid, [StringVal.Empty, FloatVal.Empty], args.Take(2).ToList(), currentBasicLine);
+                if(args.Count == 3 && !args[2].IsNumeric)
+                    throw new TypeMismatchError("MID$ length arg must be numeric", currentBasicLine);
                 string midStr = ((StringVal)args[0]).Value;
                 int midStart = args[1].AsInt(currentBasicLine);
                 if (midStart < 1) midStart = 1;
                 int midLen = (args.Count == 3) ? args[2].AsInt(currentBasicLine) : midStr.Length - (midStart - 1) ;
                 if (midLen < 0) midLen = 0;
-                if (midStart > midStr.Length || midLen == 0) return new StringVal("");
+                if (midStart > midStr.Length || midLen == 0)
+                    return StringVal.Empty;
                 midStart--; // Adjust to 0-based index for Substring
                 if (midStart + midLen > midStr.Length) midLen = midStr.Length - midStart;
                 return new StringVal(midStr.Substring(midStart, midLen));
             case Builtin.Right: string rightStr = ((StringVal)args[0]).Value; int rightN = args[1].AsInt(currentBasicLine); if (rightN < 0) rightN = 0; return new StringVal(rightStr.Substring(Math.Max(0, rightStr.Length - rightN)));
             case Builtin.Rnd: float rndArg = (args.Any()) ? args[0].AsFloat(currentBasicLine) : 1.0f; if (rndArg < 0) _randomManager.SeedRandom((int)rndArg); double rndVal = (rndArg == 0) ? _randomManager.PreviousRandomValue : _randomManager.GetRandomValue(); return new FloatVal((float)rndVal);
-            case Builtin.Sgn: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("SGN expects 1 numeric arg", currentBasicLine); return new FloatVal(Math.Sign(args[0].AsFloat(currentBasicLine)));
+            case Builtin.Sgn: ThrowIfNotNumericArg0(args, "SGN expects 1 numeric arg"); return new FloatVal(Math.Sign(args[0].AsFloat(currentBasicLine)));
             case Builtin.Sin: return new FloatVal((float)Math.Sin(args[0].AsFloat(currentBasicLine)));
-            case Builtin.Spc: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("SPC expects 1 numeric arg", currentBasicLine); int spcCount = args[0].AsInt(currentBasicLine); if (spcCount < 0) spcCount=0; return new StringVal(new string(' ', Math.Min(spcCount, 255))); 
+            case Builtin.Spc: ThrowIfNotNumericArg0(args, "SPC expects 1 numeric arg"); int spcCount = args[0].AsInt(currentBasicLine); if (spcCount < 0) spcCount=0; return new StringVal(new string(' ', Math.Min(spcCount, 255))); 
             case Builtin.Sqr: float sqrArg = args[0].AsFloat(currentBasicLine); if (sqrArg < 0) throw new InvalidArgumentError("SQR argument < 0", currentBasicLine); return new FloatVal((float)Math.Sqrt(sqrArg));
-            case Builtin.Str: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("STR$ expects 1 numeric arg", currentBasicLine); float strNum = args[0].AsFloat(currentBasicLine); string strRep = strNum.ToString(CultureInfo.InvariantCulture); if (strNum >= 0 && (strRep.Length == 0 || strRep[0] != '-')) strRep = " " + strRep; return new StringVal(strRep);
-            case Builtin.Tab: if (args.Count != 1 || (args[0].Type != ValType.FloatType && args[0].Type != ValType.IntType)) throw new TypeMismatchError("TAB expects 1 numeric arg", currentBasicLine); int tabCol = args[0].AsInt(currentBasicLine); if (tabCol < 1 || tabCol > 255) throw new InvalidArgumentError($"TAB col {tabCol} out of range (1-255)", currentBasicLine); int curCol = _ioManager.OutputColumn + 1; return new StringVal(tabCol > curCol ? new string(' ', tabCol - curCol) : "");
+            case Builtin.Str: ThrowIfNotNumericArg0(args, "STR$ expects 1 numeric arg"); float strNum = args[0].AsFloat(currentBasicLine); string strRep = strNum.ToString(CultureInfo.InvariantCulture); if (strNum >= 0 && (strRep.Length == 0 || strRep[0] != '-')) strRep = " " + strRep; return new StringVal(strRep);
+            case Builtin.Tab: ThrowIfNotNumericArg0(args, "TAB expects 1 numeric arg"); int tabCol = args[0].AsInt(currentBasicLine); if (tabCol < 1 || tabCol > 255) throw new InvalidArgumentError($"TAB col {tabCol} out of range (1-255)", currentBasicLine); int curCol = _ioManager.OutputColumn + 1; return new StringVal(tabCol > curCol ? new string(' ', tabCol - curCol) : "");
             case Builtin.Tan: return new FloatVal((float)Math.Tan(args[0].AsFloat(currentBasicLine)));
-            case Builtin.Val: string valStr = RuntimeParsingUtils.Trim(((StringVal)args[0]).Value); string numPart = ""; bool d = false; foreach(char c in valStr){if (Char.IsDigit(c)){numPart+=c;d=true;}else if(c=='.'&&!numPart.Contains('.')){numPart+=c;}else if((c=='E'||c=='e')&&!numPart.ToUpper().Contains('E')&&d){numPart+=c;}else if((c=='+'||c=='-')&&(numPart.Length==0||numPart.ToUpper().EndsWith('E'))){numPart+=c;}else if(Char.IsWhiteSpace(c)&&numPart.Length==0){continue;}else break;} if (RuntimeParsingUtils.TryParseFloat(numPart, out float pf)) return new FloatVal(pf); return new FloatVal(0f); 
+            case Builtin.Val: string valStr = (((StringVal)args[0]).Value).Trim(); string numPart = ""; bool d = false; foreach(char c in valStr){if (Char.IsDigit(c)){numPart+=c;d=true;}else if(c=='.'&&!numPart.Contains('.')){numPart+=c;}else if((c=='E'||c=='e')&&!numPart.ToUpper().Contains('E')&&d){numPart+=c;}else if((c=='+'||c=='-')&&(numPart.Length==0||numPart.ToUpper().EndsWith('E'))){numPart+=c;}else if(Char.IsWhiteSpace(c)&&numPart.Length==0){continue;}else break;} return RuntimeParsingUtils.ParseFloat(numPart);
             default: throw new NotImplementedException($"Builtin function {builtin}. Line: {currentBasicLine}");
         }
     }

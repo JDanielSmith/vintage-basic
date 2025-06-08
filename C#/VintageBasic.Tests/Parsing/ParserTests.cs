@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using VintageBasic.Parsing;
+using VintageBasic.Runtime;
 using VintageBasic.Syntax;
 using Xunit;
 
@@ -16,7 +17,7 @@ namespace VintageBasic.Tests.Parsing
             string programText = "10 LET A = 123";
             
             // Expected AST
-            var expectedVarName = new VarName(ValType.FloatType, "A");
+            var expectedVarName = VarName.Create<FloatVal>("A");
             var expectedScalarVar = new ScalarVar(expectedVarName);
             var expectedLiteral = new FloatLiteral(123.0f);
             var expectedLitX = new LiteralExpression(expectedLiteral);
@@ -44,7 +45,7 @@ namespace VintageBasic.Tests.Parsing
             Assert.IsType<ScalarVar>(actualLetStmt.Variable);
             var actualScalarVar = (ScalarVar)actualLetStmt.Variable;
             Assert.Equal(expectedScalarVar.VarName.Name, actualScalarVar.VarName.Name);
-            Assert.Equal(expectedScalarVar.VarName.Type, actualScalarVar.VarName.Type);
+            Assert.Equal(expectedScalarVar.VarName.GetValType(), actualScalarVar.VarName.GetValType());
 
             Assert.IsType<LiteralExpression>(actualLetStmt.Expression);
             var actualLitX = (LiteralExpression)actualLetStmt.Expression;

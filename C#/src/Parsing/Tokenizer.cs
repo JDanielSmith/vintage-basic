@@ -1,6 +1,7 @@
 using System.Text;
 using VintageBasic.Syntax; // For ValType, Builtin, BinOp
 using System.Collections.Frozen;
+using VintageBasic.Runtime;
 
 namespace VintageBasic.Parsing;
 
@@ -255,11 +256,11 @@ file sealed class Implementation(ScannedLine scannedLine)
 
 		// Variable Name
 		var namePart = identifier;
-		var typeSuffix = ValType.FloatType; // Default
+		Val typeSuffix = FloatVal.Empty; // Default
 		var suffix = identifier[^1];
 		if (IsVariableSuffix(suffix))
 		{
-			typeSuffix = suffix is '$' ? ValType.StringType : ValType.IntType;
+			typeSuffix = suffix is '$' ? StringVal.Empty : IntVal.Empty;
 			namePart = identifier[..^1];
 		}
 

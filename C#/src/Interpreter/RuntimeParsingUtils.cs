@@ -12,7 +12,14 @@ static class RuntimeParsingUtils
         return float.TryParse(s.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out value);
     }
     
-    public static List<string> ParseDataLineContent(string rawContent)
+    public static FloatVal ParseFloat(string s)
+    {
+		if (TryParseFloat(s, out float pf))
+            return new FloatVal(pf);
+        return FloatVal.Empty;
+	}
+
+	public static List<string> ParseDataLineContent(string rawContent)
     {
         List<string> values = [];
         if (rawContent is null) return values;
@@ -114,24 +121,8 @@ static class RuntimeParsingUtils
         return (f >= 0 && s[0] != '-' ? " " : "") + s + " ";
     }
     
-    public static string Trim(string s)
-    {
-        return s.Trim();
-    }
-
     public static Val? CheckInput(VarName targetVarName, string inputString)
     {
-        string stringToParse = (targetVarName.Type == ValType.StringType) ? inputString : inputString.Trim();
-
-        if (targetVarName.Type == ValType.StringType) return new StringVal(stringToParse);
-        else if (targetVarName.Type == ValType.FloatType)
-        {
-			if (TryParseFloat(stringToParse, out var fv)) return new FloatVal(fv);
-		}
-        else if (targetVarName.Type == ValType.IntType)
-        {
-			if (TryParseFloat(stringToParse, out var fvForInt)) return new IntVal(RuntimeContext.FloatToInt(fvForInt));
-		}
-        return null;
+        return Val.TryParseAs(targetVarName.GetValType(), inputString);
     }
 }

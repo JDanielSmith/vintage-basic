@@ -283,7 +283,7 @@ sealed class Parser
         var declarations = new List<(VarName Name, IReadOnlyList<Expression> Dimensions)>();
         do {
             var varNameToken = ConsumeToken<VarNameToken>();
-            VarName varName = new(varNameToken.Value.TypeSuffix, varNameToken.Value.Name);
+            VarName varName = new(varNameToken.Value);
             ConsumeToken<LParenToken>();
             var dims = new List<Expression>();
             do { dims.Add(ParseExpression().Value); }
@@ -297,7 +297,7 @@ sealed class Parser
     ForStatement ParseForStatementContents()
     {
         var loopVarToken = ConsumeToken<VarNameToken>();
-        VarName loopVar = new(loopVarToken.Value.TypeSuffix, loopVarToken.Value.Name);
+        VarName loopVar = new(loopVarToken.Value);
         ConsumeToken<EqualsToken>();
         var initial = ParseExpression().Value;
         if(!TryConsumeKeyword(KeywordType.TO, out _))
@@ -314,10 +314,10 @@ sealed class Parser
         List<VarName> vars = [];
         while(PeekToken() is VarNameToken vnt)
         {
-            ConsumeToken(); vars.Add(new VarName(vnt.TypeSuffix, vnt.Name));
+            ConsumeToken(); vars.Add(new(vnt));
             if (!TryConsumeSpecificSymbol(",", out _)) break;
         }
-        return new(vars.Any() ? vars : null);
+        return new(vars.Count > 0 ? vars : null);
     }
     
     ReadStatement TryParseReadStatementContents()
@@ -371,14 +371,14 @@ sealed class Parser
         // DEF was consumed. Now expect FN.
         if(!TryConsumeKeyword(KeywordType.FN, out _)) throw new ParseException("Expected FN after DEF.", CurrentSourcePosition());
         var funcNameToken = ConsumeToken<VarNameToken>();
-        VarName funcName = new(funcNameToken.Value.TypeSuffix, funcNameToken.Value.Name);
+        VarName funcName = new(funcNameToken.Value);
         ConsumeToken<LParenToken>();
         List<VarName> parameters = [];
         if(PeekToken() is not RParenToken)
         {
             do { 
                 var paramToken = ConsumeToken<VarNameToken>();
-                parameters.Add(new(paramToken.Value.TypeSuffix, paramToken.Value.Name));
+                parameters.Add(new(paramToken.Value));
             } while(TryConsumeSpecificSymbol(",", out _));
         }
         ConsumeToken<RParenToken>();
@@ -510,7 +510,7 @@ sealed class Parser
     Tagged<Expression> TryParseVariableExpression() 
     {
         var varNameTagged = ConsumeToken<VarNameToken>();
-        VarName varName = new(varNameTagged.Value.TypeSuffix, varNameTagged.Value.Name);
+        VarName varName = new(varNameTagged.Value);
         if (PeekToken() is LParenToken) 
         {
             ConsumeToken<LParenToken>();
@@ -548,7 +548,7 @@ sealed class Parser
     {
         ConsumeToken<KeywordToken>("FN"); 
         var funcNameToken = ConsumeToken<VarNameToken>();
-        VarName funcName = new(funcNameToken.Value.TypeSuffix, funcNameToken.Value.Name);
+        VarName funcName = new(funcNameToken.Value);
         ConsumeToken<LParenToken>();
         List<Expression> args = [];
         if (PeekToken() is not RParenToken)
