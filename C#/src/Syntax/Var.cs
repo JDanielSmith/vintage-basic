@@ -3,7 +3,10 @@ namespace VintageBasic.Syntax;
 
 abstract record Var(VarName Name)
 {
-    internal Type GetValType() => Name.GetValType();
+	internal Val CoerceToType(Val value, int? lineNumber = null, StateManager? stateManager = null)
+	{
+		return Name.CoerceToType(value, lineNumber, stateManager);
+	}
 }
 
 sealed record ScalarVar(VarName VarName) : Var(VarName)

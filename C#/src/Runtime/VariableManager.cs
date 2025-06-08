@@ -9,40 +9,28 @@ sealed class VariableManager(BasicStore store)
     readonly BasicStore _store = store;
 	public static readonly IReadOnlyList<int> DefaultDimensionBounds = [ 11 ]; // For 0-10 elements
 
-    static string GetVarName(VarName varName)
+    static bool KeyMatchesVarName(VarName key, VarName varName)
     {
-        // Variables are 1) case-insensitive, and 2) unique in only the first two characters.
-        return varName.Name[..Math.Min(2, varName.Name.Length)].ToUpperInvariant();
+        return varName.EqualsName(key) && (varName.Val.GetType() == key.Val.GetType());
 	}
 
 	public Val GetScalarVar(VarName varName)
     {
-        var name = GetVarName(varName);
 		foreach (var key in _store.ScalarVariables.Keys)
         {
-            if ((GetVarName(key) == name) && varName.IsSameType(key))
+            if (KeyMatchesVarName(key, varName))
             {
                 return _store.ScalarVariables[key];
             }
 		}
-        return varName.DefaultValue;
+        return varName.Val.DefaultValue;
     }
 
     public void SetScalarVar(VarName varName, Val value)
     {
-        if (!varName.IsSameType(value))
-        {
-            // This check might be too strict for BASIC, which often allows implicit conversion.
-            // However, for a strongly-typed internal representation, it's safer.
-            // Consider if type conversion logic should be here or in the expression evaluation.
-            // For now, strict type matching for direct assignment.
-            // throw new TypeMismatchError($"Cannot assign {value.Type} to scalar variable {varName} of type {varName.Type}");
-        }
-
-		var name = GetVarName(varName);
 		foreach (var key in _store.ScalarVariables.Keys)
 		{
-			if ((GetVarName(key) == name) && varName.IsSameType(key))
+			if (KeyMatchesVarName(key, varName))
 			{
 				_store.ScalarVariables[key] = value;
                 return;
@@ -53,10 +41,9 @@ sealed class VariableManager(BasicStore store)
 
     public BasicArray DimArray(VarName varName, IReadOnlyList<int> dimensionUpperBounds)
     {
-		var name = GetVarName(varName);
         foreach (var key in _store.ArrayVariables.Keys)
         {
-            if (GetVarName(key) == name)
+            if (key.EqualsName(varName))
             {
                 throw new RedimensionedArrayError($"Array {varName} already dimensioned.");
             }
@@ -79,7 +66,7 @@ sealed class VariableManager(BasicStore store)
 		BasicArray newArray = new(dimensionSizes);
 
         // Initialize array elements to default values.
-		Array.Fill(newArray.Data, varName.DefaultValue);
+		Array.Fill(newArray.Data, varName.Val.DefaultValue);
 
         _store.ArrayVariables[varName] = newArray;
         return newArray;
@@ -87,10 +74,9 @@ sealed class VariableManager(BasicStore store)
     
     BasicArray GetOrDimArray(VarName varName, int numDimensions)
     {
-		var name = GetVarName(varName);
 		foreach (var key in _store.ArrayVariables.Keys)
 		{
-			if (GetVarName(key) == name)
+			if (key.EqualsName(varName))
 			{
 				return _store.ArrayVariables[key];
 			}
@@ -124,13 +110,6 @@ sealed class VariableManager(BasicStore store)
 
     public void SetArrayVar(VarName varName, IReadOnlyList<int> indices, Val value)
     {
-        if (!varName.IsSameType(value))
-        {
-            // Similar to SetScalarVar, consider type coercion strategy.
-            // For now, strict.
-            // throw new TypeMismatchError($"Cannot assign {value.Type} to array {varName} of type {varName.Type}");
-        }
-
         var array = GetOrDimArray(varName, indices.Count);        
         if (array.DimensionSizes.Count != indices.Count)
         {

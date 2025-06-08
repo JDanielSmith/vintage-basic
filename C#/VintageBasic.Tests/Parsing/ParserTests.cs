@@ -45,7 +45,7 @@ namespace VintageBasic.Tests.Parsing
             Assert.IsType<ScalarVar>(actualLetStmt.Variable);
             var actualScalarVar = (ScalarVar)actualLetStmt.Variable;
             Assert.Equal(expectedScalarVar.VarName.Name, actualScalarVar.VarName.Name);
-            Assert.Equal(expectedScalarVar.VarName.GetValType(), actualScalarVar.VarName.GetValType());
+            Assert.Equal(expectedScalarVar.VarName.Val.GetType(), actualScalarVar.VarName.Val.GetType());
 
             Assert.IsType<LiteralExpression>(actualLetStmt.Expression);
             var actualLitX = (LiteralExpression)actualLetStmt.Expression;

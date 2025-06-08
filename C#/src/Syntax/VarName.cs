@@ -7,18 +7,14 @@ sealed record VarName(Val Val, string Name)
 {
 	public VarName(VarNameToken token) : this(token.Val, token.Name) { }
 
-	internal Type GetValType() => Val.GetType();
-
-	internal Val DefaultValue => Val.DefaultValue;
-	internal string Suffix => Val.Suffix;
-
-	internal bool IsSameType(Val val)
+	internal bool EqualsName(VarName other)
 	{
-		return GetValType() == val.GetType();
-	}
-	internal bool IsSameType(VarName varName)
-	{
-		return GetValType() == varName.GetValType();
+		static string GetVarName(VarName varName)
+		{
+			// Variables are 1) case-insensitive, and 2) unique in only the first two characters.
+			return varName.Name[..Math.Min(2, varName.Name.Length)].ToUpperInvariant();
+		}
+		return GetVarName(this) == GetVarName(other);
 	}
 
 	public static VarName Create<TVal>(string name) where TVal : Val, new()
@@ -29,8 +25,7 @@ sealed record VarName(Val Val, string Name)
 
 	internal Val CoerceToType(Val value, int? lineNumber = null, StateManager? stateManager = null)
 	{
-		return Val.CoerceToType(GetValType(), value, lineNumber, stateManager);
+		return Val.CoerceToType(value, lineNumber, stateManager);
 	}
-
-	public override string ToString() => $"{Name}{Suffix}";
+	public override string ToString() => $"{Name}{Val.Suffix}";
 }

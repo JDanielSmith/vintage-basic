@@ -11,48 +11,37 @@ abstract record Val : IComparable<Val>
 	public virtual bool IsNumeric => false; // Override in numeric types
 
 	public abstract string TypeName { get; }
-	internal bool IsSameType(Val val)
+	internal bool EqualsType(Val val)
 	{
-		return GetType() == val.GetType();
+		return EqualsType(val.GetType());
+	}
+	internal bool EqualsType(Type type)
+	{
+		return GetType() == type;
+	}
+	internal bool IsSameType<TVal>() where TVal : Val
+	{
+		return GetType() == typeof(TVal);
 	}
 
 	// Convenience methods for type checking and casting
 	public virtual float AsFloat(int? lineNumber = null) => throw new Errors.TypeMismatchError($"Cannot convert {GetType().Name} to Float", lineNumber);
     public virtual int AsInt(int? lineNumber = null) => throw new Errors.TypeMismatchError($"Cannot convert {GetType().Name} to Int", lineNumber);
     public virtual string AsString(int? lineNumber = null) => throw new Errors.TypeMismatchError($"Cannot convert {GetType().Name} to String", lineNumber);
-
-	public static Val CoerceToType<TTargetType>(Val value, int? lineNumber = null, StateManager? stateManager = null) where TTargetType : Val
+	public Val CoerceToType(Val value, int? lineNumber = null, StateManager? stateManager = null)
 	{
-		return CoerceToType(typeof(TTargetType), value, lineNumber, stateManager);
-	}
-	public static Val CoerceToType(Type targetType, Val value, int? lineNumber = null, StateManager? stateManager = null)
-	{
-		if (stateManager is not null && lineNumber.HasValue) stateManager.SetCurrentLineNumber(lineNumber.Value);
+		if (stateManager is not null && lineNumber.HasValue)
+			stateManager.SetCurrentLineNumber(lineNumber.Value);
 
+		var targetType = GetType();
 		if (targetType == value.GetType()) return value;
-
 		if (targetType == typeof(Val)) return value; // Allow Val as a generic target type
-		if (targetType == typeof(FloatVal))
-		{
-			if (value is IntVal iv) return new FloatVal(iv.Value);
-			if (value is FloatVal) return value;
-		}
-		if (targetType == typeof(IntVal))
-		{
-			if (value is FloatVal fv) return new IntVal(RuntimeContext.FloatToInt(fv.Value));
-			if (value is IntVal) return value;
-		}
-		if (targetType == typeof(StringVal))
-		{
-			if (value is StringVal) return value;
-			// BASIC usually doesn't implicitly convert numbers to strings on assignment. STR$() is used.
-			// However, if it were to, it would be like:
-			// if (value is FloatVal fvStr) return new StringVal(RuntimeParsingUtils.PrintFloat(fvStr.Value).Trim());
-			// if (value is IntVal ivStr) return new StringVal(ivStr.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
-		}
 
+		if (CoerceToTypeImpl(value) is Val retval)
+			return retval;
 		throw new Errors.TypeMismatchError($"Cannot coerce {value.TypeName} to {targetType}", lineNumber ?? stateManager?.CurrentLineNumber);
 	}
+	internal abstract Val? CoerceToTypeImpl(Val value);
 
 	// Coerces IntVal to FloatVal for expression evaluation if needed, otherwise returns original value.
 	public static Val CoerceToExpressionType(Val value, int? lineNumber = null, StateManager? stateManager = null)
@@ -66,25 +55,12 @@ abstract record Val : IComparable<Val>
         return value; // Already FloatVal or StringVal
     }
 
-    public static Val? TryParseAs<TVal>(string inputString) where TVal : Val
+	public Val? TryParse(string inputString)
 	{
-		return TryParseAs(typeof(TVal), inputString);
+		var stringToParse = GetType() == typeof(StringVal) ? inputString : inputString.Trim();
+		return TryParseImpl(stringToParse);
 	}
-	public static Val? TryParseAs(Type type, string inputString)
-	{
-		string stringToParse = type == typeof(StringVal) ? inputString : inputString.Trim();
-
-		if (type == typeof(StringVal)) return new StringVal(stringToParse);
-		else if (type == typeof(FloatVal))
-		{
-			if (TryParseFloat(stringToParse, out var fv)) return new FloatVal(fv);
-		}
-		else if (type == typeof(IntVal))
-		{
-			if (TryParseFloat(stringToParse, out var fvForInt)) return new IntVal(RuntimeContext.FloatToInt(fvForInt));
-		}
-		return null;
-	}
+	internal abstract Val? TryParseImpl(string inputString);
 }
 
 sealed record FloatVal(float Value) : Val
@@ -107,6 +83,19 @@ sealed record FloatVal(float Value) : Val
     public override Val DefaultValue => Empty;
 	public override bool IsNumeric => true;
 	public override string TypeName => nameof(FloatVal);
+
+	internal override Val? CoerceToTypeImpl(Val value)
+	{
+		if (value is IntVal iv) return new FloatVal(iv.Value);
+		if (value is FloatVal) return value;
+		return null;
+	}
+	internal override Val? TryParseImpl(string inputString)
+	{
+		if (TryParseFloat(inputString, out var fv))
+			return new FloatVal(fv);
+		return null;
+	}
 }
 
 sealed record IntVal(int Value) : Val
@@ -128,6 +117,19 @@ sealed record IntVal(int Value) : Val
     public override Val DefaultValue => Empty;
 	public override bool IsNumeric => true;
 	public override string TypeName => nameof(IntVal);
+
+	internal override Val? CoerceToTypeImpl(Val value)
+	{
+		if (value is FloatVal fv) return new IntVal(RuntimeContext.FloatToInt(fv.Value));
+		if (value is IntVal) return value;
+		return null;
+	}
+	internal override Val? TryParseImpl(string inputString)
+	{
+		if (TryParseFloat(inputString, out var fvForInt))
+			return new IntVal(RuntimeContext.FloatToInt(fvForInt));
+		return null;
+	}
 }
 
 sealed record StringVal(string Value) : Val
@@ -149,4 +151,15 @@ sealed record StringVal(string Value) : Val
 	public static StringVal Empty => new StringVal();
 	public override Val DefaultValue => Empty;
 	public override string TypeName => nameof(StringVal);
+
+	internal override Val? CoerceToTypeImpl(Val value)
+	{
+		if (value is StringVal) return value;
+		// BASIC usually doesn't implicitly convert numbers to strings on assignment. STR$() is used.
+		// However, if it were to, it would be like:
+		// if (value is FloatVal fvStr) return new StringVal(RuntimeParsingUtils.PrintFloat(fvStr.Value).Trim());
+		// if (value is IntVal ivStr) return new StringVal(ivStr.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+		return null;
+	}
+	internal override Val? TryParseImpl(string inputString) => new StringVal(inputString);
 }

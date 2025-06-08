@@ -200,8 +200,8 @@ sealed class Interpreter(RuntimeContext context)
                 foreach (var varToRead in readStmt.Variables)
                 {
                     string dataStr = _ioManager.ReadData();
-                    Val? val = RuntimeParsingUtils.CheckInput(varToRead.Name, dataStr) ?? throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", currentBasicLine);
-					var coercedVal = Val.CoerceToType(varToRead.GetValType(), val, currentBasicLine, _stateManager);
+                    Val? val = varToRead.Name.Val.TryParse(dataStr) ?? throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", currentBasicLine);
+					var coercedVal = varToRead.CoerceToType(val, currentBasicLine, _stateManager);
                     if (varToRead is ScalarVar sv)
                         _variableManager.SetScalarVar(sv.VarName, coercedVal);
                     else if (varToRead is ArrVar av)
@@ -256,7 +256,7 @@ sealed class Interpreter(RuntimeContext context)
                         }
 
                         string strValueFromInput = availableInputStrings.Dequeue();
-                        Val? parsedVal = RuntimeParsingUtils.CheckInput(targetVar.Name, strValueFromInput);
+                        Val? parsedVal = targetVar.Name.Val.TryParse(strValueFromInput);
 
                         if (parsedVal is null)
                         {
@@ -265,7 +265,7 @@ sealed class Interpreter(RuntimeContext context)
                             availableInputStrings.Clear(); // Discard remaining values from this erroneous line
                             break; // Break from variables loop, outer do-while will retry entire INPUT
                         }
-                        valuesToAssignThisInput.Add(Val.CoerceToType(targetVar.GetValType(), parsedVal, currentBasicLine, _stateManager));
+                        valuesToAssignThisInput.Add(targetVar.CoerceToType(parsedVal, currentBasicLine, _stateManager));
                     }
 
                 } while (retryCurrentInputEntirely);
@@ -349,14 +349,15 @@ sealed class Interpreter(RuntimeContext context)
                     Val result = EvaluateExpression(defFnStmt.Expression, _stateManager.CurrentLineNumber);
                     foreach(var paramName in defFnStmt.Parameters)
                     {
-                        if (stashedValues.TryGetValue(paramName, out Val? stashedVal) && stashedVal is not null)
-                            _variableManager.SetScalarVar(paramName, stashedVal);
-                        else
-                        {
-                            Val val = paramName.GetValType() == typeof(StringVal) ? StringVal.Empty : FloatVal.Empty;
-							_variableManager.SetScalarVar(paramName, paramName.CoerceToType(val, _stateManager.CurrentLineNumber, _stateManager));
-                        }
-                    }
+                        //if (stashedValues.TryGetValue(paramName, out Val? stashedVal) && stashedVal is not null)
+                        //    _variableManager.SetScalarVar(paramName, stashedVal);
+                        //else
+                        //{
+                        //    Val val = paramName.EqualsType(StringVal.Empty) ? StringVal.Empty : FloatVal.Empty;
+	                       // _variableManager.SetScalarVar(paramName, paramName.CoerceToType(val, _stateManager.CurrentLineNumber, _stateManager));
+                        //}
+                        throw new NotImplementedException($"Function {defFnStmt.FunctionName} does not support array parameters yet."); // TODO: Handle arrays in UDFs
+					}
                     return defFnStmt.FunctionName.CoerceToType(result, _stateManager.CurrentLineNumber, _stateManager);
                 };
                 _functionManager.SetFunction(defFnStmt.FunctionName, udf);
@@ -433,7 +434,7 @@ sealed class Interpreter(RuntimeContext context)
     void HandleLetStatement(LetStatement letStmt, int currentBasicLine)
     {
         var valueToAssign = EvaluateExpression(letStmt.Expression, currentBasicLine);
-        var coercedValue = Val.CoerceToType(letStmt.Variable.GetValType(), valueToAssign, currentBasicLine, _stateManager);
+        var coercedValue = letStmt.Variable.CoerceToType(valueToAssign, currentBasicLine, _stateManager);
         if (letStmt.Variable is ScalarVar sv) _variableManager.SetScalarVar(sv.VarName, coercedValue);
         else if (letStmt.Variable is ArrVar av)
         {
@@ -506,7 +507,7 @@ sealed class Interpreter(RuntimeContext context)
                 return new FloatVal(cV1.AsFloat(currentBasicLine) / divisor);
             case BinOp.PowOp: return new FloatVal((float)Math.Pow(cV1.AsFloat(currentBasicLine), cV2.AsFloat(currentBasicLine)));
             case BinOp.EqOp: case BinOp.NEOp: case BinOp.LTOp: case BinOp.LEOp: case BinOp.GTOp: case BinOp.GEOp:
-                if (!v1.IsSameType(v2))
+                if (!v1.EqualsType(v2))
                     throw new TypeMismatchError($"Cannot compare types {v1.TypeName} and {v2.TypeName}", currentBasicLine);
                 int cr = v1.CompareTo(v2); 
                 bool res = op switch { BinOp.EqOp => cr == 0, BinOp.NEOp => cr != 0, BinOp.LTOp => cr < 0, BinOp.LEOp => cr <= 0, BinOp.GTOp => cr > 0, BinOp.GEOp => cr >= 0, _ => false };
@@ -528,8 +529,8 @@ sealed class Interpreter(RuntimeContext context)
 
         for (int i = 0; i < Math.Min(expectedTypes.Count, actualArgs.Count) ; i++)
         {
-            if ((expectedTypes[i].GetType() == typeof(IntVal)) && (actualArgs[i].GetType() == typeof(FloatVal))) continue; 
-            if (!expectedTypes[i].IsSameType(actualArgs[i]))
+            if (expectedTypes[i].IsSameType<IntVal>() && actualArgs[i].IsSameType<FloatVal>()) continue; 
+            if (!expectedTypes[i].EqualsType(actualArgs[i]))
                 throw new TypeMismatchError($"For {builtinName} argument {i+1}: expected {expectedTypes[i]}, got {actualArgs[i].TypeName}", currentBasicLine);
         }
     }

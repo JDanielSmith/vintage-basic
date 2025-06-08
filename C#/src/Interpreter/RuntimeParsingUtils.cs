@@ -120,9 +120,4 @@ static class RuntimeParsingUtils
         }
         return (f >= 0 && s[0] != '-' ? " " : "") + s + " ";
     }
-    
-    public static Val? CheckInput(VarName targetVarName, string inputString)
-    {
-        return Val.TryParseAs(targetVarName.GetValType(), inputString);
-    }
 }
