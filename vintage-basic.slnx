@@ -6,6 +6,9 @@
     <File Path="examples/stars.bas" />
     <File Path="examples/strings.bas" />
   </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="README.md" />
+  </Folder>
   <Project Path="C#/src/VintageBasic.csproj" />
   <Project Path="C#/VintageBasic.Tests/VintageBasic.Tests.csproj" />
 </Solution>
