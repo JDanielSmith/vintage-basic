@@ -41,7 +41,7 @@ abstract record Val : IComparable<Val>
 			return retval;
 		throw new Errors.TypeMismatchError($"Cannot coerce {value.TypeName} to {targetType}", lineNumber ?? stateManager?.CurrentLineNumber);
 	}
-	internal abstract Val? CoerceToTypeImpl(Val value);
+	protected abstract Val? CoerceToTypeImpl(Val value);
 
 	// Coerces IntVal to FloatVal for expression evaluation if needed, otherwise returns original value.
 	public static Val CoerceToExpressionType(Val value, int? lineNumber = null, StateManager? stateManager = null)
@@ -60,7 +60,7 @@ abstract record Val : IComparable<Val>
 		var stringToParse = GetType() == typeof(StringVal) ? inputString : inputString.Trim();
 		return TryParseImpl(stringToParse);
 	}
-	internal abstract Val? TryParseImpl(string inputString);
+	protected abstract Val? TryParseImpl(string inputString);
 }
 
 sealed record FloatVal(float Value) : Val
@@ -79,18 +79,18 @@ sealed record FloatVal(float Value) : Val
     }
     public override string ToString() => $"{Value}";
     public override string Suffix => "";
-	public static FloatVal Empty => new FloatVal();
+	public static FloatVal Empty => new();
     public override Val DefaultValue => Empty;
 	public override bool IsNumeric => true;
 	public override string TypeName => nameof(FloatVal);
 
-	internal override Val? CoerceToTypeImpl(Val value)
+	protected override Val? CoerceToTypeImpl(Val value)
 	{
 		if (value is IntVal iv) return new FloatVal(iv.Value);
 		if (value is FloatVal) return value;
 		return null;
 	}
-	internal override Val? TryParseImpl(string inputString)
+	protected override Val? TryParseImpl(string inputString)
 	{
 		if (TryParseFloat(inputString, out var fv))
 			return new FloatVal(fv);
@@ -113,18 +113,18 @@ sealed record IntVal(int Value) : Val
     }
 	public override string ToString() => $"{Value}";
 	public override string Suffix => "%";
-	public static IntVal Empty => new IntVal();
+	public static IntVal Empty => new();
     public override Val DefaultValue => Empty;
 	public override bool IsNumeric => true;
 	public override string TypeName => nameof(IntVal);
 
-	internal override Val? CoerceToTypeImpl(Val value)
+	protected override Val? CoerceToTypeImpl(Val value)
 	{
 		if (value is FloatVal fv) return new IntVal(RuntimeContext.FloatToInt(fv.Value));
 		if (value is IntVal) return value;
 		return null;
 	}
-	internal override Val? TryParseImpl(string inputString)
+	protected override Val? TryParseImpl(string inputString)
 	{
 		if (TryParseFloat(inputString, out var fvForInt))
 			return new IntVal(RuntimeContext.FloatToInt(fvForInt));
@@ -148,11 +148,11 @@ sealed record StringVal(string Value) : Val
     }
 	public override string ToString() => Value;
 	public override string Suffix => "$";
-	public static StringVal Empty => new StringVal();
+	public static StringVal Empty => new();
 	public override Val DefaultValue => Empty;
 	public override string TypeName => nameof(StringVal);
 
-	internal override Val? CoerceToTypeImpl(Val value)
+	protected override Val? CoerceToTypeImpl(Val value)
 	{
 		if (value is StringVal) return value;
 		// BASIC usually doesn't implicitly convert numbers to strings on assignment. STR$() is used.
@@ -161,5 +161,5 @@ sealed record StringVal(string Value) : Val
 		// if (value is IntVal ivStr) return new StringVal(ivStr.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
 		return null;
 	}
-	internal override Val? TryParseImpl(string inputString) => new StringVal(inputString);
+	protected override Val? TryParseImpl(string inputString) => new StringVal(inputString);
 }

@@ -45,7 +45,7 @@ file sealed class Implementation(ScannedLine scannedLine)
 	static readonly FrozenDictionary<string, BinOp> Operators = OpToken.Symbols.ToFrozenDictionary(kvp => kvp.Value, kvp => kvp.Key);
 
 	// For longest match, order operators from longest to shortest.
-	static readonly IReadOnlyList<string> OrderedOperatorSymbols = Operators.Keys.OrderByDescending(k => k.Length).ToList();
+	static readonly IReadOnlyList<string> OrderedOperatorSymbols = [.. Operators.Keys.OrderByDescending(k => k.Length)];
 
 	readonly string content = scannedLine.Content;
 	int currentPositionInContent; // 0-based index into content string

@@ -206,12 +206,12 @@ sealed class Parser
         {
             RemToken rt => CreateRemStatement(rt),
             KeywordToken kt  => ParseKeywordStatement(kt.Keyword, startPos),
-            _ => TryParseImplicitLetOrGotoStatementContents(startPos, false)
+            _ => ParseImplicitLetOrGotoStatementContents(startPos, false)
         };
         return new(startPos, stmtNode);
     }
 
-	Statement TryParseImplicitLetOrGotoStatementContents(SourcePosition originalStartPos, bool letKeywordWasConsumed = false)
+	Statement ParseImplicitLetOrGotoStatementContents(SourcePosition originalStartPos, bool letKeywordWasConsumed = false)
 	{
 		var token = PeekToken();
 		if (!letKeywordWasConsumed && token is not VarNameToken)
