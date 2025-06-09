@@ -52,7 +52,7 @@ sealed record OpToken(BinOp Op) : Token
         {BinOp.SubOp, "-"},
         {BinOp.MulOp, "*"},
         {BinOp.DivOp, "/"},
-        { BinOp.PowOp, "^"},
+        {BinOp.PowOp, "^"},
         {BinOp.NEOp, "<>"},
         {BinOp.LEOp, "<="},
         {BinOp.GEOp, ">="},
