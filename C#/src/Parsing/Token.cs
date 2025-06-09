@@ -1,5 +1,6 @@
-using VintageBasic.Syntax;
+using System.Collections.Frozen;
 using VintageBasic.Runtime;
+using VintageBasic.Syntax;
 
 namespace VintageBasic.Parsing;
 
@@ -46,22 +47,25 @@ sealed record StringToken(string Value) : Token
 
 sealed record OpToken(BinOp Op) : Token
 {
-    public override string Text => Op switch {
-        BinOp.AddOp => "+",
-        BinOp.SubOp => "-",
-        BinOp.MulOp => "*",
-        BinOp.DivOp => "/",
-        BinOp.PowOp => "^",
-        BinOp.EqOp => "=", // Note: Can also be EqualsTok
-        BinOp.NEOp => "<>",
-        BinOp.LTOp => "<",
-        BinOp.LEOp => "<=",
-        BinOp.GTOp => ">",
-        BinOp.GEOp => ">=",
-        BinOp.AndOp => "AND", // Assuming keywords for these, parser will handle
-        BinOp.OrOp => "OR",   // Assuming keywords for these, parser will handle
-        _ => throw new ArgumentOutOfRangeException(nameof(Op), $"Unknown binary operator: {Op}")
-    };
+    internal static readonly FrozenDictionary<BinOp, string> Symbols = new Dictionary<BinOp, string>() {
+        {BinOp.AddOp, "+"},
+        {BinOp.SubOp, "-"},
+        {BinOp.MulOp, "*"},
+        {BinOp.DivOp, "/"},
+        { BinOp.PowOp, "^"},
+        {BinOp.NEOp, "<>"},
+        {BinOp.LEOp, "<="},
+        {BinOp.GEOp, ">="},
+        {BinOp.LTOp, "<"},
+        {BinOp.GTOp, ">"},
+    }.ToFrozenDictionary();
+    public override string Text => Symbols.TryGetValue(Op, out var symbol) ? symbol : Op switch
+	{
+		BinOp.EqOp => "=",
+		BinOp.AndOp => "AND",
+		BinOp.OrOp => "OR",
+		_ => throw new ArgumentOutOfRangeException(nameof(Op), $"Unknown binary operator: {Op}")
+	};
 }
 
 sealed record LParenToken : Token { public override string Text => "("; }

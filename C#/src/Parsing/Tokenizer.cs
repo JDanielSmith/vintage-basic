@@ -41,12 +41,8 @@ file sealed class Implementation(ScannedLine scannedLine)
 		{"VAL", Builtin.Val },
 	}.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
-	static readonly FrozenDictionary<string, BinOp> Operators = new Dictionary<string, BinOp>() {
-		{"+", BinOp.AddOp}, {"-", BinOp.SubOp}, {"*", BinOp.MulOp}, {"/", BinOp.DivOp},
-		{"^", BinOp.PowOp}, {"<>", BinOp.NEOp}, {"<=", BinOp.LEOp}, {">=", BinOp.GEOp},
-		{"<", BinOp.LTOp}, {">", BinOp.GTOp}
-		// Note: "=" is handled as EqualsToken separately. AND/OR are keywords for BinOpExpression.
-	}.ToFrozenDictionary();
+	// Note: "=" is handled as EqualsToken separately. AND/OR are keywords for BinOpExpression.
+	static readonly FrozenDictionary<string, BinOp> Operators = OpToken.Symbols.ToFrozenDictionary(kvp => kvp.Value, kvp => kvp.Key);
 
 	// For longest match, order operators from longest to shortest.
 	static readonly IReadOnlyList<string> OrderedOperatorSymbols = Operators.Keys.OrderByDescending(k => k.Length).ToList();
