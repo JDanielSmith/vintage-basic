@@ -3,7 +3,7 @@ using VintageBasic.Runtime;
 
 namespace VintageBasic.Syntax;
 
-sealed record VarName(Val Val, string Name)
+sealed record VarName(Object Val, string Name)
 {
 	public VarName(VarNameToken token) : this(token.Val, token.Name) { }
 
@@ -16,16 +16,30 @@ sealed record VarName(Val Val, string Name)
 		}
 		return GetVarName(this) == GetVarName(other);
 	}
-
-	public static VarName Create<TVal>(string name) where TVal : Val, new()
+	public static VarName CreateFloat(string name)
 	{
-		TVal val = new();
-		return new(val, name);
+		return new(0.0f, name);
+	}
+	public static VarName CreateInt(string name)
+	{
+		return new(0, name);
+	}
+	public static VarName CreateString(string name)
+	{
+		return new(String.Empty, name);
 	}
 
-	internal Val CoerceToType(Val value, int? lineNumber = null, StateManager? stateManager = null)
+	internal object GetDefaultValue() => Val switch
+	{
+		float => 0.0f,
+		int => 0,
+		string => String.Empty,
+		_ => throw new ArgumentException($"Unknown object type: {Val.GetType().Name}")
+	};
+
+	internal object CoerceToType(Object value, int? lineNumber = null, StateManager? stateManager = null)
 	{
 		return Val.CoerceToType(value, lineNumber, stateManager);
 	}
-	public override string ToString() => $"{Name}{Val.Suffix}";
+	public override string ToString() => $"{Name}{Val.GetSuffix()}";
 }

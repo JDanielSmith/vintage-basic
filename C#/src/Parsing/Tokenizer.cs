@@ -1,7 +1,6 @@
+using System.Collections.Frozen;
 using System.Text;
 using VintageBasic.Syntax; // For ValType, Builtin, BinOp
-using System.Collections.Frozen;
-using VintageBasic.Runtime;
 
 namespace VintageBasic.Parsing;
 
@@ -10,10 +9,10 @@ using TokenPair = (Tagged<Token>, Tagged<Token>?);
 static class Tokenizer
 {
 	public static IEnumerable<Tagged<Token>> Tokenize(ScannedLine scannedLine)
-    {
+	{
 		Implementation implementation = new(scannedLine);
 		return implementation.Tokenize();
-    }
+	}
 }
 file sealed class Implementation(ScannedLine scannedLine)
 {
@@ -36,7 +35,7 @@ file sealed class Implementation(ScannedLine scannedLine)
 		{"LEFT$", Builtin.Left } /* Corresponds to LeftBI */, {"LEN", Builtin.Len }, {"LOG", Builtin.Log },
 		{"MID$", Builtin.Mid } /* Corresponds to MidBI */,
 		{"RIGHT$", Builtin.Right } /* Corresponds to RightBI */, {"RND", Builtin.Rnd },
-		{"SGN", Builtin.Sgn }, {"SIN", Builtin.Sin }, 	{"SPC", Builtin.Spc }, {"SQR", Builtin.Sqr }, {"STR$", Builtin.Str },
+		{"SGN", Builtin.Sgn }, {"SIN", Builtin.Sin },   {"SPC", Builtin.Spc }, {"SQR", Builtin.Sqr }, {"STR$", Builtin.Str },
 		{"TAB", Builtin.Tab }, {"TAN", Builtin.Tan },
 		{"VAL", Builtin.Val },
 	}.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
@@ -99,11 +98,11 @@ file sealed class Implementation(ScannedLine scannedLine)
 
 	static bool IsExponentChar(char c)
 	{
-		return c is 'E' or 'e' or  'D' or 'd';
+		return c is 'E' or 'e' or 'D' or 'd';
 	}
 	static bool ContainsExponent(string potentialNumber)
 	{
-		return potentialNumber.IndexOfAny([ 'E', 'e', 'D', 'd' ]) >= 0;
+		return potentialNumber.IndexOfAny(['E', 'e', 'D', 'd']) >= 0;
 	}
 	static bool IsSignChar(char c)
 	{
@@ -111,7 +110,7 @@ file sealed class Implementation(ScannedLine scannedLine)
 	}
 	static bool IsDecimalChar(char c)
 	{
-		return Char.IsDigit(c) || c  is '.'; // Decimal point
+		return Char.IsDigit(c) || c is '.'; // Decimal point
 	}
 	bool IsValidNumberChar(int numEnd)
 	{
@@ -252,11 +251,11 @@ file sealed class Implementation(ScannedLine scannedLine)
 
 		// Variable Name
 		var namePart = identifier;
-		Val typeSuffix = FloatVal.Empty; // Default
+		object typeSuffix = new Single(); // Default
 		var suffix = identifier[^1];
 		if (IsVariableSuffix(suffix))
 		{
-			typeSuffix = suffix is '$' ? StringVal.Empty : IntVal.Empty;
+			typeSuffix = suffix is '$' ? "" : 0;
 			namePart = identifier[..^1];
 		}
 

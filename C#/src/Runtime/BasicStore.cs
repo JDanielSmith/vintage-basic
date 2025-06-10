@@ -4,77 +4,77 @@ using VintageBasic.Syntax; // For VarName
 namespace VintageBasic.Runtime;
 
 // Represents a user-defined function (DEF FN)
-// Takes a list of arguments and returns a Val.
-delegate Val UserDefinedFunction(IReadOnlyList<Val> arguments);
+// Takes a list of arguments and returns a Object.
+delegate Object UserDefinedFunction(IReadOnlyList<object> arguments);
 
 // Represents a BASIC array.
 sealed class BasicArray
 {
-    // Stores the size of each dimension. E.g., for DIM A(10,5), this would be [11, 6] (0-indexed).
-    public IReadOnlyList<int> DimensionSizes { get; }
-    
-    // Stores the actual array data. For multi-dimensional arrays, this will be a flattened 1D array.
-    // Access will need to be managed by calculating the correct index from multi-dimensional indices.
-    public Val[] Data { get; }
+	// Stores the size of each dimension. E.g., for DIM A(10,5), this would be [11, 6] (0-indexed).
+	public IReadOnlyList<int> DimensionSizes { get; }
 
-    public BasicArray(IReadOnlyList<int> dimensionSizes)
-    {
-        DimensionSizes = [.. dimensionSizes]; // Make a copy
+	// Stores the actual array data. For multi-dimensional arrays, this will be a flattened 1D array.
+	// Access will need to be managed by calculating the correct index from multi-dimensional indices.
+	public object[] Data { get; }
 
-        long totalSize = 1;
-        foreach (int size in dimensionSizes)
-        {
-            if (size <= 0) throw new ArgumentOutOfRangeException(nameof(dimensionSizes), "Dimension size must be positive.");
-            totalSize *= size;
-        }
+	public BasicArray(IReadOnlyList<int> dimensionSizes)
+	{
+		DimensionSizes = [.. dimensionSizes]; // Make a copy
 
-        Data = new Val[(int)totalSize];
-    }
+		long totalSize = 1;
+		foreach (int size in dimensionSizes)
+		{
+			if (size <= 0) throw new ArgumentOutOfRangeException(nameof(dimensionSizes), "Dimension size must be positive.");
+			totalSize *= size;
+		}
 
-    // Helper to calculate the flat index from multi-dimensional indices.
-    // Indices are typically 0-based in the C# representation.
-    public int GetFlatIndex(IReadOnlyList<int> indices)
-    {
-        if (indices.Count != DimensionSizes.Count)
-            throw new System.ArgumentException("Incorrect number of dimensions.", nameof(indices));
+		Data = new object[(int)totalSize];
+	}
 
-        int flatIndex = 0;
-        int multiplier = 1;
-        for (int i = 0; i < DimensionSizes.Count; i++)
-        {
-            if (indices[i] < 0 || indices[i] >= DimensionSizes[i])
-                throw new OutOfArrayBoundsError($"Index {indices[i]} is out of range for dimension {i} (size {DimensionSizes[i]}).");
-            
-            flatIndex += indices[i] * multiplier;
-            multiplier *= DimensionSizes[i];
-        }
-        return flatIndex;
-    }
+	// Helper to calculate the flat index from multi-dimensional indices.
+	// Indices are typically 0-based in the C# representation.
+	public int GetFlatIndex(IReadOnlyList<int> indices)
+	{
+		if (indices.Count != DimensionSizes.Count)
+			throw new System.ArgumentException("Incorrect number of dimensions.", nameof(indices));
 
-    public Val GetValue(IReadOnlyList<int> indices)
-    {
-        int index = GetFlatIndex(indices);
-        // TODO: Consider default value if Data[index] is null (e.g., based on VarName type)
-        return Data[index]; 
-    }
+		int flatIndex = 0;
+		int multiplier = 1;
+		for (int i = 0; i < DimensionSizes.Count; i++)
+		{
+			if (indices[i] < 0 || indices[i] >= DimensionSizes[i])
+				throw new OutOfArrayBoundsError($"Index {indices[i]} is out of range for dimension {i} (size {DimensionSizes[i]}).");
 
-    public void SetValue(IReadOnlyList<int> indices, Val value)
-    {
-        int index = GetFlatIndex(indices);
-        // TODO: Type checking based on VarName type might be needed here.
-        Data[index] = value;
-    }
+			flatIndex += indices[i] * multiplier;
+			multiplier *= DimensionSizes[i];
+		}
+		return flatIndex;
+	}
+
+	public object GetValue(IReadOnlyList<int> indices)
+	{
+		int index = GetFlatIndex(indices);
+		// TODO: Consider default value if Data[index] is null (e.g., based on VarName type)
+		return Data[index];
+	}
+
+	public void SetValue(IReadOnlyList<int> indices, object value)
+	{
+		int index = GetFlatIndex(indices);
+		// TODO: Type checking based on VarName type might be needed here.
+		Data[index] = value;
+	}
 }
 
 sealed class BasicStore()
 {
-    // Scalar variables: VarName -> Val
-    // Using Val directly instead of IORef Val, as C# objects are reference types.
-    // Direct mutation of Val objects (if they were mutable) or replacing them in the dictionary.
-    public Dictionary<VarName, Val> ScalarVariables { get; } = new();
+	// Scalar variables: VarName -> Object
+	// Using Object directly instead of IORef Object, as C# objects are reference types.
+	// Direct mutation of Object objects (if they were mutable) or replacing them in the dictionary.
+	public Dictionary<VarName, object> ScalarVariables { get; } = new();
 
-    // Array variables: VarName -> BasicArray
-    public Dictionary<VarName, BasicArray> ArrayVariables { get; } = new();
+	// Array variables: VarName -> BasicArray
+	public Dictionary<VarName, BasicArray> ArrayVariables { get; } = new();
 
 	// User-defined functions: VarName -> UserDefinedFunction
 	public Dictionary<VarName, UserDefinedFunction> UserFunctions { get; } = new();

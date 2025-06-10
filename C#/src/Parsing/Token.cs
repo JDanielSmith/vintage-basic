@@ -6,60 +6,60 @@ namespace VintageBasic.Parsing;
 
 enum KeywordType
 {
-    LET, PRINT, IF, THEN, ELSE, // ELSE might be needed by parser, not in Haskell Tokenizer.hs's KeywordTok
-    FOR, TO, STEP, NEXT,
-    GOTO, GOSUB, RETURN, END,
-    DATA, READ, INPUT, DIM, REM,
-    ON, RESTORE, STOP, RANDOMIZE,
-    DEF, FN,
-    AND, OR, NOT,
+	LET, PRINT, IF, THEN, ELSE, // ELSE might be needed by parser, not in Haskell Tokenizer.hs's KeywordTok
+	FOR, TO, STEP, NEXT,
+	GOTO, GOSUB, RETURN, END,
+	DATA, READ, INPUT, DIM, REM,
+	ON, RESTORE, STOP, RANDOMIZE,
+	DEF, FN,
+	AND, OR, NOT,
 }
 
 abstract record Token
 {
-    public virtual string Text => ""; // Default text representation, can be overridden
+	public virtual string Text => ""; // Default text representation, can be overridden
 }
 
 sealed record KeywordToken(KeywordType Keyword) : Token
 {
-    public override string Text => Keyword.ToString();
+	public override string Text => Keyword.ToString();
 }
 
 sealed record BuiltinFuncToken(Builtin FuncName) : Token
 {
-    public override string Text => FuncName.ToString().ToUpperInvariant(); // Match BASIC naming
+	public override string Text => FuncName.ToString().ToUpperInvariant(); // Match BASIC naming
 }
 
-sealed record VarNameToken(string Name, Val Val) : Token
+sealed record VarNameToken(string Name, object Val) : Token
 {
-	public override string Text => Name + Val.Suffix;
+	public override string Text => Name + Val.GetSuffix();
 }
 
 sealed record FloatToken(double Value) : Token
 {
-    public override string Text => $"{Value}";
+	public override string Text => $"{Value}";
 }
 
 sealed record StringToken(string Value) : Token
 {
-    public override string Text => $"\"{Value}\"";
+	public override string Text => $"\"{Value}\"";
 }
 
 sealed record OpToken(BinOp Op) : Token
 {
-    internal static readonly FrozenDictionary<BinOp, string> Symbols = new Dictionary<BinOp, string>() {
-        {BinOp.AddOp, "+"},
-        {BinOp.SubOp, "-"},
-        {BinOp.MulOp, "*"},
-        {BinOp.DivOp, "/"},
-        {BinOp.PowOp, "^"},
-        {BinOp.NEOp, "<>"},
-        {BinOp.LEOp, "<="},
-        {BinOp.GEOp, ">="},
-        {BinOp.LTOp, "<"},
-        {BinOp.GTOp, ">"},
-    }.ToFrozenDictionary();
-    public override string Text => Symbols.TryGetValue(Op, out var symbol) ? symbol : Op switch
+	internal static readonly FrozenDictionary<BinOp, string> Symbols = new Dictionary<BinOp, string>() {
+		{BinOp.AddOp, "+"},
+		{BinOp.SubOp, "-"},
+		{BinOp.MulOp, "*"},
+		{BinOp.DivOp, "/"},
+		{BinOp.PowOp, "^"},
+		{BinOp.NEOp, "<>"},
+		{BinOp.LEOp, "<="},
+		{BinOp.GEOp, ">="},
+		{BinOp.LTOp, "<"},
+		{BinOp.GTOp, ">"},
+	}.ToFrozenDictionary();
+	public override string Text => Symbols.TryGetValue(Op, out var symbol) ? symbol : Op switch
 	{
 		BinOp.EqOp => "=",
 		BinOp.AndOp => "AND",
@@ -82,18 +82,18 @@ sealed record EqualsToken : Token { public override string Text => "="; }
 sealed record EolToken : Token { public override string Text => "<EOL>"; } // End of Line
 
 // For REM statements, the content is part of the token
-sealed record RemToken(string Comment) : Token 
+sealed record RemToken(string Comment) : Token
 {
-    public override string Text => "REM" + Comment;
+	public override string Text => "REM" + Comment;
 }
 
 // For DATA statements, stores the raw content after the DATA keyword
 sealed record DataContentToken(string RawContent) : Token
 {
-    public override string Text => RawContent;
+	public override string Text => RawContent;
 }
 
 sealed record UnknownToken(string Content) : Token
 {
-    public override string Text => Content;
+	public override string Text => Content;
 }

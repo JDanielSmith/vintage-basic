@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Xml;
 using VintageBasic.Interpreter;
 using VintageBasic.Runtime;
 using VintageBasic.Runtime.Errors;
@@ -8,12 +7,12 @@ namespace VintageBasic.Syntax;
 
 abstract record Statement
 {
-    Interpreter.Interpreter? _interpreter; // Initialized in Execute method
-    protected Interpreter.Interpreter Interpreter => _interpreter!;
+	Interpreter.Interpreter? _interpreter; // Initialized in Execute method
+	protected Interpreter.Interpreter Interpreter => _interpreter!;
 	public void Execute(Interpreter.Interpreter interpreter)
-    {
+	{
 		_interpreter = interpreter;
-        ExecuteImpl();
+		ExecuteImpl();
 	}
 
 	protected RuntimeContext _context => Interpreter.Context;
@@ -30,7 +29,7 @@ abstract record Statement
 
 sealed record LetStatement(Var Variable, Expression Expression) : Statement
 {
-    public override string ToString() => $"{nameof(LetStatement)}({Variable}, {Expression})";
+	public override string ToString() => $"{nameof(LetStatement)}({Variable}, {Expression})";
 	protected override void ExecuteImpl()
 	{
 		var valueToAssign = Interpreter.EvaluateExpression(Expression, currentBasicLine);
@@ -47,16 +46,16 @@ sealed record LetStatement(Var Variable, Expression Expression) : Statement
 
 sealed record DimStatement(IReadOnlyList<(VarName Name, IReadOnlyList<Expression> Dimensions)> Declarations) : Statement
 {
-    public override string ToString() => $"{nameof(DimStatement)}([{String.Join(", ", Declarations.Select(d => $"{d.Name}({String.Join(", ", d.Dimensions)})"))}])";
+	public override string ToString() => $"{nameof(DimStatement)}([{string.Join(", ", Declarations.Select(d => $"{d.Name}({string.Join(", ", d.Dimensions)})"))}])";
 
-    protected override void ExecuteImpl()
-    {
+	protected override void ExecuteImpl()
+	{
 		foreach (var decl in Declarations)
 		{
 			var bounds = new List<int>();
 			foreach (var exprBound in decl.Dimensions)
 			{
-				Val boundVal = Interpreter.EvaluateExpression(exprBound, currentBasicLine);
+				Object boundVal = Interpreter.EvaluateExpression(exprBound, currentBasicLine);
 				bounds.Add(boundVal.AsInt(currentBasicLine));
 			}
 			_variableManager.DimArray(decl.Name, bounds);
@@ -66,9 +65,9 @@ sealed record DimStatement(IReadOnlyList<(VarName Name, IReadOnlyList<Expression
 
 sealed record GotoStatement(int TargetLabel) : Statement
 {
-    public override string ToString() => $"{nameof(GotoStatement)}({TargetLabel})";
+	public override string ToString() => $"{nameof(GotoStatement)}({TargetLabel})";
 	protected override void ExecuteImpl()
-    {
+	{
 		if (!_jumpTable.Any(jte => jte.Label == TargetLabel))
 			throw new BadGotoTargetError(TargetLabel, currentBasicLine);
 		_stateManager.SetCurrentLineNumber(TargetLabel);
@@ -78,7 +77,7 @@ sealed record GotoStatement(int TargetLabel) : Statement
 
 sealed record GosubStatement(int TargetLabel) : Statement
 {
-    public override string ToString() => $"{nameof(GosubStatement)}({TargetLabel})";
+	public override string ToString() => $"{nameof(GosubStatement)}({TargetLabel})";
 
 	protected override void ExecuteImpl()
 	{
@@ -92,10 +91,10 @@ sealed record GosubStatement(int TargetLabel) : Statement
 
 sealed record OnGotoStatement(Expression Expression, IReadOnlyList<int> TargetLabels) : Statement
 {
-    public override string ToString() => $"{nameof(OnGotoStatement)}({Expression}, [{String.Join(", ", TargetLabels)}])";
+	public override string ToString() => $"{nameof(OnGotoStatement)}({Expression}, [{string.Join(", ", TargetLabels)}])";
 	protected override void ExecuteImpl()
 	{
-		Val indexValGoto = Interpreter.EvaluateExpression(Expression, currentBasicLine);
+		Object indexValGoto = Interpreter.EvaluateExpression(Expression, currentBasicLine);
 		int indexGoto = indexValGoto.AsInt(currentBasicLine);
 		if (indexGoto >= 1 && indexGoto <= TargetLabels.Count)
 		{
@@ -110,11 +109,11 @@ sealed record OnGotoStatement(Expression Expression, IReadOnlyList<int> TargetLa
 
 sealed record OnGosubStatement(Expression Expression, IReadOnlyList<int> TargetLabels) : Statement
 {
-    public override string ToString() => $"{nameof(OnGosubStatement)}({Expression}, [{String.Join(", ", TargetLabels)}])";
+	public override string ToString() => $"{nameof(OnGosubStatement)}({Expression}, [{string.Join(", ", TargetLabels)}])";
 
 	protected override void ExecuteImpl()
 	{
-		Val indexValGosub = Interpreter.EvaluateExpression(Expression, currentBasicLine);
+		Object indexValGosub = Interpreter.EvaluateExpression(Expression, currentBasicLine);
 		int indexGosub = indexValGosub.AsInt(currentBasicLine);
 		if (indexGosub >= 1 && indexGosub <= TargetLabels.Count)
 		{
@@ -130,7 +129,7 @@ sealed record OnGosubStatement(Expression Expression, IReadOnlyList<int> TargetL
 
 sealed record ReturnStatement : Statement
 {
-    public override string ToString() => nameof(ReturnStatement);
+	public override string ToString() => nameof(ReturnStatement);
 
 	protected override void ExecuteImpl()
 	{
@@ -143,11 +142,11 @@ sealed record ReturnStatement : Statement
 
 sealed record IfStatement(Expression Condition, IReadOnlyList<Tagged<Statement>> Statements) : Statement
 {
-    public override string ToString() => $"{nameof(IfStatement)}({Condition}, [{String.Join("; ", Statements.Select(s => s.ToString()))}])";
+	public override string ToString() => $"{nameof(IfStatement)}({Condition}, [{string.Join("; ", Statements.Select(s => s.ToString()))}])";
 
 	protected override void ExecuteImpl()
 	{
-		Val condition = Interpreter.EvaluateExpression(Condition, currentBasicLine);
+		Object condition = Interpreter.EvaluateExpression(Condition, currentBasicLine);
 		if (condition.AsInt(currentBasicLine) == 0)
 			return;
 		foreach (var thenStmtTagged in Statements)
@@ -161,7 +160,7 @@ sealed record IfStatement(Expression Condition, IReadOnlyList<Tagged<Statement>>
 
 sealed record ForStatement(VarName LoopVariable, Expression InitialValue, Expression LimitValue, Expression StepValue) : Statement
 {
-    public override string ToString() => $"{nameof(ForStatement)}({LoopVariable}, {InitialValue}, {LimitValue}, {StepValue})";
+	public override string ToString() => $"{nameof(ForStatement)}({LoopVariable}, {InitialValue}, {LimitValue}, {StepValue})";
 
 	protected override void ExecuteImpl()
 	{
@@ -172,10 +171,10 @@ sealed record ForStatement(VarName LoopVariable, Expression InitialValue, Expres
 				return; // If this is a single-line FOR loop, we don't reinitialize it.
 			}
 		}
-		Val startVal = Interpreter.EvaluateExpression(InitialValue, currentBasicLine);
-		Val limitVal = Interpreter.EvaluateExpression(LimitValue, currentBasicLine);
-		Val stepVal = Interpreter.EvaluateExpression(StepValue, currentBasicLine);
-		Val coercedStartVal = LoopVariable.CoerceToType(startVal, currentBasicLine, _stateManager);
+		Object startVal = Interpreter.EvaluateExpression(InitialValue, currentBasicLine);
+		Object limitVal = Interpreter.EvaluateExpression(LimitValue, currentBasicLine);
+		Object stepVal = Interpreter.EvaluateExpression(StepValue, currentBasicLine);
+		Object coercedStartVal = LoopVariable.CoerceToType(startVal, currentBasicLine, _stateManager);
 		_variableManager.SetScalarVar(LoopVariable, coercedStartVal);
 		_context.State.ForLoopStack.Push(new ForLoopContext(LoopVariable, limitVal, stepVal, Interpreter._currentProgramLineIndex));
 	}
@@ -183,7 +182,7 @@ sealed record ForStatement(VarName LoopVariable, Expression InitialValue, Expres
 
 sealed record NextStatement(IReadOnlyList<VarName>? LoopVariables) : Statement // Nullable for simple NEXT
 {
-    public override string ToString() => $"{nameof(NextStatement)}([{String.Join(", ", LoopVariables?.Select(v => v.ToString()) ?? [])}])";
+	public override string ToString() => $"{nameof(NextStatement)}([{string.Join(", ", LoopVariables?.Select(v => v.ToString()) ?? [])}])";
 
 	protected override void ExecuteImpl()
 	{
@@ -222,18 +221,18 @@ sealed record NextStatement(IReadOnlyList<VarName>? LoopVariables) : Statement /
 
 sealed record PrintStatement(IEnumerable<Expression> Expressions) : Statement
 {
-    public override string ToString() => $"{nameof(PrintStatement)}([{String.Join(", ", Expressions.Select(e => e.ToString()))}])";
+	public override string ToString() => $"{nameof(PrintStatement)}([{string.Join(", ", Expressions.Select(e => e.ToString()))}])";
 
-	static string PrintVal(Val val)
+	static string PrintVal(object val)
 	{
 		switch (val)
 		{
-			case FloatVal fv: return RuntimeParsingUtils.PrintFloat(fv.Value);
-			case IntVal iv:
-				string s = iv.Value.ToString(CultureInfo.InvariantCulture);
-				return (iv.Value >= 0 && (s.Length > 0 && s[0] != '-') ? " " : "") + s + " ";
-			case StringVal sv: return sv.Value;
-			default: throw new ArgumentOutOfRangeException(nameof(val), $"Unknown Val type for printing: {val.GetType()}");
+			case Single fv: return RuntimeParsingUtils.PrintFloat(fv);
+			case Int32 iv:
+				string s = iv.ToString(CultureInfo.InvariantCulture);
+				return (iv >= 0 && (s.Length > 0 && s[0] != '-') ? " " : "") + s + " ";
+			case String sv: return sv;
+			default: throw new ArgumentOutOfRangeException(nameof(val), $"Unknown Object type for printing: {val.GetType()}");
 		}
 	}
 	protected override void ExecuteImpl()
@@ -245,13 +244,13 @@ sealed record PrintStatement(IEnumerable<Expression> Expressions) : Statement
 				int currentColumn = _ioManager.OutputColumn;
 				int spacesToNextZone = InputOutputManager.ZoneWidth - (currentColumn % InputOutputManager.ZoneWidth);
 				if (currentColumn > 0 && (currentColumn % InputOutputManager.ZoneWidth == 0)) spacesToNextZone = InputOutputManager.ZoneWidth;
-				if (spacesToNextZone > 0 && spacesToNextZone <= InputOutputManager.ZoneWidth) _ioManager.PrintString(new string(' ', spacesToNextZone));
+				if (spacesToNextZone > 0 && spacesToNextZone <= InputOutputManager.ZoneWidth) _ioManager.PrintString(new String(' ', spacesToNextZone));
 			}
 			else if (expr is EmptyZoneExpression) { /* No space */ }
 			else
 			{
-				Val val = Interpreter.EvaluateExpression(expr, currentBasicLine);
-				if (val is StringVal sv && (sv.Value == "<Special:NextZone>" || sv.Value == "<Special:EmptySeparator>")) continue;
+				Object val = Interpreter.EvaluateExpression(expr, currentBasicLine);
+				if (val is string sv && (sv == "<Special:NextZone>" || sv == "<Special:EmptySeparator>")) continue;
 				_ioManager.PrintString(PrintVal(val));
 			}
 		}
@@ -261,13 +260,13 @@ sealed record PrintStatement(IEnumerable<Expression> Expressions) : Statement
 
 sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Statement
 {
-    public override string ToString() => $"{nameof(InputStatement)}(\"{Prompt}\", [{String.Join(", ", Variables.Select(v => v.ToString()))}])";
+	public override string ToString() => $"{nameof(InputStatement)}(\"{Prompt}\", [{string.Join(", ", Variables.Select(v => v.ToString()))}])";
 
 	protected override void ExecuteImpl()
 	{
 		// Improved INPUT statement handling
-		var valuesToAssignThisInput = new List<Val>();
-		var availableInputStrings = new Queue<string>();
+		List<object> valuesToAssignThisInput = [];
+		Queue<string> availableInputStrings = new();
 		bool retryCurrentInputEntirely;
 		bool firstPrompt = true;
 
@@ -278,7 +277,7 @@ sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Sta
 			// availableInputStrings are intentionally not cleared here to allow using leftover from previous good line.
 			// However, on retry, they should be cleared.
 
-			if (!String.IsNullOrEmpty(Prompt) && firstPrompt)
+			if (!string.IsNullOrEmpty(Prompt) && firstPrompt)
 			{
 				_ioManager.PrintString(Prompt);
 				firstPrompt = false; // Main prompt only once
@@ -307,9 +306,8 @@ sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Sta
 					throw new EndOfInputError("Not enough input values provided.", currentBasicLine);
 				}
 
-				string strValueFromInput = availableInputStrings.Dequeue();
-				Val? parsedVal = targetVar.Name.Val.TryParse(strValueFromInput);
-
+				var strValueFromInput = availableInputStrings.Dequeue();
+				var parsedVal = targetVar.Name.Val.TryParse(strValueFromInput);
 				if (parsedVal is null)
 				{
 					_ioManager.PrintString("!NUMBER EXPECTED - RETRY INPUT LINE\n");
@@ -349,7 +347,7 @@ sealed record EndStatement : Statement
 
 sealed record StopStatement : Statement
 {
-    public override string ToString() => nameof(StopStatement);
+	public override string ToString() => nameof(StopStatement);
 	protected override void ExecuteImpl()
 	{
 		Interpreter._programEnded = true;
@@ -358,7 +356,7 @@ sealed record StopStatement : Statement
 
 sealed record RandomizeStatement : Statement
 {
-    public override string ToString() => nameof(RandomizeStatement);
+	public override string ToString() => nameof(RandomizeStatement);
 	protected override void ExecuteImpl()
 	{
 		Interpreter._randomManager.SeedRandomFromTime();
@@ -367,14 +365,14 @@ sealed record RandomizeStatement : Statement
 
 sealed record ReadStatement(IReadOnlyList<Var> Variables) : Statement
 {
-    public override string ToString() => $"{nameof(ReadStatement)}([{String.Join(", ", Variables.Select(v => v.ToString()))}])";
+	public override string ToString() => $"{nameof(ReadStatement)}([{string.Join(", ", Variables.Select(v => v.ToString()))}])";
 
 	protected override void ExecuteImpl()
 	{
 		foreach (var varToRead in Variables)
 		{
 			string dataStr = _ioManager.ReadData();
-			Val? val = varToRead.Name.Val.TryParse(dataStr) ?? throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", currentBasicLine);
+			var val = varToRead.Name.Val.TryParse(dataStr) ?? throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", currentBasicLine);
 			var coercedVal = varToRead.CoerceToType(val, currentBasicLine, _stateManager);
 			if (varToRead is ScalarVar sv)
 				_variableManager.SetScalarVar(sv.VarName, coercedVal);
@@ -389,7 +387,7 @@ sealed record ReadStatement(IReadOnlyList<Var> Variables) : Statement
 
 sealed record RestoreStatement(int? TargetLabel) : Statement
 {
-    public override string ToString() => $"{nameof(RestoreStatement)}({TargetLabel?.ToString() ?? "Start"})";
+	public override string ToString() => $"{nameof(RestoreStatement)}({TargetLabel?.ToString() ?? "Start"})";
 
 	protected override void ExecuteImpl()
 	{
@@ -410,21 +408,21 @@ sealed record RestoreStatement(int? TargetLabel) : Statement
 
 sealed record DataStatement(string Data) : Statement
 {
-    public override string ToString() => $"{nameof(DataStatement)}(\"{Data}\")";
+	public override string ToString() => $"{nameof(DataStatement)}(\"{Data}\")";
 	protected override void ExecuteImpl() { }
 }
 
 sealed record DefFnStatement(VarName FunctionName, IReadOnlyList<VarName> Parameters, Expression Expression) : Statement
 {
-    public override string ToString() => $"{nameof(DefFnStatement)}({FunctionName}, [{String.Join(", ", Parameters.Select(p => p.ToString()))}], {Expression})";
+	public override string ToString() => $"{nameof(DefFnStatement)}({FunctionName}, [{string.Join(", ", Parameters.Select(p => p.ToString()))}], {Expression})";
 
 	protected override void ExecuteImpl()
 	{
-		Val udf(IReadOnlyList<Val> argsFromInvocation)
+		Object udf(IReadOnlyList<object> argsFromInvocation)
 		{
 			if (argsFromInvocation.Count != Parameters.Count)
 				throw new WrongNumberOfArgumentsError($"Function {FunctionName} expects {Parameters.Count} args, got {argsFromInvocation.Count}", _stateManager.CurrentLineNumber);
-			var stashedValues = new Dictionary<VarName, Val?>();
+			var stashedValues = new Dictionary<VarName, Object?>();
 			for (int i = 0; i < Parameters.Count; i++)
 			{
 				var paramName = Parameters[i];
@@ -432,14 +430,14 @@ sealed record DefFnStatement(VarName FunctionName, IReadOnlyList<VarName> Parame
 				catch { stashedValues[paramName] = null; }
 				_variableManager.SetScalarVar(paramName, paramName.CoerceToType(argsFromInvocation[i], _stateManager.CurrentLineNumber, _stateManager));
 			}
-			Val result = Interpreter.EvaluateExpression(Expression, _stateManager.CurrentLineNumber);
+			Object result = Interpreter.EvaluateExpression(Expression, _stateManager.CurrentLineNumber);
 			foreach (var paramName in Parameters)
 			{
-				//if (stashedValues.TryGetValue(paramName, out Val? stashedVal) && stashedVal is not null)
+				//if (stashedValues.TryGetValue(paramName, out Object? stashedVal) && stashedVal is not null)
 				//    _variableManager.SetScalarVar(paramName, stashedVal);
 				//else
 				//{
-				//    Val val = paramName.EqualsType(StringVal.Empty) ? StringVal.Empty : FloatVal.Empty;
+				//    Object val = paramName.XXXEqualsType(String.Empty) ? String.Empty : Single.Empty;
 				// _variableManager.SetScalarVar(paramName, paramName.CoerceToType(val, _stateManager.CurrentLineNumber, _stateManager));
 				//}
 				throw new NotImplementedException($"Function {FunctionName} does not support array parameters yet."); // TODO: Handle arrays in UDFs
@@ -452,7 +450,7 @@ sealed record DefFnStatement(VarName FunctionName, IReadOnlyList<VarName> Parame
 
 sealed record RemStatement(string Comment) : Statement
 {
-    public override string ToString() => $"{nameof(RemStatement)}(\"{Comment}\")";
+	public override string ToString() => $"{nameof(RemStatement)}(\"{Comment}\")";
 
 	protected override void ExecuteImpl()
 	{
