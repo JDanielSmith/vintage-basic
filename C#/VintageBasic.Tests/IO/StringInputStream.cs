@@ -6,10 +6,7 @@ sealed class StringInputStream : IInputStream
 	readonly Queue<string> _lines;
 	bool _eofReached;
 
-	public StringInputStream(IEnumerable<string> lines)
-	{
-		_lines = new(lines ?? Enumerable.Empty<string>());
-	}
+	public StringInputStream(IEnumerable<string> lines) => _lines = new(lines ?? []);
 
 	public StringInputStream(string singleLine)
 	{
@@ -24,9 +21,9 @@ sealed class StringInputStream : IInputStream
 	{
 		if (String.IsNullOrEmpty(input))
 		{
-			return new(Enumerable.Empty<string>());
+			return new([]);
 		}
-		return new(input.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None));
+		return new(input.Split(["\r\n", "\r", "\n"], StringSplitOptions.None));
 	}
 
 

@@ -50,15 +50,15 @@ sealed record DimStatement(IReadOnlyList<(VarName Name, IReadOnlyList<Expression
 
 	protected override void ExecuteImpl()
 	{
-		foreach (var decl in Declarations)
+		foreach (var (Name, Dimensions) in Declarations)
 		{
 			var bounds = new List<int>();
-			foreach (var exprBound in decl.Dimensions)
+			foreach (var exprBound in Dimensions)
 			{
-				Object boundVal = Interpreter.EvaluateExpression(exprBound, currentBasicLine);
+				var boundVal = Interpreter.EvaluateExpression(exprBound, currentBasicLine);
 				bounds.Add(boundVal.AsInt(currentBasicLine));
 			}
-			_variableManager.DimArray(decl.Name, bounds);
+			_variableManager.DimArray(Name, bounds);
 		}
 	}
 }
@@ -290,10 +290,10 @@ sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Sta
 				if (!availableInputStrings.Any()) // Need more input values from console
 				{
 					_ioManager.PrintString("? "); // Prompt for more input
-					string? lineRead = _ioManager.ReadLine() ?? throw new EndOfInputError(lineNumber: currentBasicLine);
+					var lineRead = _ioManager.ReadLine();
 					var parsedLineValues = RuntimeParsingUtils.ParseDataLineContent(lineRead);
-					foreach (var v in parsedLineValues) availableInputStrings.Enqueue(v);
-
+					foreach (var v in parsedLineValues)
+						availableInputStrings.Enqueue(v);
 					if (!availableInputStrings.Any() && Variables.Count > varIndex)
 					{
 						varIndex--; // Re-process current variable with new input line.
@@ -325,12 +325,7 @@ sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Sta
 		{
 			var targetVar = Variables[i];
 			var valueToAssign = valuesToAssignThisInput[i];
-			if (targetVar is ScalarVar sv) _variableManager.SetScalarVar(sv.VarName, valueToAssign);
-			else if (targetVar is ArrVar av)
-			{
-				var indices = Interpreter.EvaluateIndices(av.Dimensions, currentBasicLine);
-				_variableManager.SetArrayVar(av.VarName, indices, valueToAssign);
-			}
+			targetVar.SetVar(Interpreter, valueToAssign);
 		}
 		// If availableInputStrings still has items, they are extra and ignored (common BASIC behavior).
 	}
@@ -371,7 +366,7 @@ sealed record ReadStatement(IReadOnlyList<Var> Variables) : Statement
 	{
 		foreach (var varToRead in Variables)
 		{
-			string dataStr = _ioManager.ReadData();
+			var dataStr = _ioManager.ReadData();
 			var val = varToRead.Name.Val.TryParse(dataStr) ?? throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", currentBasicLine);
 			var coercedVal = varToRead.CoerceToType(val, currentBasicLine, _stateManager);
 			if (varToRead is ScalarVar sv)
@@ -393,7 +388,7 @@ sealed record RestoreStatement(int? TargetLabel) : Statement
 	{
 		if (TargetLabel.HasValue)
 		{
-			int targetLabel = TargetLabel.Value;
+			var targetLabel = TargetLabel.Value;
 			if (!_jumpTable.Any(jte => jte.Label == targetLabel))
 				throw new BadRestoreTargetError(targetLabel, currentBasicLine);
 			var dataFromTargetOnwards = _jumpTable.Where(jte => jte.Label >= targetLabel).SelectMany(jte => jte.Data).ToList();
@@ -418,19 +413,18 @@ sealed record DefFnStatement(VarName FunctionName, IReadOnlyList<VarName> Parame
 
 	protected override void ExecuteImpl()
 	{
-		Object udf(IReadOnlyList<object> argsFromInvocation)
+		object udf(IReadOnlyList<object> argsFromInvocation)
 		{
 			if (argsFromInvocation.Count != Parameters.Count)
 				throw new WrongNumberOfArgumentsError($"Function {FunctionName} expects {Parameters.Count} args, got {argsFromInvocation.Count}", _stateManager.CurrentLineNumber);
-			var stashedValues = new Dictionary<VarName, Object?>();
+			Dictionary<VarName, object?> stashedValues = [];
 			for (int i = 0; i < Parameters.Count; i++)
 			{
 				var paramName = Parameters[i];
-				try { stashedValues[paramName] = _variableManager.GetScalarVar(paramName); }
-				catch { stashedValues[paramName] = null; }
+				stashedValues[paramName] = _variableManager.GetScalarVar(paramName);
 				_variableManager.SetScalarVar(paramName, paramName.CoerceToType(argsFromInvocation[i], _stateManager.CurrentLineNumber, _stateManager));
 			}
-			Object result = Interpreter.EvaluateExpression(Expression, _stateManager.CurrentLineNumber);
+			var result = Interpreter.EvaluateExpression(Expression, _stateManager.CurrentLineNumber);
 			foreach (var paramName in Parameters)
 			{
 				//if (stashedValues.TryGetValue(paramName, out Object? stashedVal) && stashedVal is not null)

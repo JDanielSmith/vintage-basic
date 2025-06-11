@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace VintageBasic.Parsing;
 
-static class FloatParser
+static partial class FloatParser
 {
 	/// <summary>
 	/// Main method to attempt parsing a string into a double.
@@ -21,7 +21,7 @@ static class FloatParser
 
 		// Handle missing '+' in exponent: "E10" -> "E+10"
 		// Regex to find 'E' followed by a digit (without an intermediate sign)
-		normalizedString = Regex.Replace(normalizedString, @"E(\d)", "E+$1");
+		normalizedString = E_followed_by_digit().Replace(normalizedString, "E+$1");
 
 		var style = NumberStyles.Float | NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent;
 		if (Double.TryParse(normalizedString, style, CultureInfo.InvariantCulture, out result))
@@ -39,4 +39,7 @@ static class FloatParser
 
 		return false;
 	}
+
+	[GeneratedRegex(@"E(\d)")]
+	private static partial Regex E_followed_by_digit();
 }
