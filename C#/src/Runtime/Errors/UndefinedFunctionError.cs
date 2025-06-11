@@ -4,11 +4,8 @@ namespace VintageBasic.Runtime.Errors;
 
 sealed class UndefinedFunctionError : BasicRuntimeException
 {
-    public VarName FunctionName { get; }
-
-    public UndefinedFunctionError(VarName functionName, string message = "Undefined function", int? lineNumber = null)
-        : base($"{message}: {functionName}", lineNumber)
-    {
-        FunctionName = functionName;
-    }
+	public UndefinedFunctionError() : this("Undefined function") { }
+	public UndefinedFunctionError(string message) : base(message) { }
+	public UndefinedFunctionError(string message, Exception innerException) : base(message, innerException) { }
+	public UndefinedFunctionError(VarName functionName) : this($"Undefined function: {functionName}") { }
 }

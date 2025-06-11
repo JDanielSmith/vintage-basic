@@ -2,6 +2,7 @@ namespace VintageBasic.Runtime.Errors;
 
 sealed class RedimensionedArrayError : BasicRuntimeException
 {
-    public RedimensionedArrayError(string message = "Re-dimensioned array", int? lineNumber = null)
-        : base(message, lineNumber) { }
+	public RedimensionedArrayError() : this("Re-dimensioned array") { }
+	public RedimensionedArrayError(string message) : base(message) { }
+	public RedimensionedArrayError(string message, Exception innerException) : base(message, innerException) { }
 }

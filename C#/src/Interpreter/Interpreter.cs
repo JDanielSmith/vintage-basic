@@ -61,7 +61,7 @@ sealed class Interpreter(RuntimeContext context)
 		catch (Exception ex)
 		{
 			_programEnded = true;
-			throw new BasicRuntimeException($"Unexpected error: {ex.Message}", ex, _stateManager.CurrentLineNumber);
+			throw new BasicRuntimeException($"Unexpected error: {ex.Message}", _stateManager.CurrentLineNumber, ex);
 		}
 	}
 

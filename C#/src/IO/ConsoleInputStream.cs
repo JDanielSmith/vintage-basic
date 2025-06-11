@@ -4,10 +4,10 @@ namespace VintageBasic.IO;
 
 sealed class ConsoleInputStream : IInputStream
 {
-    public string? ReadLine()
-    {
-        return Console.ReadLine();
-    }
+	public string? ReadLine()
+	{
+		return Console.ReadLine();
+	}
 
 	public bool IsEof
 	{
