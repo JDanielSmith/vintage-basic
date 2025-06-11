@@ -26,23 +26,14 @@ sealed class Interpreter(RuntimeContext context)
 	internal StateManager StateManager => _stateManager;
 	internal IReadOnlyList<JumpTableEntry> JumpTable => _jumpTable;
 
-	public void ExecuteProgram(IReadOnlyList<Line> programLines)
+	List<JumpTableEntry> BuildJumpTable(IReadOnlyList<Line> programLines, out List<string> allDataStrings)
 	{
-		if (programLines.Count <= 0)
+		allDataStrings = [];
+		List<JumpTableEntry> jumpTableBuilder = new(programLines.Count);
+		foreach (var currentLine in programLines.OrderBy(l => l.Label))
 		{
-			return;
-		}
-
-		var sortedLines = programLines.OrderBy(l => l.Label).ToList();
-		List<string> allDataStrings = [];
-		List<JumpTableEntry> jumpTableBuilder = new(sortedLines.Count);
-
-		foreach (var line in sortedLines)
-		{
-			var lineData = CollectDataFromLine(line); // Uses refined ParseDataLineContent
+			var lineData = CollectDataFromLine(currentLine); // Uses refined ParseDataLineContent
 			allDataStrings.AddRange(lineData);
-
-			var currentLine = line;
 			void programAction()
 			{
 				foreach (var taggedStatement in currentLine.Statements)
@@ -52,53 +43,54 @@ sealed class Interpreter(RuntimeContext context)
 					if (_programEnded || _nextInstructionIsJump) break;
 				}
 			}
-			jumpTableBuilder.Add(new JumpTableEntry(currentLine.Label, programAction, lineData));
+			jumpTableBuilder.Add(new(currentLine.Label, programAction, lineData));
 		}
-		_jumpTable = jumpTableBuilder;
+		return jumpTableBuilder;
+	}
+	void ProgramAction(JumpTableEntry entry)
+	{
+		try
+		{
+			entry.ProgramAction();
+		}
+		catch (BasicRuntimeException)
+		{
+			_programEnded = true;
+			throw;
+		}
+		catch (Exception ex)
+		{
+			_programEnded = true;
+			throw new BasicRuntimeException($"Unexpected error: {ex.Message}", ex, _stateManager.CurrentLineNumber);
+		}
+	}
+
+	public void ExecuteProgram(IReadOnlyList<Line> programLines)
+	{
+		if (programLines.Count <= 0) return;
+
+		_jumpTable = BuildJumpTable(programLines, out var allDataStrings);
+		if (_jumpTable.Count <= 0) return;
+
 		_ioManager.SetDataStrings(allDataStrings);
 		_randomManager.SeedRandomFromTime();
-
-		if (_jumpTable.Count <= 0)
-		{
-			return;
-		}
-
-		_programEnded = false;
 		_currentProgramLineIndex = 0;
-		if (_jumpTable.Count > 0)
-			_stateManager.SetCurrentLineNumber(_jumpTable[_currentProgramLineIndex].Label);
-
+		_stateManager.SetCurrentLineNumber(_jumpTable[_currentProgramLineIndex].Label);
 		while (!_programEnded && (_currentProgramLineIndex < _jumpTable.Count) && (_currentProgramLineIndex >= 0))
 		{
 			_nextInstructionIsJump = false;
 			var entry = _jumpTable[_currentProgramLineIndex];
 			_stateManager.SetCurrentLineNumber(entry.Label);
 
-			try
-			{
-				entry.ProgramAction();
-			}
-			catch (BasicRuntimeException)
-			{
-				_programEnded = true;
-				throw;
-			}
-			catch (Exception ex)
-			{
-				_programEnded = true;
-				throw new BasicRuntimeException($"Unexpected error: {ex.Message}", ex, _stateManager.CurrentLineNumber);
-			}
-
-			if (_programEnded) break;
+			ProgramAction(entry);
+			if (_programEnded) return;
 
 			if (_nextInstructionIsJump)
 			{
 				int targetLabel = _stateManager.CurrentLineNumber;
-				_currentProgramLineIndex = _jumpTable.ToList().FindIndex(jte => jte.Label == targetLabel);
+				_currentProgramLineIndex = _jumpTable.FindIndex(jte => jte.Label == targetLabel);
 				if (_currentProgramLineIndex == -1)
-				{
 					throw new BadGotoTargetError(targetLabel, lineNumber: entry.Label);
-				}
 			}
 			else
 			{
@@ -109,7 +101,7 @@ sealed class Interpreter(RuntimeContext context)
 
 	static List<string> CollectDataFromLine(Line line)
 	{
-		var lineData = new List<string>();
+		List<string> lineData = [];
 		foreach (var taggedStatement in line.Statements)
 		{
 			if (taggedStatement.Value is DataStatement dataStmt)
@@ -131,79 +123,57 @@ sealed class Interpreter(RuntimeContext context)
 		List<int> indices = [];
 		foreach (var dimExpr in dimExprs)
 		{
-			Object dimVal = EvaluateExpression(dimExpr, currentBasicLine);
+			var dimVal = EvaluateExpression(dimExpr, currentBasicLine);
 			indices.Add(dimVal.AsInt(currentBasicLine));
 		}
 		return indices;
 	}
 
-	internal Object EvaluateExpression(Expression expr, int currentBasicLine)
+	internal object EvaluateExpression(Expression expr, int currentBasicLine)
 	{
 		_stateManager.SetCurrentLineNumber(currentBasicLine);
-		switch (expr)
-		{
-			case LiteralExpression l: return l.Value switch { FloatLiteral f => f.Value, StringLiteral s => s.Value, _ => throw new NotSupportedException() };
-			case VarExpression v:
-				Object val = v.Value switch { ScalarVar sv => _variableManager.GetScalarVar(sv.VarName), ArrVar av => _variableManager.GetArrayVar(av.VarName, EvaluateIndices(av.Dimensions, currentBasicLine)), _ => throw new NotSupportedException() };
-				return ValExtensions.CoerceToExpressionType(val, currentBasicLine, _stateManager);
-			case ParenExpression p: return EvaluateExpression(p.Inner, currentBasicLine);
-			case MinusExpression m:
-				Object op = EvaluateExpression(m.Right, currentBasicLine);
-				Object numOpM = ValExtensions.CoerceToExpressionType(op, currentBasicLine, _stateManager);
-				if (numOpM is float fv)
-					return -fv;
-				throw new TypeMismatchError("Numeric operand for unary minus.", currentBasicLine);
-			case NotExpression n:
-				Object notOp = EvaluateExpression(n.Right, currentBasicLine);
-				Object numOpN = ValExtensions.CoerceToExpressionType(notOp, currentBasicLine, _stateManager);
-				if (numOpN is float fvN) return fvN == 0.0f ? -1.0f : 0.0f;
-				throw new TypeMismatchError("Numeric operand for NOT.", currentBasicLine);
-			case BinOpExpression b: return EvaluateBinOp(b.Op, EvaluateExpression(b.Left, currentBasicLine), EvaluateExpression(b.Right, currentBasicLine), currentBasicLine);
-			case BuiltinExpression bi: return EvaluateBuiltin(bi.Builtin, bi.Args, currentBasicLine);
-			case FnExpression fn:
-				UserDefinedFunction udf = _functionManager.GetFunction(fn.FunctionName);
-				List<object> fnArgs = [];
-				foreach (var argExpr in fn.Args) fnArgs.Add(EvaluateExpression(argExpr, currentBasicLine));
-				return udf(fnArgs);
-			case NextZoneExpression _: return "<Special:NextZone>";
-			case EmptyZoneExpression _: return "<Special:EmptySeparator>";
-			default: throw new NotImplementedException($"Expression type {expr.GetType().Name} not implemented. Line: {currentBasicLine}");
-		}
+		return expr.Evaluate(this, currentBasicLine);
 	}
 
-	internal Object EvaluateBinOp(BinOp op, Object v1, Object v2, int currentBasicLine)
+	internal object EvaluateBinOp(BinOp op, object v1, object v2, int currentBasicLine)
 	{
 		_stateManager.SetCurrentLineNumber(currentBasicLine);
 		var cV1 = (op == BinOp.AddOp && v1 is string) ? v1 : ValExtensions.CoerceToExpressionType(v1, currentBasicLine, _stateManager);
 		var cV2 = (op == BinOp.AddOp && v2 is string) ? v2 : ValExtensions.CoerceToExpressionType(v2, currentBasicLine, _stateManager);
-		switch (op)
+
+		object Add()
 		{
-			case BinOp.AddOp:
-				if (cV1 is string s1 && cV2 is string s2) return s1 + s2;
-				if (cV1 is float f1 && cV2 is float f2) return f1 + f2;
-				throw new TypeMismatchError($"Cannot ADD types {cV1.GetTypeName()} and {cV2.GetTypeName()}", currentBasicLine);
-			case BinOp.SubOp: return cV1.AsFloat(currentBasicLine) - cV2.AsFloat(currentBasicLine);
-			case BinOp.MulOp: return cV1.AsFloat(currentBasicLine) * cV2.AsFloat(currentBasicLine);
-			case BinOp.DivOp:
-				float divisor = cV2.AsFloat(currentBasicLine);
-				if (divisor == 0.0f) throw new DivisionByZeroError(lineNumber: currentBasicLine);
-				return cV1.AsFloat(currentBasicLine) / divisor;
-			case BinOp.PowOp: return (float)Math.Pow(cV1.AsFloat(currentBasicLine), cV2.AsFloat(currentBasicLine));
-			case BinOp.EqOp:
-			case BinOp.NEOp:
-			case BinOp.LTOp:
-			case BinOp.LEOp:
-			case BinOp.GTOp:
-			case BinOp.GEOp:
-				if (!v1.EqualsType(v2))
-					throw new TypeMismatchError($"Cannot compare types {v1.GetTypeName()} and {v2.GetTypeName()}", currentBasicLine);
-				int cr = Comparer<object>.Default.Compare(v1, v2);
-				bool res = op switch { BinOp.EqOp => cr == 0, BinOp.NEOp => cr != 0, BinOp.LTOp => cr < 0, BinOp.LEOp => cr <= 0, BinOp.GTOp => cr > 0, BinOp.GEOp => cr >= 0, _ => false };
-				return res ? -1.0f : 0.0f;
-			case BinOp.AndOp: return (cV1.AsFloat(currentBasicLine) != 0.0f && cV2.AsFloat(currentBasicLine) != 0.0f) ? -1.0f : 0.0f;
-			case BinOp.OrOp: return (cV1.AsFloat(currentBasicLine) != 0.0f || cV2.AsFloat(currentBasicLine) != 0.0f) ? -1.0f : 0.0f;
-			default: throw new NotImplementedException($"Binary operator {op}. Line: {currentBasicLine}");
+			if (cV1 is string s1 && cV2 is string s2) return s1 + s2;
+			if (cV1 is float f1 && cV2 is float f2) return f1 + f2;
+			throw new TypeMismatchError($"Cannot ADD types {cV1.GetTypeName()} and {cV2.GetTypeName()}", currentBasicLine);
 		}
+		float Div()
+		{
+			var divisor = cV2.AsFloat(currentBasicLine);
+			if (divisor == 0.0f)
+				throw new DivisionByZeroError(lineNumber: currentBasicLine);
+			return cV1.AsFloat(currentBasicLine) / divisor;
+		}
+		float Comparison()
+		{
+			if (v1.GetType() != v2.GetType())
+				throw new TypeMismatchError($"Cannot compare types {v1.GetTypeName()} and {v2.GetTypeName()}", currentBasicLine);
+			var cr = Comparer<object>.Default.Compare(v1, v2);
+			var res = op switch { BinOp.EqOp => cr == 0, BinOp.NEOp => cr != 0, BinOp.LTOp => cr < 0, BinOp.LEOp => cr <= 0, BinOp.GTOp => cr > 0, BinOp.GEOp => cr >= 0, _ => false };
+			return res ? -1.0f : 0.0f;
+		}
+		return op switch
+		{
+			BinOp.AddOp => Add(),
+			BinOp.SubOp => cV1.AsFloat(currentBasicLine) - cV2.AsFloat(currentBasicLine),
+			BinOp.MulOp => cV1.AsFloat(currentBasicLine) * cV2.AsFloat(currentBasicLine),
+			BinOp.DivOp => Div(),
+			BinOp.PowOp => (float)Math.Pow(cV1.AsFloat(currentBasicLine), cV2.AsFloat(currentBasicLine)),
+			BinOp.EqOp or BinOp.NEOp or BinOp.LTOp or BinOp.LEOp or BinOp.GTOp or BinOp.GEOp => Comparison(),
+			BinOp.AndOp => (cV1.AsFloat(currentBasicLine) != 0.0f && cV2.AsFloat(currentBasicLine) != 0.0f) ? -1.0f : 0.0f,
+			BinOp.OrOp => (cV1.AsFloat(currentBasicLine) != 0.0f || cV2.AsFloat(currentBasicLine) != 0.0f) ? -1.0f : 0.0f,
+			_ => throw new NotImplementedException($"Binary operator {op}. Line: {currentBasicLine}"),
+		};
 	}
 
 	void CheckArgTypes(Builtin builtinName, List<Type> expectedTypes, List<object> actualArgs, int currentBasicLine)
@@ -217,9 +187,10 @@ sealed class Interpreter(RuntimeContext context)
 
 		for (int i = 0; i < Math.Min(expectedTypes.Count, actualArgs.Count); i++)
 		{
-			if (expectedTypes[i].IsSameType<int>() && actualArgs[i].IsSameType<float>()) continue;
-			if (!expectedTypes[i].EqualsType(actualArgs[i]))
-				throw new TypeMismatchError($"For {builtinName} argument {i + 1}: expected {expectedTypes[i]}, got {actualArgs[i].GetTypeName()}", currentBasicLine);
+			var actualType = actualArgs[i].GetType();
+			if ((expectedTypes[i] == typeof(int)) && (actualType == typeof(float))) continue;
+			if (expectedTypes[i] != actualType)
+				throw new TypeMismatchError($"For {builtinName} argument {i + 1}: expected {expectedTypes[i].Name}, got {actualType.Name}", currentBasicLine);
 		}
 	}
 
@@ -234,11 +205,6 @@ sealed class Interpreter(RuntimeContext context)
 		{ Builtin.Val, [ typeof(string)] },
 	}.ToFrozenDictionary();
 
-	static bool HasNumericArg0(IReadOnlyList<object> args)
-	{
-		return (args.Count == 1) && args[0].IsNumeric();
-	}
-
 	List<object> EvaluateArgs(IReadOnlyList<Expression> argExprs, int currentBasicLine)
 	{
 		List<object> args = [];
@@ -247,7 +213,7 @@ sealed class Interpreter(RuntimeContext context)
 		return args;
 	}
 
-	Object EvaluateBuiltin(Builtin builtin, IReadOnlyList<Expression> argExprs, int currentBasicLine)
+	internal object EvaluateBuiltin(Builtin builtin, IReadOnlyList<Expression> argExprs, int currentBasicLine)
 	{
 		_stateManager.SetCurrentLineNumber(currentBasicLine);
 
@@ -283,9 +249,10 @@ sealed class Interpreter(RuntimeContext context)
 		};
 	}
 
-	static void ThrowIfNotNumericArg0(IReadOnlyList<object> args, string message, int currentBasicLine)
+	static void ThrowIfNotNumericArg0(List<object> args, string message, int currentBasicLine)
 	{
-		if (!HasNumericArg0(args))
+		bool hasNumericArg0 = (args.Count == 1) && args[0].IsNumeric();
+		if (!hasNumericArg0)
 			throw new TypeMismatchError(message, currentBasicLine);
 	}
 
@@ -451,19 +418,19 @@ sealed class Interpreter(RuntimeContext context)
 	{
 		string valStr = ((string)args[0]).Trim();
 		string numPart = "";
-		bool d = false;
+		bool digit = false;
 		foreach (char c in valStr)
 		{
 			if (Char.IsDigit(c))
 			{
 				numPart += c;
-				d = true;
+				digit = true;
 			}
 			else if (c == '.' && !numPart.Contains('.'))
 			{
 				numPart += c;
 			}
-			else if ((c == 'E' || c == 'e') && !numPart.ToUpper().Contains('E') && d)
+			else if ((c == 'E' || c == 'e') && !numPart.ToUpper().Contains('E') && digit)
 			{
 				numPart += c;
 			}
@@ -477,6 +444,6 @@ sealed class Interpreter(RuntimeContext context)
 				break;
 		}
 
-		return RuntimeParsingUtils.ParseFloat(numPart);
+		return RuntimeParsingUtils.TryParseFloat(numPart, out var v) ? v : default;
 	}
 }

@@ -1,58 +1,104 @@
+using VintageBasic.Runtime;
+using VintageBasic.Runtime.Errors;
+
 namespace VintageBasic.Syntax;
 
 abstract record Expression
 {
-    public virtual bool IsPrintSeparator => false;
+	public virtual bool IsPrintSeparator => false;
+
+	internal abstract object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine);
 }
 
 sealed record LiteralExpression(Literal Value) : Expression
 {
-    public override string ToString() => $"{nameof(LiteralExpression)}({Value})";
+	public override string ToString() => $"{nameof(LiteralExpression)}({Value})";
+	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine) => Value switch
+	{
+		FloatLiteral f => f.Value,
+		StringLiteral s => s.Value,
+		_ => throw new NotSupportedException(),
+	};
 }
 
 sealed record VarExpression(Var Value) : Expression
 {
-    public override string ToString() => $"{nameof(VarExpression)}({Value})";
+	public override string ToString() => $"{nameof(VarExpression)}({Value})";
+	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine)
+	{
+		var var = Value.GetVar(interpreter);
+		return ValExtensions.CoerceToExpressionType(var, currentBasicLine, interpreter.StateManager);
+	}
 }
 
 sealed record FnExpression(VarName FunctionName, IReadOnlyList<Expression> Args) : Expression
 {
-    public override string ToString() => $"{nameof(FnExpression)}({FunctionName}, [{String.Join(", ", Args.Select(a => a.ToString()))}])";
+	public override string ToString() => $"{nameof(FnExpression)}({FunctionName}, [{String.Join(", ", Args.Select(a => a.ToString()))}])";
+	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine)
+	{
+		var udf = interpreter._functionManager.GetFunction(FunctionName);
+		var fnArgs = Args.Select(argExpr => interpreter.EvaluateExpression(argExpr, currentBasicLine)).ToList();
+		return udf(fnArgs);
+	}
 }
 
 sealed record MinusExpression(Expression Right) : Expression
 {
-    public override string ToString() => $"{nameof(MinusExpression)}({Right})";
+	public override string ToString() => $"{nameof(MinusExpression)}({Right})";
+	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine)
+	{
+		var op = interpreter.EvaluateExpression(Right, currentBasicLine);
+		if (ValExtensions.CoerceToExpressionType(op, currentBasicLine, interpreter.StateManager) is float fv)
+			return -fv;
+		throw new TypeMismatchError("Numeric operand for unary minus.", currentBasicLine);
+	}
 }
 
 sealed record NotExpression(Expression Right) : Expression
 {
-    public override string ToString() => $"{nameof(NotExpression)}({Right})";
+	public override string ToString() => $"{nameof(NotExpression)}({Right})";
+	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine)
+	{
+		var notOp = interpreter.EvaluateExpression(Right, currentBasicLine);
+		if (ValExtensions.CoerceToExpressionType(notOp, currentBasicLine, interpreter.StateManager) is float fvN)
+			return fvN == 0.0f ? -1.0f : 0.0f;
+		throw new TypeMismatchError("Numeric operand for NOT.", currentBasicLine);
+	}
 }
 
 sealed record BinOpExpression(BinOp Op, Expression Left, Expression Right) : Expression
 {
-    public override string ToString() => $"{nameof(BinOpExpression)}({Op}, {Left}, {Right})";
+	public override string ToString() => $"{nameof(BinOpExpression)}({Op}, {Left}, {Right})";
+	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine)
+	{
+		var lhs = interpreter.EvaluateExpression(Left, currentBasicLine);
+		var rhs = interpreter.EvaluateExpression(Right, currentBasicLine);
+		return interpreter.EvaluateBinOp(Op, lhs, rhs, currentBasicLine);
+	}
 }
 
 sealed record BuiltinExpression(Builtin Builtin, IReadOnlyList<Expression> Args) : Expression
 {
-    public override string ToString() => $"{nameof(BuiltinExpression)}({Builtin}, [{String.Join(", ", Args.Select(a => a.ToString()))}])";
+	public override string ToString() => $"{nameof(BuiltinExpression)}({Builtin}, [{String.Join(", ", Args.Select(a => a.ToString()))}])";
+	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine) => interpreter.EvaluateBuiltin(Builtin, Args, currentBasicLine);
 }
 
 sealed record NextZoneExpression : Expression
 {
-    public override bool IsPrintSeparator => true;
-    public override string ToString() => nameof(NextZoneExpression);
+	public override bool IsPrintSeparator => true;
+	public override string ToString() => nameof(NextZoneExpression);
+	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine) => "<Special:NextZone>";
 }
 
 sealed record EmptyZoneExpression : Expression
 {
-    public override bool IsPrintSeparator => true;
-    public override string ToString() => nameof(EmptyZoneExpression);
+	public override bool IsPrintSeparator => true;
+	public override string ToString() => nameof(EmptyZoneExpression);
+	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine) => "<Special:EmptySeparator>";
 }
 
 sealed record ParenExpression(Expression Inner) : Expression
 {
-    public override string ToString() => $"{nameof(ParenExpression)}({Inner})";
+	public override string ToString() => $"{nameof(ParenExpression)}({Inner})";
+	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine) => interpreter.EvaluateExpression(Inner, currentBasicLine);
 }

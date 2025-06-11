@@ -18,11 +18,11 @@ sealed record VarName(Object Val, string Name)
 	}
 	public static VarName CreateFloat(string name)
 	{
-		return new(0.0f, name);
+		return new(default(float), name);
 	}
 	public static VarName CreateInt(string name)
 	{
-		return new(0, name);
+		return new(default(int), name);
 	}
 	public static VarName CreateString(string name)
 	{
@@ -31,8 +31,8 @@ sealed record VarName(Object Val, string Name)
 
 	internal object GetDefaultValue() => Val switch
 	{
-		float => 0.0f,
-		int => 0,
+		float => default(float),
+		int => default(int),
 		string => String.Empty,
 		_ => throw new ArgumentException($"Unknown object type: {Val.GetType().Name}")
 	};

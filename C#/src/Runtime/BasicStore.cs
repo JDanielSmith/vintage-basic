@@ -71,11 +71,11 @@ sealed class BasicStore()
 	// Scalar variables: VarName -> Object
 	// Using Object directly instead of IORef Object, as C# objects are reference types.
 	// Direct mutation of Object objects (if they were mutable) or replacing them in the dictionary.
-	public Dictionary<VarName, object> ScalarVariables { get; } = new();
+	public Dictionary<VarName, object> ScalarVariables { get; } = [];
 
 	// Array variables: VarName -> BasicArray
-	public Dictionary<VarName, BasicArray> ArrayVariables { get; } = new();
+	public Dictionary<VarName, BasicArray> ArrayVariables { get; } = [];
 
 	// User-defined functions: VarName -> UserDefinedFunction
-	public Dictionary<VarName, UserDefinedFunction> UserFunctions { get; } = new();
+	public Dictionary<VarName, UserDefinedFunction> UserFunctions { get; } = [];
 }

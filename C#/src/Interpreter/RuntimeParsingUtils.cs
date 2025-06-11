@@ -7,14 +7,7 @@ static class RuntimeParsingUtils
 {
 	public static bool TryParseFloat(string s, out float value)
 	{
-		return float.TryParse(s.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out value);
-	}
-
-	public static float ParseFloat(string s)
-	{
-		if (TryParseFloat(s, out float pf))
-			return pf;
-		return 0.0f;
+		return Single.TryParse(s.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out value);
 	}
 
 	public static List<string> ParseDataLineContent(string rawContent)

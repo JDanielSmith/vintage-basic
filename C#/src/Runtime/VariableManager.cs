@@ -87,7 +87,7 @@ sealed class VariableManager(BasicStore store)
 	}
 
 
-	public Object GetArrayVar(VarName varName, IReadOnlyList<int> indices)
+	public object GetArrayVar(VarName varName, IReadOnlyList<int> indices)
 	{
 		var array = GetOrDimArray(varName, indices.Count);
 		if (array.DimensionSizes.Count != indices.Count)
