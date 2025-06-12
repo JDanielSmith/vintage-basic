@@ -1,6 +1,6 @@
 using VintageBasic.Syntax; // For SourcePosition
 
-namespace VintageBasic.Parsing.Errors;
+namespace VintageBasic.Parsing;
 
 sealed class ParseException : Exception
 {

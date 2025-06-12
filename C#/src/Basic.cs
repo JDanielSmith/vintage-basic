@@ -1,6 +1,5 @@
 using VintageBasic.IO;
 using VintageBasic.Parsing;
-using VintageBasic.Parsing.Errors;
 using VintageBasic.Runtime;
 using VintageBasic.Runtime.Errors;
 using VintageBasic.Syntax;

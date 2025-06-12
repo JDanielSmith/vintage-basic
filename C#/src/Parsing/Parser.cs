@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using VintageBasic.Parsing.Errors;
 using VintageBasic.Syntax;
 
 namespace VintageBasic.Parsing;
