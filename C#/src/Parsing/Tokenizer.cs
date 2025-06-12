@@ -48,7 +48,7 @@ file sealed class Implementation(ScannedLine scannedLine)
 
 	readonly string content = scannedLine.Content;
 	int currentPositionInContent; // 0-based index into content string
-	readonly int lineNumber = scannedLine.LineNumber ?? 0;
+	readonly int lineNumber = scannedLine.LineNumber;
 
 	Tagged<Token> CreateRemToken()
 	{

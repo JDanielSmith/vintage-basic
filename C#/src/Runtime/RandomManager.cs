@@ -26,6 +26,7 @@ sealed class RandomManager(BasicState state)
 		// In some BASICs, RND(0) returns the last number generated.
 		_state.PreviousRandomValue;
 
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5394:Do not use insecure randomness")]
 	public double GetRandomValue()
 	{
 		// System.Random.NextDouble() returns a value in [0.0, 1.0).

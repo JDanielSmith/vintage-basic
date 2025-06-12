@@ -15,16 +15,15 @@ abstract record Statement
 		ExecuteImpl();
 	}
 
-	protected RuntimeContext _context => Interpreter.Context;
-	protected VariableManager _variableManager => Interpreter.VariableManager;
-	protected InputOutputManager _ioManager => Interpreter.IoManager;
-	protected StateManager _stateManager => Interpreter.StateManager;
-	protected IReadOnlyList<JumpTableEntry> _jumpTable => Interpreter.JumpTable;
+	protected RuntimeContext Context => Interpreter.Context;
+	protected VariableManager VariableManager => Interpreter.VariableManager;
+	protected InputOutputManager IoManager => Interpreter.IoManager;
+	protected StateManager StateManager => Interpreter.StateManager;
+	protected IReadOnlyList<JumpTableEntry> JumpTable => Interpreter.JumpTable;
 
-	protected int currentBasicLine => _stateManager.CurrentLineNumber;
+	protected int CurrentBasicLine => StateManager.CurrentLineNumber;
 
 	protected abstract void ExecuteImpl();
-
 }
 
 sealed record LetStatement(Var Variable, Expression Expression) : Statement
@@ -32,13 +31,13 @@ sealed record LetStatement(Var Variable, Expression Expression) : Statement
 	public override string ToString() => $"{nameof(LetStatement)}({Variable}, {Expression})";
 	protected override void ExecuteImpl()
 	{
-		var valueToAssign = Interpreter.EvaluateExpression(Expression, currentBasicLine);
-		var coercedValue = Variable.CoerceToType(valueToAssign, currentBasicLine, _stateManager);
-		if (Variable is ScalarVar sv) _variableManager.SetScalarVar(sv.VarName, coercedValue);
+		var valueToAssign = Interpreter.EvaluateExpression(Expression, CurrentBasicLine);
+		var coercedValue = Variable.CoerceToType(valueToAssign, CurrentBasicLine, StateManager);
+		if (Variable is ScalarVar sv) VariableManager.SetScalarVar(sv.VarName, coercedValue);
 		else if (Variable is ArrVar av)
 		{
-			var indices = Interpreter.EvaluateIndices(av.Dimensions, currentBasicLine);
-			_variableManager.SetArrayVar(av.VarName, indices, coercedValue);
+			var indices = Interpreter.EvaluateIndices(av.Dimensions, CurrentBasicLine);
+			VariableManager.SetArrayVar(av.VarName, indices, coercedValue);
 		}
 		else throw new NotImplementedException($"Variable type {Variable.GetType().Name} in LET not supported.");
 	}
@@ -52,13 +51,13 @@ sealed record DimStatement(IReadOnlyList<(VarName Name, IReadOnlyList<Expression
 	{
 		foreach (var (Name, Dimensions) in Declarations)
 		{
-			var bounds = new List<int>();
+			List<int> bounds = [];
 			foreach (var exprBound in Dimensions)
 			{
-				var boundVal = Interpreter.EvaluateExpression(exprBound, currentBasicLine);
-				bounds.Add(boundVal.AsInt(currentBasicLine));
+				var boundVal = Interpreter.EvaluateExpression(exprBound, CurrentBasicLine);
+				bounds.Add(boundVal.AsInt(CurrentBasicLine));
 			}
-			_variableManager.DimArray(Name, bounds);
+			VariableManager.DimArray(Name, bounds);
 		}
 	}
 }
@@ -68,9 +67,9 @@ sealed record GotoStatement(int TargetLabel) : Statement
 	public override string ToString() => $"{nameof(GotoStatement)}({TargetLabel})";
 	protected override void ExecuteImpl()
 	{
-		if (!_jumpTable.Any(jte => jte.Label == TargetLabel))
-			throw new BadGotoTargetError(TargetLabel, currentBasicLine);
-		_stateManager.SetCurrentLineNumber(TargetLabel);
+		if (!JumpTable.Any(jte => jte.Label == TargetLabel))
+			throw new BadGotoTargetError(TargetLabel, CurrentBasicLine);
+		StateManager.SetCurrentLineNumber(TargetLabel);
 		Interpreter._nextInstructionIsJump = true;
 	}
 }
@@ -81,10 +80,10 @@ sealed record GosubStatement(int TargetLabel) : Statement
 
 	protected override void ExecuteImpl()
 	{
-		if (!_jumpTable.Any(jte => jte.Label == TargetLabel))
-			throw new BadGosubTargetError(TargetLabel, currentBasicLine);
-		_context.State.GosubReturnStack.Push(Interpreter._currentProgramLineIndex);
-		_stateManager.SetCurrentLineNumber(TargetLabel);
+		if (!JumpTable.Any(jte => jte.Label == TargetLabel))
+			throw new BadGosubTargetError(TargetLabel, CurrentBasicLine);
+		Context.State.GosubReturnStack.Push(Interpreter._currentProgramLineIndex);
+		StateManager.SetCurrentLineNumber(TargetLabel);
 		Interpreter._nextInstructionIsJump = true;
 	}
 }
@@ -94,14 +93,14 @@ sealed record OnGotoStatement(Expression Expression, IReadOnlyList<int> TargetLa
 	public override string ToString() => $"{nameof(OnGotoStatement)}({Expression}, [{string.Join(", ", TargetLabels)}])";
 	protected override void ExecuteImpl()
 	{
-		Object indexValGoto = Interpreter.EvaluateExpression(Expression, currentBasicLine);
-		int indexGoto = indexValGoto.AsInt(currentBasicLine);
+		Object indexValGoto = Interpreter.EvaluateExpression(Expression, CurrentBasicLine);
+		int indexGoto = indexValGoto.AsInt(CurrentBasicLine);
 		if (indexGoto >= 1 && indexGoto <= TargetLabels.Count)
 		{
 			int targetLabel = TargetLabels[indexGoto - 1];
-			if (!_jumpTable.Any(jte => jte.Label == targetLabel))
-				throw new BadGotoTargetError(targetLabel, currentBasicLine);
-			_stateManager.SetCurrentLineNumber(targetLabel);
+			if (!JumpTable.Any(jte => jte.Label == targetLabel))
+				throw new BadGotoTargetError(targetLabel, CurrentBasicLine);
+			StateManager.SetCurrentLineNumber(targetLabel);
 			Interpreter._nextInstructionIsJump = true;
 		}
 	}
@@ -113,15 +112,15 @@ sealed record OnGosubStatement(Expression Expression, IReadOnlyList<int> TargetL
 
 	protected override void ExecuteImpl()
 	{
-		Object indexValGosub = Interpreter.EvaluateExpression(Expression, currentBasicLine);
-		int indexGosub = indexValGosub.AsInt(currentBasicLine);
+		var indexValGosub = Interpreter.EvaluateExpression(Expression, CurrentBasicLine);
+		int indexGosub = indexValGosub.AsInt(CurrentBasicLine);
 		if (indexGosub >= 1 && indexGosub <= TargetLabels.Count)
 		{
 			int targetLabel = TargetLabels[indexGosub - 1];
-			if (!_jumpTable.Any(jte => jte.Label == targetLabel))
-				throw new BadGosubTargetError(targetLabel, currentBasicLine);
-			_context.State.GosubReturnStack.Push(Interpreter._currentProgramLineIndex);
-			_stateManager.SetCurrentLineNumber(targetLabel);
+			if (!JumpTable.Any(jte => jte.Label == targetLabel))
+				throw new BadGosubTargetError(targetLabel, CurrentBasicLine);
+			Context.State.GosubReturnStack.Push(Interpreter._currentProgramLineIndex);
+			StateManager.SetCurrentLineNumber(targetLabel);
 			Interpreter._nextInstructionIsJump = true;
 		}
 	}
@@ -133,9 +132,9 @@ sealed record ReturnStatement : Statement
 
 	protected override void ExecuteImpl()
 	{
-		if (!_context.State.GosubReturnStack.Any())
-			throw new BasicRuntimeException("RETURN without GOSUB", currentBasicLine);
-		Interpreter._currentProgramLineIndex = _context.State.GosubReturnStack.Pop();
+		if (Context.State.GosubReturnStack.Count <= 0)
+			throw new BasicRuntimeException("RETURN without GOSUB", CurrentBasicLine);
+		Interpreter._currentProgramLineIndex = Context.State.GosubReturnStack.Pop();
 		Interpreter._nextInstructionIsJump = false;
 	}
 }
@@ -146,8 +145,8 @@ sealed record IfStatement(Expression Condition, IReadOnlyList<Tagged<Statement>>
 
 	protected override void ExecuteImpl()
 	{
-		Object condition = Interpreter.EvaluateExpression(Condition, currentBasicLine);
-		if (condition.AsInt(currentBasicLine) == 0)
+		var condition = Interpreter.EvaluateExpression(Condition, CurrentBasicLine);
+		if (condition.AsInt(CurrentBasicLine) == 0)
 			return;
 		foreach (var thenStmtTagged in Statements)
 		{
@@ -164,19 +163,19 @@ sealed record ForStatement(VarName LoopVariable, Expression InitialValue, Expres
 
 	protected override void ExecuteImpl()
 	{
-		if (_context.State.ForLoopStack.TryPeek(out var existingLoopContext) && (existingLoopContext.LoopVariable.Name == LoopVariable.Name))
+		if (Context.State.ForLoopStack.TryPeek(out var existingLoopContext) && (existingLoopContext.LoopVariable.Name == LoopVariable.Name))
 		{
 			if (existingLoopContext.SingleLine)
 			{
 				return; // If this is a single-line FOR loop, we don't reinitialize it.
 			}
 		}
-		Object startVal = Interpreter.EvaluateExpression(InitialValue, currentBasicLine);
-		Object limitVal = Interpreter.EvaluateExpression(LimitValue, currentBasicLine);
-		Object stepVal = Interpreter.EvaluateExpression(StepValue, currentBasicLine);
-		Object coercedStartVal = LoopVariable.CoerceToType(startVal, currentBasicLine, _stateManager);
-		_variableManager.SetScalarVar(LoopVariable, coercedStartVal);
-		_context.State.ForLoopStack.Push(new ForLoopContext(LoopVariable, limitVal, stepVal, Interpreter._currentProgramLineIndex));
+		var startVal = Interpreter.EvaluateExpression(InitialValue, CurrentBasicLine);
+		var limitVal = Interpreter.EvaluateExpression(LimitValue, CurrentBasicLine);
+		var stepVal = Interpreter.EvaluateExpression(StepValue, CurrentBasicLine);
+		var coercedStartVal = LoopVariable.CoerceToType(startVal, CurrentBasicLine, StateManager);
+		VariableManager.SetScalarVar(LoopVariable, coercedStartVal);
+		Context.State.ForLoopStack.Push(new(LoopVariable, limitVal, stepVal, Interpreter._currentProgramLineIndex));
 	}
 }
 
@@ -186,20 +185,23 @@ sealed record NextStatement(IReadOnlyList<VarName>? LoopVariables) : Statement /
 
 	protected override void ExecuteImpl()
 	{
-		if (!_context.State.ForLoopStack.Any()) throw new BasicRuntimeException("NEXT without FOR", currentBasicLine);
-		var loopVarNamesInNext = LoopVariables ?? [_context.State.ForLoopStack.Peek().LoopVariable];
+		if (Context.State.ForLoopStack.Count <= 0)
+			throw new BasicRuntimeException("NEXT without FOR", CurrentBasicLine);
+
+		var loopVarNamesInNext = LoopVariables ?? [Context.State.ForLoopStack.Peek().LoopVariable];
 		foreach (var varNameInNextClause in loopVarNamesInNext)
 		{
-			if (!_context.State.ForLoopStack.Any() || _context.State.ForLoopStack.Peek().LoopVariable.Name != varNameInNextClause.Name)
-				throw new BasicRuntimeException($"NEXT variable {varNameInNextClause.Name} does not match current FOR loop variable", currentBasicLine);
-			var currentLoop = _context.State.ForLoopStack.Peek();
-			var currentValue = _variableManager.GetScalarVar(currentLoop.LoopVariable);
-			var addedValue = Interpreter.EvaluateBinOp(BinOp.AddOp, currentValue, currentLoop.StepValue, currentBasicLine);
-			var newLoopVal = currentLoop.LoopVariable.CoerceToType(addedValue, currentBasicLine, _stateManager);
-			_variableManager.SetScalarVar(currentLoop.LoopVariable, newLoopVal);
-			var step = currentLoop.StepValue.AsFloat(currentBasicLine);
-			var limit = currentLoop.LimitValue.AsFloat(currentBasicLine);
-			var current = newLoopVal.AsFloat(currentBasicLine);
+			if ((Context.State.ForLoopStack.Count <= 0) || Context.State.ForLoopStack.Peek().LoopVariable.Name != varNameInNextClause.Name)
+				throw new BasicRuntimeException($"NEXT variable {varNameInNextClause.Name} does not match current FOR loop variable", CurrentBasicLine);
+
+			var currentLoop = Context.State.ForLoopStack.Peek();
+			var currentValue = VariableManager.GetScalarVar(currentLoop.LoopVariable);
+			var addedValue = Interpreter.EvaluateBinOp(BinOp.AddOp, currentValue, currentLoop.StepValue, CurrentBasicLine);
+			var newLoopVal = currentLoop.LoopVariable.CoerceToType(addedValue, CurrentBasicLine, StateManager);
+			VariableManager.SetScalarVar(currentLoop.LoopVariable, newLoopVal);
+			var step = currentLoop.StepValue.AsFloat(CurrentBasicLine);
+			var limit = currentLoop.LimitValue.AsFloat(CurrentBasicLine);
+			var current = newLoopVal.AsFloat(CurrentBasicLine);
 			var loopContinues = (step >= 0) ? (current <= limit) : (current >= limit);
 			if (loopContinues)
 			{
@@ -210,11 +212,11 @@ sealed record NextStatement(IReadOnlyList<VarName>? LoopVariables) : Statement /
 				{
 					index--;
 				}
-				_stateManager.SetCurrentLineNumber(_jumpTable[index].Label);
+				StateManager.SetCurrentLineNumber(JumpTable[index].Label);
 				Interpreter._nextInstructionIsJump = true;
 				return;
 			}
-			_context.State.ForLoopStack.Pop();
+			Context.State.ForLoopStack.Pop();
 		}
 	}
 }
@@ -225,15 +227,18 @@ sealed record PrintStatement(IEnumerable<Expression> Expressions) : Statement
 
 	static string PrintVal(object val)
 	{
-		switch (val)
+		static string PrintInt(int iv)
 		{
-			case Single fv: return RuntimeParsingUtils.PrintFloat(fv);
-			case Int32 iv:
-				string s = iv.ToString(CultureInfo.InvariantCulture);
-				return (iv >= 0 && (s.Length > 0 && s[0] != '-') ? " " : "") + s + " ";
-			case String sv: return sv;
-			default: throw new ArgumentOutOfRangeException(nameof(val), $"Unknown Object type for printing: {val.GetType()}");
+			string s = iv.ToString(CultureInfo.InvariantCulture);
+			return (iv >= 0 && (s.Length > 0 && s[0] != '-') ? " " : "") + s + " ";
 		}
+		return val switch
+		{
+			Single fv => RuntimeParsingUtils.PrintFloat(fv),
+			Int32 iv => PrintInt(iv),
+			String sv => sv,
+			_ => throw new ArgumentOutOfRangeException(nameof(val), $"Unknown Object type for printing: {val.GetType()}"),
+		};
 	}
 	protected override void ExecuteImpl()
 	{
@@ -241,26 +246,26 @@ sealed record PrintStatement(IEnumerable<Expression> Expressions) : Statement
 		{
 			if (expr is NextZoneExpression)
 			{
-				int currentColumn = _ioManager.OutputColumn;
+				int currentColumn = IoManager.OutputColumn;
 				int spacesToNextZone = InputOutputManager.ZoneWidth - (currentColumn % InputOutputManager.ZoneWidth);
 				if (currentColumn > 0 && (currentColumn % InputOutputManager.ZoneWidth == 0)) spacesToNextZone = InputOutputManager.ZoneWidth;
-				if (spacesToNextZone > 0 && spacesToNextZone <= InputOutputManager.ZoneWidth) _ioManager.PrintString(new String(' ', spacesToNextZone));
+				if (spacesToNextZone > 0 && spacesToNextZone <= InputOutputManager.ZoneWidth) IoManager.PrintString(new String(' ', spacesToNextZone));
 			}
 			else if (expr is EmptyZoneExpression) { /* No space */ }
 			else
 			{
-				Object val = Interpreter.EvaluateExpression(expr, currentBasicLine);
-				if (val is string sv && (sv == "<Special:NextZone>" || sv == "<Special:EmptySeparator>")) continue;
-				_ioManager.PrintString(PrintVal(val));
+				var val = Interpreter.EvaluateExpression(expr, CurrentBasicLine);
+				if (val is string sv && (sv is NextZoneExpression.Value or EmptyZoneExpression.Value)) continue;
+				IoManager.PrintString(PrintVal(val));
 			}
 		}
-		if (!Expressions.Any() || !(Expressions.Last().IsPrintSeparator)) _ioManager.PrintString("\n");
+		if (!Expressions.Any() || !(Expressions.Last().IsPrintSeparator)) IoManager.PrintString("\n");
 	}
 }
 
 sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Statement
 {
-	public override string ToString() => $"{nameof(InputStatement)}(\"{Prompt}\", [{string.Join(", ", Variables.Select(v => v.ToString()))}])";
+	public override string ToString() => $"{nameof(InputStatement)}(\"{Prompt}\", [{String.Join(", ", Variables.Select(v => v.ToString()))}])";
 
 	protected override void ExecuteImpl()
 	{
@@ -277,9 +282,9 @@ sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Sta
 			// availableInputStrings are intentionally not cleared here to allow using leftover from previous good line.
 			// However, on retry, they should be cleared.
 
-			if (!string.IsNullOrEmpty(Prompt) && firstPrompt)
+			if (!String.IsNullOrEmpty(Prompt) && firstPrompt)
 			{
-				_ioManager.PrintString(Prompt);
+				IoManager.PrintString(Prompt);
 				firstPrompt = false; // Main prompt only once
 			}
 
@@ -287,35 +292,35 @@ sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Sta
 			{
 				var targetVar = Variables[varIndex];
 
-				if (!availableInputStrings.Any()) // Need more input values from console
+				if (availableInputStrings.Count <= 0) // Need more input values from console
 				{
-					_ioManager.PrintString("? "); // Prompt for more input
-					var lineRead = _ioManager.ReadLine();
+					IoManager.PrintString("? "); // Prompt for more input
+					var lineRead = IoManager.ReadLine();
 					var parsedLineValues = RuntimeParsingUtils.ParseDataLineContent(lineRead);
 					foreach (var v in parsedLineValues)
 						availableInputStrings.Enqueue(v);
-					if (!availableInputStrings.Any() && Variables.Count > varIndex)
+					if ((availableInputStrings.Count <= 0) && Variables.Count > varIndex)
 					{
 						varIndex--; // Re-process current variable with new input line.
 						continue;
 					}
 				}
 
-				if (!availableInputStrings.Any()) // Still no values after trying to read
+				if (availableInputStrings.Count <= 0) // Still no values after trying to read
 				{
-					throw new EndOfInputError("Not enough input values provided.", currentBasicLine);
+					throw new EndOfInputError("Not enough input values provided.", CurrentBasicLine);
 				}
 
 				var strValueFromInput = availableInputStrings.Dequeue();
 				var parsedVal = targetVar.Name.Val.TryParse(strValueFromInput);
 				if (parsedVal is null)
 				{
-					_ioManager.PrintString("!NUMBER EXPECTED - RETRY INPUT LINE\n");
+					IoManager.PrintString("!NUMBER EXPECTED - RETRY INPUT LINE\n");
 					retryCurrentInputEntirely = true;
 					availableInputStrings.Clear(); // Discard remaining values from this erroneous line
 					break; // Break from variables loop, outer do-while will retry entire INPUT
 				}
-				valuesToAssignThisInput.Add(targetVar.CoerceToType(parsedVal, currentBasicLine, _stateManager));
+				valuesToAssignThisInput.Add(targetVar.CoerceToType(parsedVal, CurrentBasicLine, StateManager));
 			}
 
 		} while (retryCurrentInputEntirely);
@@ -366,15 +371,15 @@ sealed record ReadStatement(IReadOnlyList<Var> Variables) : Statement
 	{
 		foreach (var varToRead in Variables)
 		{
-			var dataStr = _ioManager.ReadData();
-			var val = varToRead.Name.Val.TryParse(dataStr) ?? throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", currentBasicLine);
-			var coercedVal = varToRead.CoerceToType(val, currentBasicLine, _stateManager);
+			var dataStr = IoManager.ReadData();
+			var val = varToRead.Name.Val.TryParse(dataStr) ?? throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", CurrentBasicLine);
+			var coercedVal = varToRead.CoerceToType(val, CurrentBasicLine, StateManager);
 			if (varToRead is ScalarVar sv)
-				_variableManager.SetScalarVar(sv.VarName, coercedVal);
+				VariableManager.SetScalarVar(sv.VarName, coercedVal);
 			else if (varToRead is ArrVar av)
 			{
-				var indices = Interpreter.EvaluateIndices(av.Dimensions, currentBasicLine);
-				_variableManager.SetArrayVar(av.VarName, indices, coercedVal);
+				var indices = Interpreter.EvaluateIndices(av.Dimensions, CurrentBasicLine);
+				VariableManager.SetArrayVar(av.VarName, indices, coercedVal);
 			}
 		}
 	}
@@ -382,21 +387,21 @@ sealed record ReadStatement(IReadOnlyList<Var> Variables) : Statement
 
 sealed record RestoreStatement(int? TargetLabel) : Statement
 {
-	public override string ToString() => $"{nameof(RestoreStatement)}({TargetLabel?.ToString() ?? "Start"})";
+	public override string ToString() => $"{nameof(RestoreStatement)}({TargetLabel})";
 
 	protected override void ExecuteImpl()
 	{
 		if (TargetLabel.HasValue)
 		{
 			var targetLabel = TargetLabel.Value;
-			if (!_jumpTable.Any(jte => jte.Label == targetLabel))
-				throw new BadRestoreTargetError(targetLabel, currentBasicLine);
-			var dataFromTargetOnwards = _jumpTable.Where(jte => jte.Label >= targetLabel).SelectMany(jte => jte.Data).ToList();
-			_ioManager.RestoreData(dataFromTargetOnwards);
+			if (!JumpTable.Any(jte => jte.Label == targetLabel))
+				throw new BadRestoreTargetError(targetLabel, CurrentBasicLine);
+			var dataFromTargetOnwards = JumpTable.Where(jte => jte.Label >= targetLabel).SelectMany(jte => jte.Data).ToList();
+			IoManager.RestoreData(dataFromTargetOnwards);
 		}
 		else
 		{
-			_ioManager.RestoreData([.. _jumpTable.SelectMany(jte => jte.Data)]);
+			IoManager.RestoreData([.. JumpTable.SelectMany(jte => jte.Data)]);
 		}
 	}
 }
@@ -416,27 +421,27 @@ sealed record DefFnStatement(VarName FunctionName, IReadOnlyList<VarName> Parame
 		object udf(IReadOnlyList<object> argsFromInvocation)
 		{
 			if (argsFromInvocation.Count != Parameters.Count)
-				throw new WrongNumberOfArgumentsError($"Function {FunctionName} expects {Parameters.Count} args, got {argsFromInvocation.Count}", _stateManager.CurrentLineNumber);
+				throw new WrongNumberOfArgumentsError($"Function {FunctionName} expects {Parameters.Count} args, got {argsFromInvocation.Count}", StateManager.CurrentLineNumber);
 			Dictionary<VarName, object?> stashedValues = [];
 			for (int i = 0; i < Parameters.Count; i++)
 			{
 				var paramName = Parameters[i];
-				stashedValues[paramName] = _variableManager.GetScalarVar(paramName);
-				_variableManager.SetScalarVar(paramName, paramName.CoerceToType(argsFromInvocation[i], _stateManager.CurrentLineNumber, _stateManager));
+				stashedValues[paramName] = VariableManager.GetScalarVar(paramName);
+				VariableManager.SetScalarVar(paramName, paramName.CoerceToType(argsFromInvocation[i], StateManager.CurrentLineNumber, StateManager));
 			}
-			var result = Interpreter.EvaluateExpression(Expression, _stateManager.CurrentLineNumber);
+			var result = Interpreter.EvaluateExpression(Expression, StateManager.CurrentLineNumber);
 			foreach (var paramName in Parameters)
 			{
 				//if (stashedValues.TryGetValue(paramName, out Object? stashedVal) && stashedVal is not null)
-				//    _variableManager.SetScalarVar(paramName, stashedVal);
+				//    VariableManager.SetScalarVar(paramName, stashedVal);
 				//else
 				//{
 				//    Object val = paramName.XXXEqualsType(String.Empty) ? String.Empty : Single.Empty;
-				// _variableManager.SetScalarVar(paramName, paramName.CoerceToType(val, _stateManager.CurrentLineNumber, _stateManager));
+				// VariableManager.SetScalarVar(paramName, paramName.CoerceToType(val, StateManager.CurrentLineNumber, StateManager));
 				//}
 				throw new NotImplementedException($"Function {FunctionName} does not support array parameters yet."); // TODO: Handle arrays in UDFs
 			}
-			return FunctionName.CoerceToType(result, _stateManager.CurrentLineNumber, _stateManager);
+			return FunctionName.CoerceToType(result, StateManager.CurrentLineNumber, StateManager);
 		}
 		Interpreter._functionManager.SetFunction(FunctionName, udf);
 	}

@@ -379,32 +379,6 @@ sealed class Interpreter(RuntimeContext context)
 	static float BultinVal(List<object> args)
 	{
 		string valStr = ((string)args[0]).Trim();
-		string numPart = "";
-		bool digit = false;
-		foreach (char c in valStr)
-		{
-			if (Char.IsDigit(c))
-			{
-				numPart += c;
-				digit = true;
-			}
-			else if (c == '.' && !numPart.Contains('.'))
-			{
-				numPart += c;
-			}
-			else if ((c == 'E' || c == 'e') && !numPart.ToUpper().Contains('E') && digit)
-			{
-				numPart += c;
-			}
-			else if ((c == '+' || c == '-') && ((numPart.Length == 0) || (numPart is [.., 'E'])))
-			{
-				numPart += c;
-			}
-			else if (Char.IsWhiteSpace(c) && (numPart.Length == 0))
-				continue;
-			else
-				break;
-		}
-		return RuntimeParsingUtils.TryParseFloat(numPart, out var v) ? v : default;
+		return RuntimeParsingUtils.TryParseFloat(valStr, out var v) ? v : default;
 	}
 }

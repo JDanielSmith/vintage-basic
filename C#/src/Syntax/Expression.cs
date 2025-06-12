@@ -87,14 +87,18 @@ sealed record NextZoneExpression : Expression
 {
 	public override bool IsPrintSeparator => true;
 	public override string ToString() => nameof(NextZoneExpression);
-	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine) => "<Special:NextZone>";
+
+	internal const string Value = "<Special:NextZone>";
+	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine) => Value;
 }
 
 sealed record EmptyZoneExpression : Expression
 {
 	public override bool IsPrintSeparator => true;
 	public override string ToString() => nameof(EmptyZoneExpression);
-	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine) => "<Special:EmptySeparator>";
+
+	internal const string Value = "<Special:EmptySeparator>";
+	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine) => Value;
 }
 
 sealed record ParenExpression(Expression Inner) : Expression

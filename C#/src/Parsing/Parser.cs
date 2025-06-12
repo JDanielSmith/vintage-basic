@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using VintageBasic.Parsing.Errors;
 using VintageBasic.Syntax;
 
@@ -22,31 +23,16 @@ sealed class Parser
 
 		foreach (var scannedLine in scannedLines)
 		{
-			if (!scannedLine.LineNumber.HasValue)
-			{
-				var tempTokensForUnnumbered = Tokenizer.Tokenize(scannedLine).ToList();
-				if (tempTokensForUnnumbered.Count > 0 && tempTokensForUnnumbered.Any(t => t.Value is RemToken) && tempTokensForUnnumbered.All(t => t.Value is RemToken || t.Value is EolToken))
-				{
-					// Optionally handle/store unnumbered REM statements if desired.
-				}
-				else if (!String.IsNullOrWhiteSpace(scannedLine.Content) && !tempTokensForUnnumbered.All(t => t.Value is EolToken))
-				{
-					throw new ParseException(
-						$"Line content present without a line number (source line {scannedLine.OriginalLineIndex + 1}).",
-						new SourcePosition(scannedLine.OriginalLineIndex + 1, 1)
-					);
-				}
-				continue;
-			}
+			var lineNumber = scannedLine.LineNumber;
 
 			var tokensForLine = Tokenizer.Tokenize(scannedLine).ToList();
-			if (!tokensForLine.Any() || (tokensForLine.Count == 1 && tokensForLine[0].Value is EolToken))
+			if ((tokensForLine.Count <= 0) || (tokensForLine.Count == 1 && tokensForLine[0].Value is EolToken))
 			{
-				lines.Add(new(scannedLine.LineNumber.Value, []));
+				lines.Add(new(lineNumber, []));
 				continue;
 			}
 
-			Parser parserInstance = new(tokensForLine, scannedLine.LineNumber.Value);
+			Parser parserInstance = new(tokensForLine, lineNumber);
 			try
 			{
 				var parsedLine = parserInstance.ParseSingleLine();
@@ -55,9 +41,9 @@ sealed class Parser
 			catch (ParseException ex)
 			{
 				throw new ParseException(
-					$"Error on BASIC line {scannedLine.LineNumber.Value} (source file line {scannedLine.OriginalLineIndex + 1}): {ex.Message}",
+					$"Error on BASIC line {lineNumber} (source file line {scannedLine.OriginalLineIndex + 1}): {ex.Message}",
 					ex.InnerException ?? ex,
-					ex.Position ?? new(scannedLine.LineNumber.Value, 1));
+					ex.Position ?? new(lineNumber, 1));
 			}
 		}
 		return lines;
@@ -65,48 +51,52 @@ sealed class Parser
 
 	Line ParseSingleLine()
 	{
-		List<Tagged<Statement>> statements = [];
-
-		while (!EndOfLine)
+		IEnumerable<Tagged<Statement>> ParseSingleLine_()
 		{
-			var statement = TryParseStatement();
-			if (statement is not null)
+			while (!EndOfLine)
 			{
-				statements.Add(statement);
-			}
-			else
-			{
-				var currentToken = Peek();
-				if (currentToken is not null && currentToken.Value is not EolToken)
+				var statement = TryParseStatement();
+				if (statement is not null)
 				{
-					throw new ParseException($"Unexpected token '{currentToken.Value.Text}' when expecting a statement.", currentToken.Position);
+					yield return statement;
 				}
-				break;
-			}
+				else
+				{
+					var currentToken = Peek();
+					if (currentToken is not null && currentToken.Value is not EolToken)
+					{
+						throw new ParseException($"Unexpected token '{currentToken.Value.Text}' when expecting a statement.", currentToken.Position);
+					}
+					yield break;
+				}
 
-			if (TryConsumeSpecificSymbol(":", out _))
-			{
-				if (EndOfLine) break;
-			}
-			else if (!EndOfLine)
-			{
-				var unexpectedToken = Peek();
-				throw new ParseException($"Expected ':' to separate statements or end of line, but found '{unexpectedToken?.Value.Text}'.", unexpectedToken?.Position);
+				if (TryConsumeSpecificSymbol(":", out _))
+				{
+					if (EndOfLine) yield break;
+				}
+				else if (!EndOfLine)
+				{
+					var unexpectedToken = Peek();
+					throw new ParseException($"Expected ':' to separate statements or end of line, but found '{unexpectedToken?.Value.Text}'.", unexpectedToken?.Position);
+				}
 			}
 		}
+		List<Tagged<Statement>> statements = [.. ParseSingleLine_()];
 
 		if (PeekToken() is EolToken)
 			ConsumeToken<EolToken>();
 		else if (PeekToken() is not null)
 			throw new ParseException("Expected End of Line after statements.", CurrentSourcePosition());
-
 		return new(_lineNumber, statements);
 	}
+
+	static T FirstOrDefault<T>(IReadOnlyList<T> list) => list.Count > 0 ? list[0] : default!;
+	static T LastOrDefault<T>(IReadOnlyList<T> list) => list.Count > 0 ? list[^1] : default!;
 
 	// --- Token Helper Methods ---
 	Tagged<Token>? Peek(int offset = 0) => (_currentTokenIndex + offset < _tokens.Count) ? _tokens[_currentTokenIndex + offset] : null;
 	Token? PeekToken(int offset = 0) => Peek(offset)?.Value;
-	SourcePosition CurrentSourcePosition() => Peek()?.Position ?? new(_lineNumber, _tokens.LastOrDefault()?.Position.Column + 1 ?? _tokens.FirstOrDefault()?.Position.Column ?? 1);
+	SourcePosition CurrentSourcePosition() => Peek()?.Position ?? new(_lineNumber, LastOrDefault(_tokens)?.Position.Column + 1 ?? FirstOrDefault(_tokens)?.Position.Column ?? 1);
 
 	bool EndOfLine => PeekToken() is EolToken || PeekToken() is null;
 
@@ -138,7 +128,9 @@ sealed class Parser
 		var current = Peek();
 		if (current?.Value is KeywordToken kt && kt.Keyword == kw)
 		{
-			ConsumeToken(); consumedToken = new Tagged<KeywordToken>(current.Position, kt); return true;
+			ConsumeToken();
+			consumedToken = new(current.Position, kt);
+			return true;
 		}
 		consumedToken = null;
 		return false;
@@ -150,7 +142,8 @@ sealed class Parser
 		// Check against Text property for symbols like ':', '=', etc.
 		if (current is not null && current.Value.Text.Equals(symbol, StringComparison.OrdinalIgnoreCase))
 		{
-			consumedToken = ConsumeToken(); return true;
+			consumedToken = ConsumeToken();
+			return true;
 		}
 		consumedToken = null;
 		return false;
@@ -162,7 +155,8 @@ sealed class Parser
 		RemStatement CreateRemStatement()
 		{
 			var token = PeekToken();
-			if (token is StringToken or UnknownToken) ConsumeToken();
+			if (token is StringToken or UnknownToken)
+				ConsumeToken();
 			return new((token as StringToken)?.Value ?? (token as UnknownToken)?.Content ?? "");
 		}
 
@@ -195,7 +189,8 @@ sealed class Parser
 	Tagged<Statement>? TryParseStatement()
 	{
 		var startToken = Peek() ?? throw new ParseException("Unexpected end of line.", CurrentSourcePosition());
-		if (startToken.Value is EolToken) return null;
+		if (startToken.Value is EolToken)
+			return null;
 		var startPos = startToken.Position;
 
 		RemStatement CreateRemStatement(RemToken rt)
@@ -223,10 +218,8 @@ sealed class Parser
 				ConsumeToken(); // Consume the FloatToken
 				return new GotoStatement((int)ft.Value); // Implicit GOTO with line number
 			}
-
 			throw new ParseException("Invalid LET statement; expected variable name.", originalStartPos);
 		}
-
 		return ParseLetStatementContents(originalStartPos, letKeywordWasConsumed);
 	}
 
@@ -255,8 +248,7 @@ sealed class Parser
 				else yield return ParseExpression().Value;
 			}
 		}
-		// Enumerate now so that results are fixed.
-		return new([.. GetPrintStatementContents()]);
+		return new([.. GetPrintStatementContents()]); // Enumerate now so that results are fixed.
 	}
 
 	GotoStatement ParseGotoStatementContents() => new((int)ConsumeToken<FloatToken>().Value.Value);
@@ -277,19 +269,18 @@ sealed class Parser
 					yield return stmt;
 			}
 		}
-		// Enumerate now so that results are fixed.
-		return new(condition, [.. GetIfStatementContents()]);
+		return new(condition, [.. GetIfStatementContents()]); // Enumerate now so that results are fixed.
 	}
 
 	DimStatement ParseDimStatementContents()
 	{
-		var declarations = new List<(VarName Name, IReadOnlyList<Expression> Dimensions)>();
+		List<(VarName Name, IReadOnlyList<Expression> Dimensions)> declarations = [];
 		do
 		{
 			var varNameToken = ConsumeToken<VarNameToken>();
 			VarName varName = new(varNameToken.Value);
 			ConsumeToken<LParenToken>();
-			var dims = new List<Expression>();
+			List<Expression> dims = [];
 			do { dims.Add(ParseExpression().Value); }
 			while (TryConsumeSpecificSymbol(",", out _));
 			ConsumeToken<RParenToken>();
@@ -350,7 +341,6 @@ sealed class Parser
 		{
 			return new(""); // Empty DATA statement
 		}
-
 		throw new ParseException($"Expected data content after DATA keyword, but found {dataContentToken?.Text}", CurrentSourcePosition());
 	}
 
@@ -394,7 +384,11 @@ sealed class Parser
 	RestoreStatement ParseRestoreStatementContents()
 	{
 		int? label = null;
-		if (PeekToken() is FloatToken ft) { ConsumeToken(); label = (int)ft.Value; } // Optional label
+		if (PeekToken() is FloatToken ft) // Optional label
+		{
+			ConsumeToken();
+			label = (int)ft.Value;
+		} 
 		return new(label);
 	}
 
@@ -416,7 +410,6 @@ sealed class Parser
 		{
 			throw new ParseException("Expected GOTO or GOSUB after expression in ON statement.", CurrentSourcePosition());
 		}
-
 		IEnumerable<int> GetLabels()
 		{
 			do
@@ -430,7 +423,6 @@ sealed class Parser
 		{
 			throw new ParseException("Expected at least one label in ON...GOTO/GOSUB statement.", CurrentSourcePosition());
 		}
-
 		var labels_ = labels.ToList();
 		return isGosub ? new OnGosubStatement(indexExpr, labels_) : new OnGotoStatement(indexExpr, labels_);
 	}
@@ -445,14 +437,29 @@ sealed class Parser
 			BinOp? currentOp = null;
 			int precedence = -1;
 
-			if (opToken is OpToken ot) { currentOp = ot.Op; precedence = GetOperatorPrecedence(currentOp.Value); }
-			else if (opToken is EqualsToken) { currentOp = BinOp.EqOp; precedence = GetOperatorPrecedence(currentOp.Value); }
+			if (opToken is OpToken ot)
+			{
+				currentOp = ot.Op;
+				precedence = GetOperatorPrecedence(currentOp.Value);
+			}
+			else if (opToken is EqualsToken)
+			{
+				currentOp = BinOp.EqOp;
+				precedence = GetOperatorPrecedence(currentOp.Value);
+			}
 			else if (opToken is KeywordToken kt)
 			{
-				if (kt.Keyword == KeywordType.AND) { currentOp = BinOp.AndOp; precedence = GetOperatorPrecedence(BinOp.AndOp); }
-				else if (kt.Keyword == KeywordType.OR) { currentOp = BinOp.OrOp; precedence = GetOperatorPrecedence(BinOp.OrOp); }
+				if (kt.Keyword == KeywordType.AND)
+				{
+					currentOp = BinOp.AndOp;
+					precedence = GetOperatorPrecedence(BinOp.AndOp);
+				}
+				else if (kt.Keyword == KeywordType.OR)
+				{
+					currentOp = BinOp.OrOp;
+					precedence = GetOperatorPrecedence(BinOp.OrOp);
+				}
 			}
-
 			if (currentOp is null || precedence < minPrecedence) break;
 
 			ConsumeToken();

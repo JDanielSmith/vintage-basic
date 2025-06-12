@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace VintageBasic.Parsing;
 
-sealed record ScannedLine(int? LineNumber, string Content, int OriginalLineIndex);
+sealed record ScannedLine(int LineNumber, string Content, int OriginalLineIndex);
 
 static partial class LineScanner
 {
@@ -28,7 +28,8 @@ static partial class LineScanner
 			// or if allowed, the content starts immediately.
 			// The Haskell 'procLine' passes 's' (the original string, not trimmedLine) to LineScan Nothing s idx.
 			// Let's stick to the original line 's' for content if no number.
-			return new(null, line, originalLineIndex);
+			//return new(null, line, originalLineIndex);
+			throw new InvalidOperationException("No line number");
 		}
 
 		var numStr = trimmedLine[..numPartLength];
@@ -43,7 +44,8 @@ static partial class LineScanner
 		// Haskell's `read` would throw an error. Here, we might return it as a non-numbered line.
 		// Or, depending on strictness, this could be an error condition.
 		// For now, treat as content if number parsing fails after finding digits.
-		return new(null, line, originalLineIndex);
+		//return new(null, line, originalLineIndex);
+		throw new InvalidOperationException("No line number");
 	}
 
 	[GeneratedRegex(@"^\d+")]

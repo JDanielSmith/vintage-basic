@@ -39,6 +39,7 @@ sealed class Basic
 		}
 
 		List<Line> parsedLines;
+#pragma warning disable CA1031 // Do not catch general exception types
 		try
 		{
 			parsedLines = Parser.ParseProgram(fileContent);
@@ -56,6 +57,7 @@ sealed class Basic
 			Environment.ExitCode = 5;
 			return;
 		}
+#pragma warning restore CA1031 // Do not catch general exception types
 
 		// If parsing results in no executable lines (e.g. only comments or empty numbered lines)
 		// it's not necessarily an error, but the program won't do anything.
@@ -77,6 +79,7 @@ sealed class Basic
 		RuntimeContext context = new(store, state);
 		VintageBasic.Interpreter.Interpreter interpreter = new(context);
 
+#pragma warning disable CA1031 // Do not catch general exception types
 		try
 		{
 			interpreter.ExecuteProgram(parsedLines);
@@ -94,5 +97,6 @@ sealed class Basic
 			Console.Error.WriteLine(ex.StackTrace);
 			Environment.ExitCode = 11; // Unexpected runtime error code
 		}
+#pragma warning restore CA1031 // Do not catch general exception types
 	}
 }

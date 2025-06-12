@@ -103,7 +103,7 @@ static class RuntimeParsingUtils
 		else if (Math.Abs(f) >= 1e-4 && Math.Abs(f) < 1e7 || f == 0.0)
 		{
 			s = f.ToString("0.#######", CultureInfo.InvariantCulture);
-			if (s.Contains('.'))
+			if (s.Contains('.', StringComparison.OrdinalIgnoreCase))
 			{
 				s = s.TrimEnd('0').TrimEnd('.');
 			}
