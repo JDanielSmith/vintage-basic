@@ -65,6 +65,30 @@ file sealed class Implementation(ScannedLine scannedLine)
 		return new(new(lineNumber, tokenStartColumn), token);
 	}
 
+	Tagged<Token> CreateDataContentToken()
+	{
+		currentPositionInContent += "DATA".Length;
+		while (Char.IsWhiteSpace(CurrentChar))
+		{
+			currentPositionInContent++;
+		}
+
+		// Consume rest of line into DataContentToken
+		var colon = content.IndexOf(':', StringComparison.OrdinalIgnoreCase);
+		string rawContent;
+		if (colon > 0)
+		{
+			rawContent = content[currentPositionInContent..colon];
+			currentPositionInContent = colon;
+		}
+		else
+		{
+			rawContent = content[currentPositionInContent..];
+			currentPositionInContent = content.Length;
+		}
+		return CreateTaggedlToken(new DataContentToken(rawContent.Trim()));
+	}
+
 	Tagged<Token> CreateStringToken()
 	{
 		int stringStart = currentPositionInContent + 1;
@@ -289,6 +313,11 @@ file sealed class Implementation(ScannedLine scannedLine)
 		{
 			currentPositionInContent++;
 			return null;
+		}
+
+		if ((PreviousToken?.Value is KeywordToken kw) && (kw.Keyword is KeywordType.DATA))
+		{
+			return (CreateDataContentToken(), null);
 		}
 
 		// 2. String Literals

@@ -28,14 +28,11 @@ public class InterpreterTests
 	[Fact]
 	public void TestPrintStatementOutput()
 	{
-		// Arrange
 		string programText = "10 print \"HELLO, WORLD!\"";
 
-		// Act
 		var (outputStream, _) = ExecuteBasicProgram(programText);
 		string output = outputStream.GetOutput();
 
-		// Assert
 		// PRINT adds a newline. PrintVal for strings doesn't add extra spaces.
 		Assert.Equal("HELLO, WORLD!\n", output);
 	}
@@ -43,13 +40,10 @@ public class InterpreterTests
 	[Fact]
 	public void TestLetStatementAndVariableState()
 	{
-		// Arrange
 		string programText = "10 let a = 123\n20 let b$ = \"TEST\"\n30 let c% = A + 7";
 
-		// Act
 		var (_, context) = ExecuteBasicProgram(programText);
 
-		// Assert
 		var varA = VarName.CreateFloat("A");
 		var varB_Str = VarName.CreateString("B"); // B$
 		var varC_Int = VarName.CreateInt("C");   // C%
@@ -88,10 +82,16 @@ public class InterpreterTests
 	}
 
 	[Fact]
-	public void TestSimpleForLoop()
+	public void SimpleForLoopTest()
 	{
-		string programText = "10 FOR I = 1 TO 3\n20 PRINT I\n30 NEXT I";
+		const string programText = """
+			10 FOR I = 1 TO 3
+			20 PRINT I
+			30 NEXT I
+			""";
+
 		var (outputStream, _) = ExecuteBasicProgram(programText);
+
 		string expectedOutput = " 1 \n 2 \n 3 \n"; // PrintVal adds leading/trailing spaces for numbers
 		Assert.Equal(expectedOutput, outputStream.GetOutput());
 	}
@@ -147,11 +147,42 @@ public class InterpreterTests
 	[Fact]
 	public void DiamondTest()
 	{
-		string programText = "10 LINES=17\r\n20 FORI=1TOLINES/2+1\r\n30 FORJ=1TO(LINES+1)/2-I+1:PRINT\" \";:NEXT\r\n40 FORJ=1TOI*2-1:PRINT\"*\";:NEXT\r\n50 PRINT\r\n60 NEXTI\r\n70 FORI=1TOLIVES/2:REM note misspelled variable is the same\r\n75 REM because variables are unique to only two characters\r\n80 FORJ=1TOI+1:PRINT\" \";:NEXT\r\n90 FORJ=1TO((LINES+1)/2-I)*2-1:PRINT\"*\";:NEXT\r\n100 PRINT\r\n110 NEXTI";
+		const string programText = """
+			10 LINES=17
+			20 FORI=1TOLINES/2+1
+			30 FORJ=1TO(LINES+1)/2-I+1:PRINT" ";:NEXT
+			40 FORJ=1TOI*2-1:PRINT"*";:NEXT
+			50 PRINT
+			60 NEXTI
+			70 FORI=1TOLIVES/2:REM note misspelled variable is the same
+			75 REM because variables are unique to only two characters
+			80 FORJ=1TOI+1:PRINT" ";:NEXT
+			90 FORJ=1TO((LINES+1)/2-I)*2-1:PRINT"*";:NEXT
+			100 PRINT
+			110 NEXTI			
+		""";
 
 		var (outputStream, _) = ExecuteBasicProgram(programText);
 
 		string expectedOutput = "         ***\n        *****\n       *******\n      *********\n     ***********\n    *************\n   ***************\n  *****************\n *******************\n  *****************\n   ***************\n    *************\n     ***********\n      *********\n       *******\n        *****\n         ***\n";
+		Assert.Equal(expectedOutput, outputStream.GetOutput());
+	}
+
+	[Fact]
+	public void RESTORE_Test()
+	{
+		const string programText = """
+			10 DATA 5, 10, 15, 20 : REM this is our data
+			20 READ A, B
+			30 PRINT A, B  : REM Output: 5 10
+			40 RESTORE
+			50 READ A, B
+			60 PRINT A, B  : REM Output: 5 10 (RESTORE resets the pointer)
+			""";
+
+		var (outputStream, _) = ExecuteBasicProgram(programText);
+
+		string expectedOutput = " 5             10 \n 5             10 \n";
 		Assert.Equal(expectedOutput, outputStream.GetOutput());
 	}
 }
