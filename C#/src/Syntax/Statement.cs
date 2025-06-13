@@ -228,6 +228,27 @@ sealed record PrintStatement(IEnumerable<Expression> Expressions) : Statement
 
 	static string PrintVal(object val)
 	{
+		static string PrintFloat(float f)
+		{
+			string s;
+			if (f == 0f && BitConverter.SingleToUInt32Bits(f) == 0x80000000)
+			{
+				s = "-0";
+			}
+			else if (Math.Abs(f) >= 1e-4 && Math.Abs(f) < 1e7 || f == 0.0)
+			{
+				s = f.ToString("0.#######", CultureInfo.InvariantCulture);
+				if (s.Contains('.', StringComparison.OrdinalIgnoreCase))
+				{
+					s = s.TrimEnd('0').TrimEnd('.');
+				}
+			}
+			else
+			{
+				s = f.ToString("0.######E+00", CultureInfo.InvariantCulture);
+			}
+			return (f >= 0 && s[0] != '-' ? " " : "") + s + " ";
+		}
 		static string PrintInt(int iv)
 		{
 			string s = iv.ToString(CultureInfo.InvariantCulture);
@@ -235,9 +256,9 @@ sealed record PrintStatement(IEnumerable<Expression> Expressions) : Statement
 		}
 		return val switch
 		{
-			Single fv => RuntimeParsingUtils.PrintFloat(fv),
-			Int32 iv => PrintInt(iv),
-			String sv => sv,
+			float fv => PrintFloat(fv),
+			int iv => PrintInt(iv),
+			string sv => sv,
 			_ => throw new ArgumentOutOfRangeException(nameof(val), $"Unknown Object type for printing: {val.GetType()}"),
 		};
 	}
@@ -249,8 +270,10 @@ sealed record PrintStatement(IEnumerable<Expression> Expressions) : Statement
 			{
 				int currentColumn = IoManager.OutputColumn;
 				int spacesToNextZone = InputOutputManager.ZoneWidth - (currentColumn % InputOutputManager.ZoneWidth);
-				if (currentColumn > 0 && (currentColumn % InputOutputManager.ZoneWidth == 0)) spacesToNextZone = InputOutputManager.ZoneWidth;
-				if (spacesToNextZone > 0 && spacesToNextZone <= InputOutputManager.ZoneWidth) IoManager.PrintString(new String(' ', spacesToNextZone));
+				if (currentColumn > 0 && (currentColumn % InputOutputManager.ZoneWidth == 0))
+					spacesToNextZone = InputOutputManager.ZoneWidth;
+				if (spacesToNextZone > 0 && spacesToNextZone <= InputOutputManager.ZoneWidth)
+					IoManager.PrintString(new String(' ', spacesToNextZone));
 			}
 			else if (expr is EmptyZoneExpression) { /* No space */ }
 			else
@@ -260,7 +283,8 @@ sealed record PrintStatement(IEnumerable<Expression> Expressions) : Statement
 				IoManager.PrintString(PrintVal(val));
 			}
 		}
-		if (!Expressions.Any() || !(Expressions.Last().IsPrintSeparator)) IoManager.PrintString("\n");
+		if (!Expressions.Any() || !(Expressions.Last().IsPrintSeparator))
+			IoManager.PrintString("\n");
 	}
 }
 
@@ -275,7 +299,6 @@ sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Sta
 		Queue<string> availableInputStrings = new();
 		bool retryCurrentInputEntirely;
 		bool firstPrompt = true;
-
 		do
 		{
 			retryCurrentInputEntirely = false;
@@ -326,8 +349,7 @@ sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Sta
 
 		} while (retryCurrentInputEntirely);
 
-		// Assign all collected and validated values
-		for (int i = 0; i < Variables.Count; i++)
+		for (int i = 0; i < Variables.Count; i++) // Assign all collected and validated values
 		{
 			var targetVar = Variables[i];
 			var valueToAssign = valuesToAssignThisInput[i];
@@ -340,28 +362,19 @@ sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Sta
 sealed record EndStatement : Statement
 {
 	public override string ToString() => nameof(EndStatement);
-	protected override void ExecuteImpl()
-	{
-		Interpreter._programEnded = true;
-	}
+	protected override void ExecuteImpl() => Interpreter._programEnded = true;
 }
 
 sealed record StopStatement : Statement
 {
 	public override string ToString() => nameof(StopStatement);
-	protected override void ExecuteImpl()
-	{
-		Interpreter._programEnded = true;
-	}
+	protected override void ExecuteImpl() => Interpreter._programEnded = true;
 }
 
 sealed record RandomizeStatement : Statement
 {
 	public override string ToString() => nameof(RandomizeStatement);
-	protected override void ExecuteImpl()
-	{
-		Interpreter._randomManager.SeedRandomFromTime();
-	}
+	protected override void ExecuteImpl() => Interpreter._randomManager.SeedRandomFromTime();
 }
 
 sealed record ReadStatement(IReadOnlyList<Var> Variables) : Statement
@@ -416,8 +429,5 @@ sealed record DataStatement(string Data) : Statement
 sealed record RemStatement(string Comment) : Statement
 {
 	public override string ToString() => $"{nameof(RemStatement)}(\"{Comment}\")";
-
-	protected override void ExecuteImpl()
-	{
-	}
+	protected override void ExecuteImpl() { }
 }

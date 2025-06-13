@@ -91,27 +91,4 @@ static class RuntimeParsingUtils
 
 		return values;
 	}
-
-
-	public static string PrintFloat(float f)
-	{
-		string s;
-		if (f == 0f && BitConverter.SingleToUInt32Bits(f) == 0x80000000)
-		{
-			s = "-0";
-		}
-		else if (Math.Abs(f) >= 1e-4 && Math.Abs(f) < 1e7 || f == 0.0)
-		{
-			s = f.ToString("0.#######", CultureInfo.InvariantCulture);
-			if (s.Contains('.', StringComparison.OrdinalIgnoreCase))
-			{
-				s = s.TrimEnd('0').TrimEnd('.');
-			}
-		}
-		else
-		{
-			s = f.ToString("0.######E+00", CultureInfo.InvariantCulture);
-		}
-		return (f >= 0 && s[0] != '-' ? " " : "") + s + " ";
-	}
 }
