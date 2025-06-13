@@ -7,17 +7,15 @@ namespace VintageBasic.Syntax;
 abstract record Expression
 {
 	public virtual bool IsPrintSeparator => false;
-
 	internal abstract object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine);
 }
 
-sealed record LiteralExpression(Literal Value) : Expression
+sealed record LiteralExpression(object Value) : Expression
 {
 	public override string ToString() => $"{nameof(LiteralExpression)}({Value})";
 	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine) => Value switch
 	{
-		FloatLiteral f => f.Value,
-		StringLiteral s => s.Value,
+		float or string => Value,
 		_ => throw new NotSupportedException(),
 	};
 }
@@ -25,11 +23,8 @@ sealed record LiteralExpression(Literal Value) : Expression
 sealed record VarExpression(Var Value) : Expression
 {
 	public override string ToString() => $"{nameof(VarExpression)}({Value})";
-	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine)
-	{
-		var var = Value.GetVar(interpreter);
-		return ValExtensions.CoerceToExpressionType(var, currentBasicLine, interpreter.StateManager);
-	}
+	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine) =>
+		ValExtensions.CoerceToExpressionType(Value.GetVar(interpreter), currentBasicLine, interpreter.StateManager);
 }
 
 sealed record MinusExpression(Expression Right) : Expression

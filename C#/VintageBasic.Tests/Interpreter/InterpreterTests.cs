@@ -185,4 +185,24 @@ public class InterpreterTests
 		string expectedOutput = " 5             10 \n 5             10 \n";
 		Assert.Equal(expectedOutput, outputStream.GetOutput());
 	}
+
+	[Fact]
+	public void ON_GOTO_Test()
+	{
+		const string programText = """
+			10 for A = 8 to 13 step 2
+			19   let X = A - 7
+			20   ON X GOTO 70, 70, 50, 60, 60
+			50   print "A = 10" : goto 80
+			60   ? "A < 10" : goto 80
+			70   print "A < 10" : goto 80
+			80   ? "*"
+			90 next
+			""";
+
+		var (outputStream, _) = ExecuteBasicProgram(programText);
+
+		string expectedOutput = "A < 10\n*\nA = 10\n*\nA < 10\n*\n";
+		Assert.Equal(expectedOutput, outputStream.GetOutput());
+	}
 }

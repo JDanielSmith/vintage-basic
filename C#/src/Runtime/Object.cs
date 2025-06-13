@@ -29,42 +29,16 @@ internal static class ValExtensions
 		if (stateManager is not null && lineNumber.HasValue)
 			stateManager.SetCurrentLineNumber(lineNumber.Value);
 
-		static object? CoerceToFloat(object value)
-		{
-			if (value is int iv) return (float)iv;
-			if (value is float) return value;
-			return null;
-		}
-		static object? CoerceToInt(object value)
-		{
-			if (value is float fv) return RuntimeContext.FloatToInt(fv);
-			if (value is int) return value;
-			return null;
-		}
-		static object? CoerceToString(object value)
-		{
-			if (value is string) return value;
-			// BASIC usually doesn't implicitly convert numbers to strings on assignment. STR$() is used.
-			// However, if it were to, it would be like:
-			// if (value is float fvStr) return RuntimeParsingUtils.PrintFloat(fvStr.Value).Trim();
-			// if (value is int ivStr) return ivStr.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
-			return null;
-		}
-
 		var targetType = vv.GetType();
 		if (targetType == value.GetType()) return value;
 		if (targetType == typeof(object)) return value; // Allow object as a generic target type
-
-		var retval = vv switch
+		return vv switch
 		{
-			float => CoerceToFloat(value),
-			int => CoerceToInt(value),
-			string => CoerceToString(value),
-			_ => null
+			float => AsFloat(value),
+			int => AsInt(value),
+			string => value,
+			_ => new Errors.TypeMismatchError($"Cannot coerce {value.GetTypeName()} to {targetType}", lineNumber ?? stateManager?.CurrentLineNumber)
 		};
-		if (retval is not null)
-			return retval;
-		throw new Errors.TypeMismatchError($"Cannot coerce {value.GetTypeName()} to {targetType}", lineNumber ?? stateManager?.CurrentLineNumber);
 	}
 	// Coerces int to float for expression evaluation if needed, otherwise returns original value.
 	public static object CoerceToExpressionType(object value, int? lineNumber = null, StateManager? stateManager = null)
@@ -74,32 +48,36 @@ internal static class ValExtensions
 		return value is int iv ? (float)iv : value; // Coerce int to float for expression evaluation
 	}
 
+	static int FloatToInt(double val)
+	{
+		return (int)System.Math.Floor(val);
+	}
+
 	public static object? TryParse(this object o, string inputString)
 	{
 		var stringToParse = o.GetType() == typeof(string) ? inputString : inputString.Trim();
 		return o switch
 		{
 			float => TryParseFloat(stringToParse, out var value) ? value : null,
-			int => TryParseFloat(stringToParse, out var fvForInt) ? RuntimeContext.FloatToInt(fvForInt) : null,
+			int => TryParseFloat(stringToParse, out var fvForInt) ? FloatToInt(fvForInt) : null,
 			string => stringToParse,
 			_ => null
 		};
 	}
 
 	// Convenience methods for type checking and casting
-	public static float AsFloat(this object vv, int? lineNumber = null) => vv switch
+	public static float AsFloat(this object o, int? lineNumber = null) => o switch
 	{
-		float fv => fv,
-		int iv => iv,
+		float or int => (float)o,
 		/* string sv => VAL() semantics */
-		_ => throw new Errors.TypeMismatchError($"Cannot convert {vv.GetType().Name} to Float", lineNumber)
+		_ => throw new Errors.TypeMismatchError($"Cannot convert {o.GetType().Name} to Float", lineNumber)
 	};
-	public static int AsInt(this object vv, int? lineNumber = null) => vv switch
+	public static int AsInt(this object o, int? lineNumber = null) => o switch
 	{
-		float fv => RuntimeContext.FloatToInt(fv), // BASIC INT semantics
+		float fv => FloatToInt(fv), // BASIC INT semantics
 		int iv => iv,
 		/* string sv => VAL() then INT() */
-		_ => throw new Errors.TypeMismatchError($"Cannot convert {vv.GetType().Name} to Int", lineNumber)
+		_ => throw new Errors.TypeMismatchError($"Cannot convert {o.GetType().Name} to Int", lineNumber)
 	};
 }
 

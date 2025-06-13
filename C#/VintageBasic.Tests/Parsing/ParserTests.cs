@@ -15,7 +15,7 @@ namespace VintageBasic.Tests.Parsing
 			// Expected AST
 			var expectedVarName = VarName.CreateFloat("A");
 			var expectedScalarVar = new ScalarVar(expectedVarName);
-			var expectedLiteral = new FloatLiteral(123.0f);
+			var expectedLiteral = 123.0f;
 			var expectedLitX = new LiteralExpression(expectedLiteral);
 			// Assuming LET starts at column 1 for its content after line number and space.
 			// Actual column positions from Tokenizer would be used in real scenario.
@@ -43,8 +43,8 @@ namespace VintageBasic.Tests.Parsing
 
 			Assert.IsType<LiteralExpression>(actualLetStmt.Expression);
 			var actualLitX = (LiteralExpression)actualLetStmt.Expression;
-			Assert.IsType<FloatLiteral>(actualLitX.Value);
-			Assert.Equal(expectedLiteral.Value, ((FloatLiteral)actualLitX.Value).Value, 5); // Precision for float comparison
+			Assert.IsType<float>(actualLitX.Value);
+			Assert.Equal(expectedLiteral, ((float)actualLitX.Value), 5); // Precision for float comparison
 		}
 
 		[Fact]
@@ -64,7 +64,7 @@ namespace VintageBasic.Tests.Parsing
 			Assert.Equal(5, printStmtExpressions.Count); // "AGE:", NextZoneExpression, VarExpression(A), EmptyZoneExpression, "!"
 
 			Assert.IsType<LiteralExpression>(printStmtExpressions[0]);
-			Assert.Equal("AGE:", ((StringLiteral)((LiteralExpression)printStmtExpressions[0]).Value).Value);
+			Assert.Equal("AGE:", ((string)((LiteralExpression)printStmtExpressions[0]).Value));
 
 			Assert.IsType<NextZoneExpression>(printStmtExpressions[1]); // Comma results in NextZoneExpression
 
@@ -74,7 +74,7 @@ namespace VintageBasic.Tests.Parsing
 			Assert.IsType<EmptyZoneExpression>(printStmtExpressions[3]); // Semicolon results in EmptyZoneExpression
 
 			Assert.IsType<LiteralExpression>(printStmtExpressions[4]);
-			Assert.Equal("!", ((StringLiteral)((LiteralExpression)printStmtExpressions[4]).Value).Value);
+			Assert.Equal("!", ((string)((LiteralExpression)printStmtExpressions[4]).Value));
 		}
 	}
 }

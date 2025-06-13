@@ -296,7 +296,7 @@ sealed class Parser
 		if (!TryConsumeKeyword(KeywordType.TO, out _))
 			throw new ParseException("Expected TO in FOR statement.", CurrentSourcePosition());
 		var limit = ParseExpression().Value;
-		Expression step = new LiteralExpression(new FloatLiteral(1.0f));
+		Expression step = new LiteralExpression(1.0f);
 		if (TryConsumeKeyword(KeywordType.STEP, out _))
 			step = ParseExpression().Value;
 		return new(loopVar, initial, limit, step);
@@ -372,9 +372,8 @@ sealed class Parser
 	Statement ParseOnGotoOrGosubStatementContents()
 	{
 		var indexExpr = ParseExpression().Value; // ON was already consumed. Expect an expression.
-		bool isGosub = TryConsumeKeyword(KeywordType.GOSUB, out _) ? true
-			: TryConsumeKeyword(KeywordType.GOTO, out _) ? false
-			: throw new ParseException("Expected GOTO or GOSUB after expression in ON statement.", CurrentSourcePosition());
+		bool isGosub = TryConsumeKeyword(KeywordType.GOSUB, out _) || (TryConsumeKeyword(KeywordType.GOTO, out _) ? false
+			: throw new ParseException("Expected GOTO or GOSUB after expression in ON statement.", CurrentSourcePosition()));
 
 		IEnumerable<int> GetLabels()
 		{
@@ -471,8 +470,8 @@ sealed class Parser
 
 		switch (token)
 		{
-			case FloatToken ft: ConsumeToken(); return new(pos, new LiteralExpression(new FloatLiteral((float)ft.Value)));
-			case StringToken st: ConsumeToken(); return new(pos, new LiteralExpression(new StringLiteral(st.Value)));
+			case FloatToken ft: ConsumeToken(); return new(pos, new LiteralExpression((float)ft.Value));
+			case StringToken st: ConsumeToken(); return new(pos, new LiteralExpression(st.Value));
 			case LParenToken:
 				ConsumeToken(); var expr = ParseExpression(); ConsumeToken<RParenToken>();
 				return new(pos, new ParenExpression(expr.Value));

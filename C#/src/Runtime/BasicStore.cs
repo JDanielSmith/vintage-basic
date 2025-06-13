@@ -40,7 +40,7 @@ sealed class BasicArray
 
 	// Helper to calculate the flat index from multi-dimensional indices.
 	// Indices are typically 0-based in the C# representation.
-	public int GetFlatIndex(IReadOnlyList<int> indices)
+	int GetFlatIndex(IReadOnlyList<int> indices)
 	{
 		if (indices.Count != DimensionSizes.Count)
 			throw new System.ArgumentException("Incorrect number of dimensions.", nameof(indices));
@@ -58,19 +58,8 @@ sealed class BasicArray
 		return flatIndex;
 	}
 
-	public object GetValue(IReadOnlyList<int> indices)
-	{
-		int index = GetFlatIndex(indices);
-		// TODO: Consider default value if Data[index] is null (e.g., based on VarName type)
-		return Data[index];
-	}
-
-	public void SetValue(IReadOnlyList<int> indices, object value)
-	{
-		int index = GetFlatIndex(indices);
-		// TODO: Type checking based on VarName type might be needed here.
-		Data[index] = value;
-	}
+	public object GetValue(IReadOnlyList<int> indices) => Data[GetFlatIndex(indices)];
+	public void SetValue(IReadOnlyList<int> indices, object value) => Data[GetFlatIndex(indices)] = value;
 }
 
 

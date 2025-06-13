@@ -43,7 +43,6 @@ sealed class InputOutputManager(BasicState state)
 	public string ReadLine()
 	{
 		_state.OutputStream.Flush(); // Ensure any pending output (like a prompt) is written.
-
 		if (_state.InputStream.IsEof)
 		{
 			throw new EndOfInputError(_state.CurrentLineNumber);

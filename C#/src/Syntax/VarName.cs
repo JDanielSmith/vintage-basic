@@ -3,7 +3,7 @@ using VintageBasic.Runtime;
 
 namespace VintageBasic.Syntax;
 
-sealed record VarName(Object Val, string Name)
+sealed record VarName(object Val, string Name)
 {
 	public VarName(VarNameToken token) : this(token.Val, token.Name) { }
 
@@ -16,6 +16,7 @@ sealed record VarName(Object Val, string Name)
 		}
 		return GetVarName(this) == GetVarName(other);
 	}
+
 	public static VarName CreateFloat(string name)
 	{
 		return new(default(float), name);
