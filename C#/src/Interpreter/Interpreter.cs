@@ -8,22 +8,15 @@ using VintageBasic.Parsing;
 namespace VintageBasic.Interpreter;
 sealed class Interpreter(RuntimeContext context)
 {
-	readonly RuntimeContext _context = context;
-	readonly VariableManager _variableManager = context.Variables;
-	readonly InputOutputManager _ioManager = context.IO;
-	internal readonly RandomManager _randomManager = context.Random;
-	readonly StateManager _stateManager = context.ProgramState;
+	internal readonly InterpreterContext _interpreterContext = new(context);
+	internal RandomManager RandomManager => context.Random;
 
-	List<JumpTableEntry> _jumpTable = [];
+	internal List<JumpTableEntry> _jumpTable = [];
 	internal bool _programEnded;
 	internal int _currentProgramLineIndex = -1;
 	internal bool _nextInstructionIsJump;
 
-	internal RuntimeContext Context => _context;
-	internal VariableManager VariableManager => _variableManager;
-	internal InputOutputManager IoManager => _ioManager;
-	internal StateManager StateManager => _stateManager;
-	internal IReadOnlyList<JumpTableEntry> JumpTable => _jumpTable;
+	internal StateManager StateManager => _interpreterContext.StateManager;
 
 	List<JumpTableEntry> BuildJumpTable(IReadOnlyList<Line> programLines, out List<string> allDataStrings)
 	{
@@ -37,7 +30,7 @@ sealed class Interpreter(RuntimeContext context)
 			{
 				foreach (var taggedStatement in currentLine.Statements)
 				{
-					_stateManager.SetCurrentLineNumber(currentLine.Label);
+					StateManager.SetCurrentLineNumber(currentLine.Label);
 					InterpretStatement(taggedStatement);
 					if (_programEnded || _nextInstructionIsJump) break;
 				}
@@ -60,7 +53,7 @@ sealed class Interpreter(RuntimeContext context)
 		catch (Exception ex)
 		{
 			_programEnded = true;
-			throw new BasicRuntimeException($"Unexpected error: {ex.Message}", _stateManager.CurrentLineNumber, ex);
+			throw new BasicRuntimeException($"Unexpected error: {ex.Message}", StateManager.CurrentLineNumber, ex);
 		}
 	}
 
@@ -71,22 +64,22 @@ sealed class Interpreter(RuntimeContext context)
 		_jumpTable = BuildJumpTable(programLines, out var allDataStrings);
 		if (_jumpTable.Count <= 0) return;
 
-		_ioManager.SetDataStrings(allDataStrings);
-		_randomManager.SeedRandomFromTime();
+		_interpreterContext.IoManager.SetDataStrings(allDataStrings);
+		RandomManager.SeedRandomFromTime();
 		_currentProgramLineIndex = 0;
-		_stateManager.SetCurrentLineNumber(_jumpTable[_currentProgramLineIndex].Label);
+		StateManager.SetCurrentLineNumber(_jumpTable[_currentProgramLineIndex].Label);
 		while (!_programEnded && (_currentProgramLineIndex < _jumpTable.Count) && (_currentProgramLineIndex >= 0))
 		{
 			_nextInstructionIsJump = false;
 			var entry = _jumpTable[_currentProgramLineIndex];
-			_stateManager.SetCurrentLineNumber(entry.Label);
+			StateManager.SetCurrentLineNumber(entry.Label);
 
 			ProgramAction(entry);
 			if (_programEnded) return;
 
 			if (_nextInstructionIsJump)
 			{
-				int targetLabel = _stateManager.CurrentLineNumber;
+				int targetLabel = StateManager.CurrentLineNumber;
 				_currentProgramLineIndex = _jumpTable.FindIndex(jte => jte.Label == targetLabel);
 				if (_currentProgramLineIndex == -1)
 					throw new BadGotoTargetError(targetLabel, lineNumber: entry.Label);
@@ -113,7 +106,7 @@ sealed class Interpreter(RuntimeContext context)
 
 	internal void InterpretStatement(Tagged<Statement> taggedStatement)
 	{
-		_stateManager.SetCurrentLineNumber(taggedStatement.Position.Line > 0 ? taggedStatement.Position.Line : _stateManager.CurrentLineNumber);
+		StateManager.SetCurrentLineNumber(taggedStatement.Position.Line > 0 ? taggedStatement.Position.Line : StateManager.CurrentLineNumber);
 		taggedStatement.Value.Execute(this);
 	}
 
@@ -130,15 +123,15 @@ sealed class Interpreter(RuntimeContext context)
 
 	internal object EvaluateExpression(Expression expr, int currentBasicLine)
 	{
-		_stateManager.SetCurrentLineNumber(currentBasicLine);
+		StateManager.SetCurrentLineNumber(currentBasicLine);
 		return expr.Evaluate(this, currentBasicLine);
 	}
 
 	internal object EvaluateBinOp(BinOp op, object v1, object v2, int currentBasicLine)
 	{
-		_stateManager.SetCurrentLineNumber(currentBasicLine);
-		var cV1 = (op == BinOp.AddOp && v1 is string) ? v1 : ValExtensions.CoerceToExpressionType(v1, currentBasicLine, _stateManager);
-		var cV2 = (op == BinOp.AddOp && v2 is string) ? v2 : ValExtensions.CoerceToExpressionType(v2, currentBasicLine, _stateManager);
+		StateManager.SetCurrentLineNumber(currentBasicLine);
+		var cV1 = (op == BinOp.AddOp && v1 is string) ? v1 : ValExtensions.CoerceToExpressionType(v1, currentBasicLine, StateManager);
+		var cV2 = (op == BinOp.AddOp && v2 is string) ? v2 : ValExtensions.CoerceToExpressionType(v2, currentBasicLine, StateManager);
 
 		object Add()
 		{
@@ -177,7 +170,7 @@ sealed class Interpreter(RuntimeContext context)
 
 	void CheckArgTypes(Builtin builtinName, List<Type> expectedTypes, List<object> actualArgs, int currentBasicLine)
 	{
-		_stateManager.SetCurrentLineNumber(currentBasicLine);
+		StateManager.SetCurrentLineNumber(currentBasicLine);
 		if (expectedTypes.Count != actualArgs.Count)
 		{
 			if (!(builtinName == Builtin.Rnd && expectedTypes.Count == 1 && actualArgs.Count == 0)) // RND can be called with 0 or 1 arg
@@ -214,7 +207,7 @@ sealed class Interpreter(RuntimeContext context)
 
 	internal object EvaluateBuiltin(Builtin builtin, IReadOnlyList<Expression> argExprs, int currentBasicLine)
 	{
-		_stateManager.SetCurrentLineNumber(currentBasicLine);
+		StateManager.SetCurrentLineNumber(currentBasicLine);
 
 		var args = EvaluateArgs(argExprs, currentBasicLine);
 		if (BuiltinArgTypes.TryGetValue(builtin, out var expectedTypes))
@@ -327,8 +320,8 @@ sealed class Interpreter(RuntimeContext context)
 	{
 		var rndArg = (args.Count > 0) ? args[0].AsFloat(currentBasicLine) : 1.0f;
 		if (rndArg < 0)
-			_randomManager.SeedRandom((int)rndArg);
-		var rndVal = (rndArg == 0) ? _randomManager.PreviousRandomValue : _randomManager.GetRandomValue();
+			RandomManager.SeedRandom((int)rndArg);
+		var rndVal = (rndArg == 0) ? RandomManager.PreviousRandomValue : RandomManager.GetRandomValue();
 		return (float)rndVal;
 	}
 
@@ -371,7 +364,7 @@ sealed class Interpreter(RuntimeContext context)
 		int tabCol = args[0].AsInt(currentBasicLine);
 		if (tabCol < 1 || tabCol > 255)
 			throw new InvalidArgumentError($"TAB col {tabCol} out of range (1-255)", currentBasicLine);
-		int curCol = _ioManager.OutputColumn + 1;
+		int curCol = _interpreterContext.IoManager.OutputColumn + 1;
 		return tabCol > curCol ? new System.String(' ', tabCol - curCol) : "";
 	}
 
@@ -380,6 +373,14 @@ sealed class Interpreter(RuntimeContext context)
 		string valStr = ((string)args[0]).Trim();
 		return RuntimeParsingUtils.TryParseFloat(valStr, out var v) ? v : default;
 	}
+}
+
+sealed record InterpreterContext(RuntimeContext Context)
+{
+	public VariableManager VariableManager = Context.Variables;
+	public InputOutputManager IoManager = Context.IO;
+	public RandomManager RandomManager = Context.Random;
+	public StateManager StateManager = Context.ProgramState;
 }
 
 sealed record JumpTableEntry(int Label, Action ProgramAction, IReadOnlyList<string> Data) { }

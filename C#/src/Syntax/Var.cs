@@ -14,8 +14,8 @@ abstract record Var(VarName Name)
 sealed record ScalarVar(VarName VarName) : Var(VarName)
 {
 	public override string ToString() => $"ScalarVar({VarName})";
-	internal override object GetVar(Interpreter.Interpreter interpreter) => interpreter.VariableManager.GetScalarVar(VarName);
-	internal override void SetVar(Interpreter.Interpreter interpreter, object value) => interpreter.VariableManager.SetScalarVar(VarName, value);
+	internal override object GetVar(Interpreter.Interpreter interpreter) => interpreter._interpreterContext.VariableManager.GetScalarVar(VarName);
+	internal override void SetVar(Interpreter.Interpreter interpreter, object value) => interpreter._interpreterContext.VariableManager.SetScalarVar(VarName, value);
 }
 
 sealed record ArrVar(VarName VarName, IReadOnlyList<Expression> Dimensions) : Var(VarName)
@@ -24,11 +24,11 @@ sealed record ArrVar(VarName VarName, IReadOnlyList<Expression> Dimensions) : Va
 	internal override object GetVar(Interpreter.Interpreter interpreter)
 	{
 		var indices = interpreter.EvaluateIndices(Dimensions, interpreter.StateManager.CurrentLineNumber);
-		return interpreter.VariableManager.GetArrayVar(VarName, indices);
+		return interpreter._interpreterContext.VariableManager.GetArrayVar(VarName, indices);
 	}
 	internal override void SetVar(Interpreter.Interpreter interpreter, object value)
 	{
 		var indices = interpreter.EvaluateIndices(Dimensions, interpreter.StateManager.CurrentLineNumber);
-		interpreter.VariableManager.SetArrayVar(VarName, indices, value);
+		interpreter._interpreterContext.VariableManager.SetArrayVar(VarName, indices, value);
 	}
 }

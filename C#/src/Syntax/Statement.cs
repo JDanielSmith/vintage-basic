@@ -16,11 +16,12 @@ abstract record Statement
 		ExecuteImpl();
 	}
 
-	protected RuntimeContext Context => Interpreter.Context;
-	protected VariableManager VariableManager => Interpreter.VariableManager;
-	protected InputOutputManager IoManager => Interpreter.IoManager;
-	protected StateManager StateManager => Interpreter.StateManager;
-	protected IReadOnlyList<JumpTableEntry> JumpTable => Interpreter.JumpTable;
+	protected InterpreterContext InterpreterContext => Interpreter._interpreterContext;
+	protected RuntimeContext Context => InterpreterContext.Context;
+	protected VariableManager VariableManager => InterpreterContext.VariableManager;
+	protected InputOutputManager IoManager => InterpreterContext.IoManager;
+	protected StateManager StateManager => InterpreterContext.StateManager;
+	protected IReadOnlyList<JumpTableEntry> JumpTable => Interpreter._jumpTable;
 
 	protected int CurrentBasicLine => StateManager.CurrentLineNumber;
 
@@ -374,7 +375,7 @@ sealed record StopStatement : Statement
 sealed record RandomizeStatement : Statement
 {
 	public override string ToString() => nameof(RandomizeStatement);
-	protected override void ExecuteImpl() => Interpreter._randomManager.SeedRandomFromTime();
+	protected override void ExecuteImpl() => Interpreter.RandomManager.SeedRandomFromTime();
 }
 
 sealed record ReadStatement(IReadOnlyList<Var> Variables) : Statement

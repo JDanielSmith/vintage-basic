@@ -10,7 +10,6 @@ namespace VintageBasic.Tests.Parsing
 		[Fact]
 		public void TestParseLetStatement()
 		{
-			// Arrange
 			string programText = "10 LET A = 123";
 
 			// Expected AST
@@ -26,10 +25,8 @@ namespace VintageBasic.Tests.Parsing
 			var expectedTaggedStmt = new Tagged<Statement>(new SourcePosition(10, 1), expectedLetStmt);
 			Line expectedLine = new(10, [expectedTaggedStmt]);
 
-			// Act
 			var parsedLines = Parser.ParseProgram(programText);
 
-			// Assert
 			Assert.Single(parsedLines);
 			var actualLine = parsedLines[0];
 			Assert.Equal(expectedLine.Label, actualLine.Label);

@@ -12,7 +12,6 @@ static partial class LineScanner
 	{
 		return lines.Select(ProcessLine);
 	}
-
 	static ScannedLine ProcessLine(string line, int originalLineIndex)
 	{
 		var trimmedLine = line.TrimStart(); // Corresponds to dropWhile isSpace

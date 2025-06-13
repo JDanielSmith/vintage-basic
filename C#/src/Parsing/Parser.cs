@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using VintageBasic.Syntax;
 
 namespace VintageBasic.Parsing;
@@ -79,7 +80,7 @@ sealed class Parser
 				}
 			}
 		}
-		List<Tagged<Statement>> statements = [.. ParseSingleLine_()];
+		ImmutableList<Tagged<Statement>> statements = [.. ParseSingleLine_()];
 
 		if (PeekToken() is EolToken)
 			ConsumeToken<EolToken>();
@@ -370,37 +371,24 @@ sealed class Parser
 
 	Statement ParseOnGotoOrGosubStatementContents()
 	{
-		// ON was already consumed. Expect an expression.
-		var indexExpr = ParseExpression().Value;
+		var indexExpr = ParseExpression().Value; // ON was already consumed. Expect an expression.
+		bool isGosub = TryConsumeKeyword(KeywordType.GOSUB, out _) ? true
+			: TryConsumeKeyword(KeywordType.GOTO, out _) ? false
+			: throw new ParseException("Expected GOTO or GOSUB after expression in ON statement.", CurrentSourcePosition());
 
-		bool isGosub;
-		if (TryConsumeKeyword(KeywordType.GOTO, out _))
-		{
-			isGosub = false;
-		}
-		else if (TryConsumeKeyword(KeywordType.GOSUB, out _))
-		{
-			isGosub = true;
-		}
-		else
-		{
-			throw new ParseException("Expected GOTO or GOSUB after expression in ON statement.", CurrentSourcePosition());
-		}
 		IEnumerable<int> GetLabels()
 		{
-			do
-			{
+			do {
 				var labelToken = ConsumeToken<FloatToken>(); // Line numbers are parsed as FloatTokens by current Tokenizer
 				yield return (int)labelToken.Value.Value;
 			} while (TryConsumeSpecificSymbol(",", out _));
 		}
-		var labels = GetLabels();
-		if (!labels.Any())
+		ImmutableList<int> labels = [ ..GetLabels() ];
+		if (labels.Count <= 0)
 		{
 			throw new ParseException("Expected at least one label in ON...GOTO/GOSUB statement.", CurrentSourcePosition());
 		}
-		var labels_ = labels.ToList();
-		return isGosub ? new OnGosubStatement(indexExpr, labels_) : new OnGotoStatement(indexExpr, labels_);
+		return isGosub ? new OnGosubStatement(indexExpr, labels) : new OnGotoStatement(indexExpr, labels);
 	}
 
 	// --- Expression Parsing (Recursive Descent with Precedence) ---
