@@ -17,7 +17,7 @@ public class InterpreterTests
 
 		BasicStore store = new();
 		// Interpreter now handles loading DATA statements via IOManager from parsed lines
-		BasicState state = new(inputStream, outputStream, []);
+		BasicState state = new(inputStream, outputStream);
 		RuntimeContext context = new(store, state);
 		VintageBasic.Interpreter.Interpreter interpreter = new(context);
 

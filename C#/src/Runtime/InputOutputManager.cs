@@ -1,11 +1,12 @@
 using VintageBasic.Runtime.Errors;
+using System.Collections.Immutable;
 
 namespace VintageBasic.Runtime;
 
 sealed class InputOutputManager(BasicState state)
 {
 	readonly BasicState _state = state;
-	List<string> _dataQueue = [];
+	ImmutableList<string> _dataQueue = [];
 	int _dataReadPointer;
 	public const int ZoneWidth = 14; // As defined in BasicMonad.hs
 

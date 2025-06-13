@@ -74,13 +74,13 @@ internal static class ValExtensions
 		return value is int iv ? (float)iv : value; // Coerce int to float for expression evaluation
 	}
 
-	public static object? TryParse(this object vv, string inputString)
+	public static object? TryParse(this object o, string inputString)
 	{
-		var stringToParse = vv.GetType() == typeof(string) ? inputString : inputString.Trim();
-		return vv switch
+		var stringToParse = o.GetType() == typeof(string) ? inputString : inputString.Trim();
+		return o switch
 		{
-			float => TryParseFloat(inputString, out var value) ? value : null,
-			int => TryParseFloat(inputString, out var fvForInt) ? RuntimeContext.FloatToInt(fvForInt) : null,
+			float => TryParseFloat(stringToParse, out var value) ? value : null,
+			int => TryParseFloat(stringToParse, out var fvForInt) ? RuntimeContext.FloatToInt(fvForInt) : null,
 			string => stringToParse,
 			_ => null
 		};

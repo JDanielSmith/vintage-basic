@@ -2,8 +2,6 @@ using System.Text.RegularExpressions;
 
 namespace VintageBasic.Parsing;
 
-sealed record ScannedLine(int LineNumber, string Content, int OriginalLineIndex);
-
 static partial class LineScanner
 {
 	/// <summary>
@@ -51,3 +49,5 @@ static partial class LineScanner
 	[GeneratedRegex(@"^\d+")]
 	private static partial Regex MyRegex();
 }
+
+sealed record ScannedLine(int LineNumber, string Content, int OriginalLineIndex);

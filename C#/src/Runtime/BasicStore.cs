@@ -3,6 +3,17 @@ using VintageBasic.Syntax; // For VarName
 
 namespace VintageBasic.Runtime;
 
+sealed class BasicStore()
+{
+	// Scalar variables: VarName -> Object
+	// Using Object directly instead of IORef Object, as C# objects are reference types.
+	// Direct mutation of Object objects (if they were mutable) or replacing them in the dictionary.
+	public Dictionary<VarName, object> ScalarVariables { get; } = [];
+
+	// Array variables: VarName -> BasicArray
+	public Dictionary<VarName, BasicArray> ArrayVariables { get; } = [];
+}
+
 // Represents a BASIC array.
 sealed class BasicArray
 {
@@ -62,13 +73,4 @@ sealed class BasicArray
 	}
 }
 
-sealed class BasicStore()
-{
-	// Scalar variables: VarName -> Object
-	// Using Object directly instead of IORef Object, as C# objects are reference types.
-	// Direct mutation of Object objects (if they were mutable) or replacing them in the dictionary.
-	public Dictionary<VarName, object> ScalarVariables { get; } = [];
 
-	// Array variables: VarName -> BasicArray
-	public Dictionary<VarName, BasicArray> ArrayVariables { get; } = [];
-}

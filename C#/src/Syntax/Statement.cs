@@ -2,6 +2,7 @@ using System.Globalization;
 using VintageBasic.Interpreter;
 using VintageBasic.Runtime;
 using VintageBasic.Runtime.Errors;
+using VintageBasic.Parsing;
 
 namespace VintageBasic.Syntax;
 

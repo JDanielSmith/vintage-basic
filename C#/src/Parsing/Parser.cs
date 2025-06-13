@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using VintageBasic.Syntax;
 
 namespace VintageBasic.Parsing;
@@ -557,4 +556,9 @@ sealed class Parser
 	}
 
 	static bool IsRightAssociative(BinOp op) => op == BinOp.PowOp;
+}
+
+sealed record Line(int Label, IReadOnlyList<Tagged<Statement>> Statements)
+{
+	public override string ToString() => $"Line({Label}, [{String.Join("; ", Statements.Select(s => s.ToString()))}])";
 }
