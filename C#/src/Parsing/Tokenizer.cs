@@ -22,8 +22,7 @@ file sealed class Implementation(ScannedLine scannedLine)
 		{"GOTO", KeywordType.GOTO}, {"GOSUB", KeywordType.GOSUB}, {"RETURN", KeywordType.RETURN}, {"END", KeywordType.END},
 		{"DATA", KeywordType.DATA}, {"READ", KeywordType.READ}, {"INPUT", KeywordType.INPUT}, {"DIM", KeywordType.DIM},
 		{"REM", KeywordType.REM}, {"ON", KeywordType.ON}, {"RESTORE", KeywordType.RESTORE}, {"STOP", KeywordType.STOP},
-		{"RANDOMIZE", KeywordType.RANDOMIZE}, {"DEF", KeywordType.DEF}, {"FN", KeywordType.FN},
-		{ "OR", KeywordType.OR}, { "AND", KeywordType.AND}, { "NOT", KeywordType.NOT},
+		{"RANDOMIZE", KeywordType.RANDOMIZE}, { "OR", KeywordType.OR}, { "AND", KeywordType.AND}, { "NOT", KeywordType.NOT},
 		// Note: ELSE is not in Haskell's KeywordTok but might be useful for parser. Added to enum.
 	}.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 

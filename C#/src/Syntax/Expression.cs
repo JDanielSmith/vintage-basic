@@ -31,17 +31,6 @@ sealed record VarExpression(Var Value) : Expression
 	}
 }
 
-sealed record FnExpression(VarName FunctionName, IReadOnlyList<Expression> Args) : Expression
-{
-	public override string ToString() => $"{nameof(FnExpression)}({FunctionName}, [{String.Join(", ", Args.Select(a => a.ToString()))}])";
-	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine)
-	{
-		var udf = interpreter._functionManager.GetFunction(FunctionName);
-		var fnArgs = Args.Select(argExpr => interpreter.EvaluateExpression(argExpr, currentBasicLine)).ToList();
-		return udf(fnArgs);
-	}
-}
-
 sealed record MinusExpression(Expression Right) : Expression
 {
 	public override string ToString() => $"{nameof(MinusExpression)}({Right})";

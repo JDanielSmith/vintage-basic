@@ -3,10 +3,6 @@ using VintageBasic.Syntax; // For VarName
 
 namespace VintageBasic.Runtime;
 
-// Represents a user-defined function (DEF FN)
-// Takes a list of arguments and returns a Object.
-delegate Object UserDefinedFunction(IReadOnlyList<object> arguments);
-
 // Represents a BASIC array.
 sealed class BasicArray
 {
@@ -75,7 +71,4 @@ sealed class BasicStore()
 
 	// Array variables: VarName -> BasicArray
 	public Dictionary<VarName, BasicArray> ArrayVariables { get; } = [];
-
-	// User-defined functions: VarName -> UserDefinedFunction
-	public Dictionary<VarName, UserDefinedFunction> UserFunctions { get; } = [];
 }

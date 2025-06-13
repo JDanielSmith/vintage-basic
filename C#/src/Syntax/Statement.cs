@@ -412,41 +412,6 @@ sealed record DataStatement(string Data) : Statement
 	protected override void ExecuteImpl() { }
 }
 
-sealed record DefFnStatement(VarName FunctionName, IReadOnlyList<VarName> Parameters, Expression Expression) : Statement
-{
-	public override string ToString() => $"{nameof(DefFnStatement)}({FunctionName}, [{string.Join(", ", Parameters.Select(p => p.ToString()))}], {Expression})";
-
-	protected override void ExecuteImpl()
-	{
-		object udf(IReadOnlyList<object> argsFromInvocation)
-		{
-			if (argsFromInvocation.Count != Parameters.Count)
-				throw new WrongNumberOfArgumentsError($"Function {FunctionName} expects {Parameters.Count} args, got {argsFromInvocation.Count}", StateManager.CurrentLineNumber);
-			Dictionary<VarName, object?> stashedValues = [];
-			for (int i = 0; i < Parameters.Count; i++)
-			{
-				var paramName = Parameters[i];
-				stashedValues[paramName] = VariableManager.GetScalarVar(paramName);
-				VariableManager.SetScalarVar(paramName, paramName.CoerceToType(argsFromInvocation[i], StateManager.CurrentLineNumber, StateManager));
-			}
-			var result = Interpreter.EvaluateExpression(Expression, StateManager.CurrentLineNumber);
-			foreach (var paramName in Parameters)
-			{
-				//if (stashedValues.TryGetValue(paramName, out Object? stashedVal) && stashedVal is not null)
-				//    VariableManager.SetScalarVar(paramName, stashedVal);
-				//else
-				//{
-				//    Object val = paramName.XXXEqualsType(String.Empty) ? String.Empty : Single.Empty;
-				// VariableManager.SetScalarVar(paramName, paramName.CoerceToType(val, StateManager.CurrentLineNumber, StateManager));
-				//}
-				throw new NotImplementedException($"Function {FunctionName} does not support array parameters yet."); // TODO: Handle arrays in UDFs
-			}
-			return FunctionName.CoerceToType(result, StateManager.CurrentLineNumber, StateManager);
-		}
-		Interpreter._functionManager.SetFunction(FunctionName, udf);
-	}
-}
-
 sealed record RemStatement(string Comment) : Statement
 {
 	public override string ToString() => $"{nameof(RemStatement)}(\"{Comment}\")";

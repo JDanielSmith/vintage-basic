@@ -175,7 +175,6 @@ sealed class Parser
 			KeywordType.READ => ParseReadStatementContents(),
 			KeywordType.DATA => ParseDataStatementContents(),
 			KeywordType.INPUT => ParseInputStatementContents(),
-			KeywordType.DEF => ParseDefFnStatementContents(),
 			KeywordType.RANDOMIZE => new RandomizeStatement(),
 			KeywordType.RESTORE => ParseRestoreStatementContents(),
 			KeywordType.STOP => new StopStatement(),
@@ -359,27 +358,6 @@ sealed class Parser
 		return new(prompt, vars);
 	}
 
-	DefFnStatement ParseDefFnStatementContents()
-	{
-		// DEF was consumed. Now expect FN.
-		if (!TryConsumeKeyword(KeywordType.FN, out _)) throw new ParseException("Expected FN after DEF.", CurrentSourcePosition());
-		var funcNameToken = ConsumeToken<VarNameToken>();
-		VarName funcName = new(funcNameToken.Value);
-		ConsumeToken<LParenToken>();
-		List<VarName> parameters = [];
-		if (PeekToken() is not RParenToken)
-		{
-			do
-			{
-				var paramToken = ConsumeToken<VarNameToken>();
-				parameters.Add(new(paramToken.Value));
-			} while (TryConsumeSpecificSymbol(",", out _));
-		}
-		ConsumeToken<RParenToken>();
-		ConsumeToken<EqualsToken>();
-		var body = ParseExpression().Value;
-		return new(funcName, parameters, body);
-	}
 	RestoreStatement ParseRestoreStatementContents()
 	{
 		int? label = null;
@@ -513,7 +491,6 @@ sealed class Parser
 				return new(pos, new ParenExpression(expr.Value));
 			case VarNameToken: return TryParseVariableExpression();
 			case BuiltinFuncToken: return TryParseBuiltinFunctionCall();
-			case KeywordToken kt when kt.Keyword == KeywordType.FN: return TryParseUserFunctionCall();
 			default: throw new ParseException($"Unexpected token '{token.Text}' in expression atom.", pos);
 		}
 	}
@@ -553,22 +530,6 @@ sealed class Parser
 			ConsumeToken<RParenToken>();
 		}
 		return new(builtinTokenTagged.Position, new BuiltinExpression(builtin, args));
-	}
-
-	Tagged<Expression> TryParseUserFunctionCall()
-	{
-		ConsumeToken<KeywordToken>("FN");
-		var funcNameToken = ConsumeToken<VarNameToken>();
-		VarName funcName = new(funcNameToken.Value);
-		ConsumeToken<LParenToken>();
-		List<Expression> args = [];
-		if (PeekToken() is not RParenToken)
-		{
-			do { args.Add(ParseExpression().Value); }
-			while (TryConsumeSpecificSymbol(",", out _));
-		}
-		ConsumeToken<RParenToken>();
-		return new(funcNameToken.Position, new FnExpression(funcName, args));
 	}
 
 	static int GetOperatorPrecedenceForNot() => 2;

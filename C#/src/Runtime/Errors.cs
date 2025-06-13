@@ -116,15 +116,6 @@ sealed class TypeMismatchError : BasicRuntimeException
 	public TypeMismatchError(int lineNumber) : this("Type mismatch", lineNumber) { }
 	public TypeMismatchError(string message, int? lineNumber) : base(message, lineNumber) { }
 }
-
-sealed class UndefinedFunctionError : BasicRuntimeException
-{
-	public UndefinedFunctionError() : this("Undefined function") { }
-	public UndefinedFunctionError(string message) : base(message) { }
-	public UndefinedFunctionError(string message, Exception innerException) : base(message, innerException) { }
-	public UndefinedFunctionError(VarName functionName) : this($"Undefined function: {functionName}") { }
-}
-
 sealed class WrongNumberOfArgumentsError : BasicRuntimeException
 {
 	public WrongNumberOfArgumentsError() : this("Wrong number of arguments") { }

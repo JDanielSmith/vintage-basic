@@ -11,7 +11,6 @@ sealed class Interpreter(RuntimeContext context)
 	readonly RuntimeContext _context = context;
 	readonly VariableManager _variableManager = context.Variables;
 	readonly InputOutputManager _ioManager = context.IO;
-	internal readonly FunctionManager _functionManager = context.Functions;
 	internal readonly RandomManager _randomManager = context.Random;
 	readonly StateManager _stateManager = context.ProgramState;
 
