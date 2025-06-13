@@ -28,11 +28,11 @@ namespace VintageBasic.Tests.Parsing
 			var parsedLines = Parser.ParseProgram(programText);
 
 			Assert.Single(parsedLines);
-			var actualLine = parsedLines[0];
+			var actualLine = parsedLines.First();
 			Assert.Equal(expectedLine.Label, actualLine.Label);
 			Assert.Single(actualLine.Statements);
 
-			var actualTaggedStmt = actualLine.Statements[0];
+			var actualTaggedStmt = actualLine.Statements.First();
 			Assert.IsType<LetStatement>(actualTaggedStmt.Value);
 			var actualLetStmt = (LetStatement)actualTaggedStmt.Value;
 
@@ -54,12 +54,12 @@ namespace VintageBasic.Tests.Parsing
 			var parsedLines = Parser.ParseProgram(programText);
 
 			Assert.Single(parsedLines);
-			var line = parsedLines[0];
+			var line = parsedLines.First();
 			Assert.Equal(20, line.Label);
 			Assert.Single(line.Statements);
-			Assert.IsType<PrintStatement>(line.Statements[0].Value);
+			Assert.IsType<PrintStatement>(line.Statements.First().Value);
 
-			var printStmt = (PrintStatement)line.Statements[0].Value;
+			var printStmt = (PrintStatement)line.Statements.First().Value;
 			var printStmtExpressions = printStmt.Expressions.ToList();
 			Assert.Equal(5, printStmtExpressions.Count); // "AGE:", NextZoneExpression, VarExpression(A), EmptyZoneExpression, "!"
 

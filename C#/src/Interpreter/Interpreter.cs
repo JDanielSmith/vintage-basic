@@ -1,9 +1,11 @@
 using System.Collections.Frozen;
+using System.Collections.Immutable;
+using System.Data;
 using System.Globalization;
+using VintageBasic.Parsing;
 using VintageBasic.Runtime;
 using VintageBasic.Runtime.Errors;
 using VintageBasic.Syntax;
-using VintageBasic.Parsing;
 
 namespace VintageBasic.Interpreter;
 sealed class Interpreter(RuntimeContext context)
@@ -11,34 +13,54 @@ sealed class Interpreter(RuntimeContext context)
 	internal readonly InterpreterContext _interpreterContext = new(context);
 	internal RandomManager RandomManager => context.Random;
 
-	internal List<JumpTableEntry> _jumpTable = [];
+	internal ImmutableList<JumpTableEntry> _jumpTable = [];
 	internal bool _programEnded;
-	internal int _currentProgramLineIndex = -1;
+	internal int _currentProgramLineIndex;
 	internal bool _nextInstructionIsJump;
 
 	internal StateManager StateManager => _interpreterContext.StateManager;
 
-	List<JumpTableEntry> BuildJumpTable(IReadOnlyList<Line> programLines, out List<string> allDataStrings)
+	sealed record JumpTableBuilder(Interpreter Interpreter, IEnumerable<Line> ProgramLines)
 	{
-		allDataStrings = [];
-		List<JumpTableEntry> jumpTableBuilder = new(programLines.Count);
-		foreach (var currentLine in programLines.OrderBy(l => l.Label))
+		static IEnumerable<string> CollectDataFromLine(Line line)
 		{
-			var lineData = CollectDataFromLine(currentLine); // Uses refined ParseDataLineContent
-			allDataStrings.AddRange(lineData);
-			void programAction()
-			{
-				foreach (var taggedStatement in currentLine.Statements)
-				{
-					StateManager.SetCurrentLineNumber(currentLine.Label);
-					InterpretStatement(taggedStatement);
-					if (_programEnded || _nextInstructionIsJump) break;
-				}
-			}
-			jumpTableBuilder.Add(new(currentLine.Label, programAction, lineData));
+			var results = from taggedStatement in line.Statements
+						  let dataStmt = taggedStatement.Value as DataStatement
+						  where dataStmt is not null
+						  from parsedLineValues in RuntimeParsingUtils.ParseDataLineContent(dataStmt.Data)
+						  select parsedLineValues;
+			return results;
 		}
-		return jumpTableBuilder;
+
+		readonly List<string> AllDataStrings = [];
+		IEnumerable<JumpTableEntry> BuildGenerator()
+		{
+			foreach (var currentLine in ProgramLines.OrderBy(l => l.Label))
+			{
+				var lineData = CollectDataFromLine(currentLine); // Uses refined ParseDataLineContent
+				AllDataStrings.AddRange(lineData);
+				void programAction()
+				{
+					foreach (var taggedStatement in currentLine.Statements)
+					{
+						Interpreter.StateManager.SetCurrentLineNumber(currentLine.Label);
+						Interpreter.InterpretStatement(taggedStatement);
+						if (Interpreter._programEnded || Interpreter._nextInstructionIsJump) break;
+					}
+				}
+				yield return new(currentLine.Label, programAction, lineData);
+			}
+		}
+
+		public static ImmutableList<JumpTableEntry> Build(Interpreter interpreter, IEnumerable<Line> programLines, out IEnumerable<string> allDataStrings)
+		{
+			JumpTableBuilder jtb = new(interpreter, programLines);
+			var jumpTable = jtb.BuildGenerator();
+			allDataStrings = jtb.AllDataStrings;
+			return [.. jumpTable];
+		}
 	}
+
 	void ProgramAction(JumpTableEntry entry)
 	{
 		try
@@ -57,16 +79,15 @@ sealed class Interpreter(RuntimeContext context)
 		}
 	}
 
-	public void ExecuteProgram(IReadOnlyList<Line> programLines)
+	public void ExecuteProgram(IEnumerable<Line> programLines)
 	{
-		if (programLines.Count <= 0) return;
+		if (!programLines.Any()) return;
 
-		_jumpTable = BuildJumpTable(programLines, out var allDataStrings);
+		_jumpTable = JumpTableBuilder.Build(this, programLines, out var allDataStrings);
 		if (_jumpTable.Count <= 0) return;
 
 		_interpreterContext.IoManager.SetDataStrings(allDataStrings);
 		RandomManager.SeedRandomFromTime();
-		_currentProgramLineIndex = 0;
 		StateManager.SetCurrentLineNumber(_jumpTable[_currentProgramLineIndex].Label);
 		while (!_programEnded && (_currentProgramLineIndex < _jumpTable.Count) && (_currentProgramLineIndex >= 0))
 		{
@@ -91,26 +112,13 @@ sealed class Interpreter(RuntimeContext context)
 		}
 	}
 
-	static List<string> CollectDataFromLine(Line line)
-	{
-		List<string> lineData = [];
-		foreach (var taggedStatement in line.Statements)
-		{
-			if (taggedStatement.Value is DataStatement dataStmt)
-			{
-				lineData.AddRange(RuntimeParsingUtils.ParseDataLineContent(dataStmt.Data));
-			}
-		}
-		return lineData;
-	}
-
 	internal void InterpretStatement(Tagged<Statement> taggedStatement)
 	{
 		StateManager.SetCurrentLineNumber(taggedStatement.Position.Line > 0 ? taggedStatement.Position.Line : StateManager.CurrentLineNumber);
 		taggedStatement.Value.Execute(this);
 	}
 
-	internal List<int> EvaluateIndices(IReadOnlyList<Expression> dimExprs, int currentBasicLine)
+	internal IReadOnlyList<int> EvaluateIndices(IEnumerable<Expression> dimExprs, int currentBasicLine)
 	{
 		List<int> indices = [];
 		foreach (var dimExpr in dimExprs)
@@ -197,7 +205,7 @@ sealed class Interpreter(RuntimeContext context)
 		{ Builtin.Val, [ typeof(string)] },
 	}.ToFrozenDictionary();
 
-	List<object> EvaluateArgs(IReadOnlyList<Expression> argExprs, int currentBasicLine)
+	List<object> EvaluateArgs(IEnumerable<Expression> argExprs, int currentBasicLine)
 	{
 		List<object> args = [];
 		foreach (var argExpr in argExprs)
@@ -205,7 +213,7 @@ sealed class Interpreter(RuntimeContext context)
 		return args;
 	}
 
-	internal object EvaluateBuiltin(Builtin builtin, IReadOnlyList<Expression> argExprs, int currentBasicLine)
+	internal object EvaluateBuiltin(Builtin builtin, IEnumerable<Expression> argExprs, int currentBasicLine)
 	{
 		StateManager.SetCurrentLineNumber(currentBasicLine);
 
@@ -383,7 +391,7 @@ sealed record InterpreterContext(RuntimeContext Context)
 	public StateManager StateManager = Context.ProgramState;
 }
 
-sealed record JumpTableEntry(int Label, Action ProgramAction, IReadOnlyList<string> Data) { }
+sealed record JumpTableEntry(int Label, Action ProgramAction, IEnumerable<string> Data) { }
 sealed record ForLoopContext(VarName LoopVariable, object LimitValue, object StepValue, int LoopStartLineIndex)
 {
 	public bool SingleLine { get; set; } // True if this is a single-line FOR loop (e.g., FOR I = 1 TO 10: NEXT I)

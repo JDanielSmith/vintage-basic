@@ -52,11 +52,10 @@ sealed class VariableManager(BasicStore store)
 		return false;
 	}
 
-	public BasicArray DimArray(VarName varName, IReadOnlyList<int> dimensionUpperBounds)
+	public BasicArray DimArray(VarName varName, IEnumerable<int> dimensionUpperBounds)
 	{
 		if (TryGetEqualsKey(varName, out var _))
 			throw new RedimensionedArrayError($"Array {varName} already dimensioned.");
-		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(dimensionUpperBounds.Count, nameof(dimensionUpperBounds));
 
 		foreach (var bound in dimensionUpperBounds)
 		{

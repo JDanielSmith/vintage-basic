@@ -205,4 +205,18 @@ public class InterpreterTests
 		string expectedOutput = "A < 10\n*\nA = 10\n*\nA < 10\n*\n";
 		Assert.Equal(expectedOutput, outputStream.GetOutput());
 	}
+
+	[Fact]
+	public void DIM_Test()
+	{
+		const string programText = """
+			10 dim a(10)
+			20 dim b$(10), c$(10)
+			""";
+
+		var (outputStream, _) = ExecuteBasicProgram(programText);
+
+		string expectedOutput = "";
+		Assert.Equal(expectedOutput, outputStream.GetOutput());
+	}
 }

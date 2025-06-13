@@ -53,12 +53,9 @@ sealed record DimStatement(IReadOnlyList<(VarName Name, IReadOnlyList<Expression
 	{
 		foreach (var (Name, Dimensions) in Declarations)
 		{
-			List<int> bounds = [];
-			foreach (var exprBound in Dimensions)
-			{
-				var boundVal = Interpreter.EvaluateExpression(exprBound, CurrentBasicLine);
-				bounds.Add(boundVal.AsInt(CurrentBasicLine));
-			}
+			var bounds = from exprBound in Dimensions
+						 let boundVal = Interpreter.EvaluateExpression(exprBound, CurrentBasicLine)
+						 select boundVal.AsInt(CurrentBasicLine);
 			VariableManager.DimArray(Name, bounds);
 		}
 	}
@@ -411,7 +408,7 @@ sealed record RestoreStatement(int? TargetLabel) : Statement
 			var targetLabel = TargetLabel.Value;
 			if (!JumpTable.Any(jte => jte.Label == targetLabel))
 				throw new BadRestoreTargetError(targetLabel, CurrentBasicLine);
-			var dataFromTargetOnwards = JumpTable.Where(jte => jte.Label >= targetLabel).SelectMany(jte => jte.Data).ToList();
+			var dataFromTargetOnwards = JumpTable.Where(jte => jte.Label >= targetLabel).SelectMany(jte => jte.Data);
 			IoManager.RestoreData(dataFromTargetOnwards);
 		}
 		else

@@ -15,7 +15,7 @@ sealed class Parser
 		_lineNumber = lineNumber;
 	}
 
-	public static List<Line> ParseProgram(string programText)
+	public static IEnumerable<Line> ParseProgram(string programText)
 	{
 		List<Line> lines = [];
 		var scannedLines = LineScanner.ScanLines(programText.Split(["\r\n", "\r", "\n"], StringSplitOptions.None));
@@ -545,7 +545,7 @@ sealed class Parser
 	static bool IsRightAssociative(BinOp op) => op == BinOp.PowOp;
 }
 
-sealed record Line(int Label, IReadOnlyList<Tagged<Statement>> Statements)
+sealed record Line(int Label, IEnumerable<Tagged<Statement>> Statements)
 {
 	public override string ToString() => $"Line({Label}, [{String.Join("; ", Statements.Select(s => s.ToString()))}])";
 }

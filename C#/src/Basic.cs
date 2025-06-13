@@ -37,7 +37,7 @@ sealed class Basic
 			return;
 		}
 
-		List<Line> parsedLines;
+		IEnumerable<Line> parsedLines;
 #pragma warning disable CA1031 // Do not catch general exception types
 		try
 		{
@@ -60,7 +60,7 @@ sealed class Basic
 
 		// If parsing results in no executable lines (e.g. only comments or empty numbered lines)
 		// it's not necessarily an error, but the program won't do anything.
-		if (!parsedLines.Any(line => line.Statements.Count > 0))
+		if (!parsedLines.Any(line => line.Statements.Any()))
 		{
 			// Optionally print a message or just exit cleanly.
 			// Console.WriteLine("Program contains no executable statements.");

@@ -10,7 +10,6 @@ namespace VintageBasic.Tests.Parsing
 		[Fact]
 		public void PrintStringTokenizeTest()
 		{
-			// Arrange
 			var scannedLine = new ScannedLine(10, "PRINT \"HELLO\"", 0);
 			var expectedTokens = new List<Tagged<Token>>
 			{
@@ -19,10 +18,8 @@ namespace VintageBasic.Tests.Parsing
                 new(new(10, 14), new EolToken()) // Position after "HELLO"
             };
 
-			// Act
 			var actualTokens = Tokenizer.Tokenize(scannedLine).ToList();
 
-			// Assert
 			Assert.Equal(expectedTokens.Count, actualTokens.Count);
 			for (int i = 0; i < expectedTokens.Count; i++)
 			{

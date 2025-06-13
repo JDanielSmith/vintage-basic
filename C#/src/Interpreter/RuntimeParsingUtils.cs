@@ -10,15 +10,11 @@ static class RuntimeParsingUtils
 		return Single.TryParse(s.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out value);
 	}
 
-	public static List<string> ParseDataLineContent(string rawContent)
+	public static IEnumerable<string> ParseDataLineContent(string rawContent)
 	{
-		List<string> values = [];
-		if (rawContent is null) return values;
-
 		var current = 0;
 		StringBuilder builder = new();
 		bool inQuotes = false;
-
 		while (current < rawContent.Length)
 		{
 			char c = rawContent[current];
@@ -61,7 +57,7 @@ static class RuntimeParsingUtils
 				}
 				else if (c == ',')
 				{
-					values.Add(builder.ToString().Trim()); // Trim unquoted items
+					yield return builder.ToString().Trim(); // Trim unquoted items
 					builder.Clear();
 				}
 				else
@@ -72,23 +68,15 @@ static class RuntimeParsingUtils
 			current++;
 		}
 
-		// Add the last item
 		// If inQuotes is true here, it's an unterminated string.
 		// BASIC might error or treat it as if the quote was literal.
 		// We'll add the content as parsed, including the opening quote if it was unterminated.
-		if (inQuotes)
-		{
-			// This means an unterminated string. Add what's in builder.
-			// The parser for string literals in tokenizer handles unterminated strings by taking what's there.
-			// Here, we are parsing the *content* of a DATA statement.
-			// For `DATA "abc`, builder contains `abc`. For `DATA "abc""def`, builder contains `abc"def`.
-			values.Add(builder.ToString()); // Do not trim quoted strings
-		}
-		else
-		{
-			values.Add(builder.ToString().Trim()); // Trim unquoted items
-		}
-
-		return values;
+		//
+		// This means an unterminated string. Add what's in builder.
+		// The parser for string literals in tokenizer handles unterminated strings by taking what's there.
+		// Here, we are parsing the *content* of a DATA statement.
+		// For `DATA "abc`, builder contains `abc`. For `DATA "abc""def`, builder contains `abc"def`.
+		var retval = builder.ToString();
+		yield return inQuotes ? retval : retval.Trim();
 	}
 }

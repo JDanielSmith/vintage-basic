@@ -10,9 +10,9 @@ sealed class InputOutputManager(BasicState state)
 	int _dataReadPointer;
 	public const int ZoneWidth = 14; // As defined in BasicMonad.hs
 
-	public void SetDataStrings(IReadOnlyList<string> allDataStrings)
+	public void SetDataStrings(IEnumerable<string> allDataStrings)
 	{
-		_dataQueue = [.. allDataStrings ?? []];
+		_dataQueue = [.. allDataStrings ];
 		_dataReadPointer = 0; // Reset pointer when new data is set
 	}
 
@@ -21,14 +21,7 @@ sealed class InputOutputManager(BasicState state)
 		int currentColumn = startColumn;
 		foreach (char c in text)
 		{
-			if (c is '\n' or '\r')
-			{
-				currentColumn = 0;
-			}
-			else
-			{
-				currentColumn++;
-			}
+			currentColumn = c is '\n' or '\r' ? 0 : currentColumn + 1;
 		}
 		return currentColumn;
 	}
@@ -47,7 +40,6 @@ sealed class InputOutputManager(BasicState state)
 		{
 			throw new EndOfInputError(_state.CurrentLineNumber);
 		}
-
 		var line = _state.InputStream.ReadLine() ?? throw new EndOfInputError(_state.CurrentLineNumber);
 		_state.OutputColumn = 0; // Reading input resets the column.
 		return line;
@@ -62,7 +54,7 @@ sealed class InputOutputManager(BasicState state)
 		return _dataQueue[_dataReadPointer++];
 	}
 
-	public void RestoreData(IReadOnlyList<string>? specificLineData = null)
+	public void RestoreData(IEnumerable<string>? specificLineData = null)
 	{
 		if (specificLineData is not null)
 		{
