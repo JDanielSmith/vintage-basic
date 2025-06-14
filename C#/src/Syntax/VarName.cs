@@ -1,3 +1,4 @@
+using System;
 using VintageBasic.Parsing;
 using VintageBasic.Runtime;
 
@@ -38,9 +39,14 @@ sealed record VarName(object Val, string Name)
 		_ => throw new ArgumentException($"Unknown object type: {Val.GetType().Name}")
 	};
 
-	internal object CoerceToType(Object value, int? lineNumber = null, StateManager? stateManager = null)
+	internal object CoerceToType(object value, int? lineNumber = null, StateManager? stateManager = null)
 	{
 		return Val.CoerceToType(value, lineNumber, stateManager);
 	}
 	public override string ToString() => $"{Name}{Val.GetSuffix()}";
+
+	public static implicit operator string(VarName v)
+	{
+		return v.Name;
+	}
 }

@@ -9,6 +9,12 @@ abstract record Var(VarName Name)
 	}
 	internal abstract object GetVar(Interpreter.Interpreter interpreter);
 	internal abstract void SetVar(Interpreter.Interpreter interpreter, object value);
+
+	internal object Val => Name.Val;
+	public static implicit operator string(Var v)
+	{
+		return v.Name;
+	}
 }
 
 sealed record ScalarVar(VarName VarName) : Var(VarName)

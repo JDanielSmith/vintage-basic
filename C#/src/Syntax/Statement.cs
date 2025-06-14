@@ -35,13 +35,7 @@ sealed record LetStatement(Var Variable, Expression Expression) : Statement
 	{
 		var valueToAssign = Interpreter.EvaluateExpression(Expression, CurrentBasicLine);
 		var coercedValue = Variable.CoerceToType(valueToAssign, CurrentBasicLine, StateManager);
-		if (Variable is ScalarVar sv) VariableManager.SetScalarVar(sv.VarName, coercedValue);
-		else if (Variable is ArrVar av)
-		{
-			var indices = Interpreter.EvaluateIndices(av.Dimensions, CurrentBasicLine);
-			VariableManager.SetArrayVar(av.VarName, indices, coercedValue);
-		}
-		else throw new NotImplementedException($"Variable type {Variable.GetType().Name} in LET not supported.");
+		Variable.SetVar(Interpreter, coercedValue);
 	}
 }
 
@@ -334,7 +328,7 @@ sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Sta
 				}
 
 				var strValueFromInput = availableInputStrings.Dequeue();
-				var parsedVal = targetVar.Name.Val.TryParse(strValueFromInput);
+				var parsedVal = targetVar.Val.TryParse(strValueFromInput);
 				if (parsedVal is null)
 				{
 					IoManager.PrintString("!NUMBER EXPECTED - RETRY INPUT LINE\n");
@@ -384,15 +378,8 @@ sealed record ReadStatement(IReadOnlyList<Var> Variables) : Statement
 		foreach (var varToRead in Variables)
 		{
 			var dataStr = IoManager.ReadData();
-			var val = varToRead.Name.Val.TryParse(dataStr) ?? throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", CurrentBasicLine);
-			var coercedVal = varToRead.CoerceToType(val, CurrentBasicLine, StateManager);
-			if (varToRead is ScalarVar sv)
-				VariableManager.SetScalarVar(sv.VarName, coercedVal);
-			else if (varToRead is ArrVar av)
-			{
-				var indices = Interpreter.EvaluateIndices(av.Dimensions, CurrentBasicLine);
-				VariableManager.SetArrayVar(av.VarName, indices, coercedVal);
-			}
+			var val = varToRead.Val.TryParse(dataStr) ?? throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", CurrentBasicLine);
+			varToRead.SetVar(Interpreter, varToRead.CoerceToType(val, CurrentBasicLine, StateManager));
 		}
 	}
 }
