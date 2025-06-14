@@ -44,9 +44,9 @@ public class InterpreterTests
 
 		var (_, context) = ExecuteBasicProgram(programText);
 
-		var varA = VarName.CreateFloat("A");
-		var varB_Str = VarName.CreateString("B"); // B$
-		var varC_Int = VarName.CreateInt("C");   // C%
+		var varA = VarName.Create<float>("A");
+		var varB_Str = VarName.Create<string>("B"); // B$
+		var varC_Int = VarName.Create<int>("C");   // C%
 
 		Object valA = context.Variables.GetScalarVar(varA);
 		Assert.IsType<float>(valA);
@@ -75,7 +75,7 @@ public class InterpreterTests
 		// The "? " comes from the Interpreter's INPUT handling.
 		Assert.Equal("WHAT IS YOUR NAME?? HELLO, CHATBOT\n", output);
 
-		var varN_Str = VarName.CreateString("N");
+		var varN_Str = VarName.Create<string>("N");
 		Object valN_Str = context.Variables.GetScalarVar(varN_Str);
 		Assert.IsType<string>(valN_Str);
 		Assert.Equal("CHATBOT", (string)valN_Str);

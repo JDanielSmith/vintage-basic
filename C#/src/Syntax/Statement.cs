@@ -166,7 +166,7 @@ sealed record ForStatement(VarName LoopVariable, Expression InitialValue, Expres
 		var startVal = Interpreter.EvaluateExpression(InitialValue, CurrentBasicLine);
 		var limitVal = Interpreter.EvaluateExpression(LimitValue, CurrentBasicLine);
 		var stepVal = Interpreter.EvaluateExpression(StepValue, CurrentBasicLine);
-		var coercedStartVal = LoopVariable.CoerceToType(startVal, CurrentBasicLine, StateManager);
+		var coercedStartVal = LoopVariable.Type.CoerceToType(startVal, CurrentBasicLine, StateManager);
 		VariableManager.SetScalarVar(LoopVariable, coercedStartVal);
 		Context.State.ForLoopStack.Push(new(LoopVariable, limitVal, stepVal, Interpreter._currentProgramLineIndex));
 	}
@@ -190,7 +190,7 @@ sealed record NextStatement(IReadOnlyList<VarName>? LoopVariables) : Statement /
 			var currentLoop = Context.State.ForLoopStack.Peek();
 			var currentValue = VariableManager.GetScalarVar(currentLoop.LoopVariable);
 			var addedValue = Interpreter.EvaluateBinOp(BinOp.AddOp, currentValue, currentLoop.StepValue, CurrentBasicLine);
-			var newLoopVal = currentLoop.LoopVariable.CoerceToType(addedValue, CurrentBasicLine, StateManager);
+			var newLoopVal = currentLoop.LoopVariable.Type.CoerceToType(addedValue, CurrentBasicLine, StateManager);
 			VariableManager.SetScalarVar(currentLoop.LoopVariable, newLoopVal);
 			var step = currentLoop.StepValue.AsFloat(CurrentBasicLine);
 			var limit = currentLoop.LimitValue.AsFloat(CurrentBasicLine);
@@ -328,7 +328,7 @@ sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Sta
 				}
 
 				var strValueFromInput = availableInputStrings.Dequeue();
-				var parsedVal = targetVar.Val.TryParse(strValueFromInput);
+				var parsedVal = targetVar.Type.TryParse(strValueFromInput);
 				if (parsedVal is null)
 				{
 					IoManager.PrintString("!NUMBER EXPECTED - RETRY INPUT LINE\n");
@@ -378,7 +378,7 @@ sealed record ReadStatement(IReadOnlyList<Var> Variables) : Statement
 		foreach (var varToRead in Variables)
 		{
 			var dataStr = IoManager.ReadData();
-			var val = varToRead.Val.TryParse(dataStr) ?? throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", CurrentBasicLine);
+			var val = varToRead.Type.TryParse(dataStr) ?? throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", CurrentBasicLine);
 			varToRead.SetVar(Interpreter, varToRead.CoerceToType(val, CurrentBasicLine, StateManager));
 		}
 	}

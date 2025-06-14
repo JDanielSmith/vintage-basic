@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using static VintageBasic.Interpreter.RuntimeParsingUtils;
 
 namespace VintageBasic.Runtime;
@@ -15,31 +16,19 @@ internal static class ValExtensions
 		int or float or string => val.GetType().Name,
 		_ => throw new ArgumentException($"Unknown object type: {val.GetType().Name}")
 	};
-
-	public static string GetSuffix(this object val) => val switch
-	{
-		int => "%",
-		float => "",
-		string => "$",
-		_ => throw new ArgumentException($"Unknown object type: {val.GetType().Name}")
-	};
-
-	public static object CoerceToType(this object vv, object value, int? lineNumber = null, StateManager? stateManager = null)
+	 
+	public static object CoerceToType(this Type targetType, object value, int? lineNumber = null, StateManager? stateManager = null)
 	{
 		if (stateManager is not null && lineNumber.HasValue)
 			stateManager.SetCurrentLineNumber(lineNumber.Value);
-
-		var targetType = vv.GetType();
 		if (targetType == value.GetType()) return value;
 		if (targetType == typeof(object)) return value; // Allow object as a generic target type
-		return vv switch
-		{
-			float => AsFloat(value),
-			int => AsInt(value),
-			string => value,
-			_ => new Errors.TypeMismatchError($"Cannot coerce {value.GetTypeName()} to {targetType}", lineNumber ?? stateManager?.CurrentLineNumber)
-		};
+		if (targetType == typeof(float)) return AsFloat(value);
+		if (targetType == typeof(int)) return AsInt(value);
+		if (targetType == typeof(string)) return value;
+		throw new Errors.TypeMismatchError($"Cannot coerce {value.GetTypeName()} to {targetType}", lineNumber ?? stateManager?.CurrentLineNumber);
 	}
+
 	// Coerces int to float for expression evaluation if needed, otherwise returns original value.
 	public static object CoerceToExpressionType(object value, int? lineNumber = null, StateManager? stateManager = null)
 	{
@@ -53,16 +42,13 @@ internal static class ValExtensions
 		return (int)System.Math.Floor(val);
 	}
 
-	public static object? TryParse(this object o, string inputString)
+	public static object? TryParse(this Type type, string inputString)
 	{
-		var stringToParse = o.GetType() == typeof(string) ? inputString : inputString.Trim();
-		return o switch
-		{
-			float => TryParseFloat(stringToParse, out var value) ? value : null,
-			int => TryParseFloat(stringToParse, out var fvForInt) ? FloatToInt(fvForInt) : null,
-			string => stringToParse,
-			_ => null
-		};
+		var stringToParse = type == typeof(string) ? inputString : inputString.Trim();
+		if (type == typeof(float)) return TryParseFloat(stringToParse, out var value) ? value : null;
+		if (type == typeof(int)) return TryParseFloat(stringToParse, out var fvForInt) ? FloatToInt(fvForInt) : null;
+		if (type == typeof(string)) return stringToParse;
+		return null;
 	}
 
 	// Convenience methods for type checking and casting

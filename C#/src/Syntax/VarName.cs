@@ -1,52 +1,23 @@
 using System;
+using System.Collections.Frozen;
 using VintageBasic.Parsing;
 using VintageBasic.Runtime;
 
 namespace VintageBasic.Syntax;
 
-sealed record VarName(object Val, string Name)
+sealed record VarName(string Name, Type Type)
 {
-	public VarName(VarNameToken token) : this(token.Val, token.Name) { }
+	public VarName(VarNameToken token) : this(token.Name, token.Type) { }
 
-	internal bool EqualsName(VarName other)
+	public string Suffix => GetSuffix(Type);
+
+	public static VarName Create<T>(string name)
 	{
-		static string GetVarName(VarName varName)
-		{
-			// Variables are 1) case-insensitive, and 2) unique in only the first two characters.
-			return varName.Name[..Math.Min(2, varName.Name.Length)].ToUpperInvariant();
-		}
-		return GetVarName(this) == GetVarName(other);
+		return new(name, typeof(T));	
 	}
 
-	public static VarName CreateFloat(string name)
-	{
-		return new(default(float), name);
-	}
-	public static VarName CreateInt(string name)
-	{
-		return new(default(int), name);
-	}
-	public static VarName CreateString(string name)
-	{
-		return new(String.Empty, name);
-	}
+	static readonly FrozenDictionary<Type, string> suffixForType = new Dictionary<Type, string>() { { typeof(int), "%" }, { typeof(float), "" }, { typeof(string), "$" } }.ToFrozenDictionary();
+	public static string GetSuffix(Type type) => suffixForType.TryGetValue(type, out var suffix) ? suffix : throw new ArgumentException($"Unknown object type: {type.Name}");
 
-	internal object GetDefaultValue() => Val switch
-	{
-		float => default(float),
-		int => default(int),
-		string => String.Empty,
-		_ => throw new ArgumentException($"Unknown object type: {Val.GetType().Name}")
-	};
-
-	internal object CoerceToType(object value, int? lineNumber = null, StateManager? stateManager = null)
-	{
-		return Val.CoerceToType(value, lineNumber, stateManager);
-	}
-	public override string ToString() => $"{Name}{Val.GetSuffix()}";
-
-	public static implicit operator string(VarName v)
-	{
-		return v.Name;
-	}
+	public override string ToString() => $"{Name}{Suffix}";
 }

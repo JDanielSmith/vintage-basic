@@ -1,19 +1,32 @@
+using System.Collections.Frozen;
+using VintageBasic.Parsing;
 using VintageBasic.Runtime;
 namespace VintageBasic.Syntax;
 
-abstract record Var(VarName Name)
+abstract record Var(string Name, Type Type)
 {
+	public Var(VarNameToken token) : this(token.Name, token.Type) { }
+	public Var(VarName name) : this(name.Name, name.Type) { }
+
 	internal object CoerceToType(object value, int? lineNumber = null, StateManager? stateManager = null)
 	{
-		return Name.CoerceToType(value, lineNumber, stateManager);
+		return Type.CoerceToType(value, lineNumber, stateManager);
 	}
 	internal abstract object GetVar(Interpreter.Interpreter interpreter);
 	internal abstract void SetVar(Interpreter.Interpreter interpreter, object value);
 
-	internal object Val => Name.Val;
-	public static implicit operator string(Var v)
+	static readonly FrozenDictionary<Type, object> defaultValues = new Dictionary<Type, object>() {
+		{typeof(int), default(int) }, {typeof(float), default(float) }, {typeof(string), String.Empty } }.ToFrozenDictionary();
+	internal static object GetDefaultValue(Type type) => defaultValues.TryGetValue(type, out var value) ? value : throw new ArgumentException($"Unknown object type: {type.Name}");
+
+	internal static bool Equals(VarName lhs, VarName rhs)
 	{
-		return v.Name;
+		static string GetVarName(VarName varName)
+		{
+			// Variables are 1) case-insensitive, and 2) unique in only the first two characters.
+			return varName.Name[..Math.Min(2, varName.Name.Length)].ToUpperInvariant();
+		}
+		return GetVarName(lhs) == GetVarName(rhs);
 	}
 }
 

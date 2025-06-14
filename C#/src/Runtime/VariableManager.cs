@@ -13,7 +13,7 @@ sealed class VariableManager(BasicStore store)
 	{
 		static bool KeyMatchesVarName(VarName key, VarName varName)
 		{
-			return varName.EqualsName(key) && (varName.Val.GetType() == key.Val.GetType());
+			return Var.Equals(varName, key) && (varName.Type == key.Type);
 		}
 		foreach (var key in _store.ScalarVariables.Keys)
 		{
@@ -29,7 +29,7 @@ sealed class VariableManager(BasicStore store)
 
 	public object GetScalarVar(VarName varName)
 	{
-		return TryGetMatchingKey(varName, out var key) ? _store.ScalarVariables[key!] : varName.GetDefaultValue();
+		return TryGetMatchingKey(varName, out var key) ? _store.ScalarVariables[key!] : Var.GetDefaultValue(varName.Type);
 	}
 
 	public void SetScalarVar(VarName varName, object value)
@@ -42,7 +42,7 @@ sealed class VariableManager(BasicStore store)
 	{
 		foreach (var key in _store.ArrayVariables.Keys)
 		{
-			if (key.EqualsName(varName))
+			if (Var.Equals(key, varName))
 			{
 				equalsKey = key;
 				return true;
@@ -71,7 +71,7 @@ sealed class VariableManager(BasicStore store)
 		BasicArray newArray = new([.. dimensionSizes]);
 
 		// Initialize array elements to default values.
-		Array.Fill(newArray.Data, varName.GetDefaultValue());
+		Array.Fill(newArray.Data, Var.GetDefaultValue(varName.Type));
 
 		_store.ArrayVariables[varName] = newArray;
 		return newArray;

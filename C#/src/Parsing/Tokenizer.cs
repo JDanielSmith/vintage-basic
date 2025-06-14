@@ -274,11 +274,11 @@ file sealed class Implementation(ScannedLine scannedLine)
 
 		// Variable Name
 		var namePart = identifier;
-		object typeSuffix = new Single(); // Default
+		Type typeSuffix = typeof(float); // Default, no suffix
 		var suffix = identifier[^1];
 		if (IsVariableSuffix(suffix))
 		{
-			typeSuffix = suffix is '$' ? "" : 0;
+			typeSuffix = suffix is '$' ? typeof(string) : typeof(int);
 			namePart = identifier[..^1];
 		}
 
