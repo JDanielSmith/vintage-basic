@@ -34,8 +34,7 @@ sealed record LetStatement(Var Variable, Expression Expression) : Statement
 	protected override void ExecuteImpl()
 	{
 		var valueToAssign = Interpreter.EvaluateExpression(Expression, CurrentBasicLine);
-		var coercedValue = Variable.CoerceToType(valueToAssign, CurrentBasicLine, StateManager);
-		Variable.SetVar(Interpreter, coercedValue);
+		Variable.SetVar(Interpreter, valueToAssign);
 	}
 }
 
@@ -166,7 +165,7 @@ sealed record ForStatement(VarName LoopVariable, Expression InitialValue, Expres
 		var startVal = Interpreter.EvaluateExpression(InitialValue, CurrentBasicLine);
 		var limitVal = Interpreter.EvaluateExpression(LimitValue, CurrentBasicLine);
 		var stepVal = Interpreter.EvaluateExpression(StepValue, CurrentBasicLine);
-		var coercedStartVal = LoopVariable.Type.CoerceToType(startVal, CurrentBasicLine, StateManager);
+		var coercedStartVal = LoopVariable.CoerceToType(startVal, CurrentBasicLine, StateManager);
 		VariableManager.SetScalarVar(LoopVariable, coercedStartVal);
 		Context.State.ForLoopStack.Push(new(LoopVariable, limitVal, stepVal, Interpreter._currentProgramLineIndex));
 	}
@@ -190,7 +189,7 @@ sealed record NextStatement(IReadOnlyList<VarName>? LoopVariables) : Statement /
 			var currentLoop = Context.State.ForLoopStack.Peek();
 			var currentValue = VariableManager.GetScalarVar(currentLoop.LoopVariable);
 			var addedValue = Interpreter.EvaluateBinOp(BinOp.AddOp, currentValue, currentLoop.StepValue, CurrentBasicLine);
-			var newLoopVal = currentLoop.LoopVariable.Type.CoerceToType(addedValue, CurrentBasicLine, StateManager);
+			var newLoopVal = currentLoop.LoopVariable.CoerceToType(addedValue, CurrentBasicLine, StateManager);
 			VariableManager.SetScalarVar(currentLoop.LoopVariable, newLoopVal);
 			var step = currentLoop.StepValue.AsFloat(CurrentBasicLine);
 			var limit = currentLoop.LimitValue.AsFloat(CurrentBasicLine);
@@ -336,7 +335,7 @@ sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Sta
 					availableInputStrings.Clear(); // Discard remaining values from this erroneous line
 					break; // Break from variables loop, outer do-while will retry entire INPUT
 				}
-				valuesToAssignThisInput.Add(targetVar.CoerceToType(parsedVal, CurrentBasicLine, StateManager));
+				valuesToAssignThisInput.Add(parsedVal);
 			}
 
 		} while (retryCurrentInputEntirely);
@@ -379,7 +378,7 @@ sealed record ReadStatement(IReadOnlyList<Var> Variables) : Statement
 		{
 			var dataStr = IoManager.ReadData();
 			var val = varToRead.Type.TryParse(dataStr) ?? throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", CurrentBasicLine);
-			varToRead.SetVar(Interpreter, varToRead.CoerceToType(val, CurrentBasicLine, StateManager));
+			varToRead.SetVar(Interpreter, val);
 		}
 	}
 }

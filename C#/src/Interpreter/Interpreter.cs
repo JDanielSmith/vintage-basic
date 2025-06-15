@@ -120,13 +120,10 @@ sealed class Interpreter(RuntimeContext context)
 
 	internal IReadOnlyList<int> EvaluateIndices(IEnumerable<Expression> dimExprs, int currentBasicLine)
 	{
-		List<int> indices = [];
-		foreach (var dimExpr in dimExprs)
-		{
-			var dimVal = EvaluateExpression(dimExpr, currentBasicLine);
-			indices.Add(dimVal.AsInt(currentBasicLine));
-		}
-		return indices;
+		var indices = from dimExpr in dimExprs
+					  let dimVal = EvaluateExpression(dimExpr, currentBasicLine)
+					  select dimVal.AsInt(currentBasicLine);
+		return [.. indices];
 	}
 
 	internal object EvaluateExpression(Expression expr, int currentBasicLine)
@@ -207,10 +204,7 @@ sealed class Interpreter(RuntimeContext context)
 
 	List<object> EvaluateArgs(IEnumerable<Expression> argExprs, int currentBasicLine)
 	{
-		List<object> args = [];
-		foreach (var argExpr in argExprs)
-			args.Add(EvaluateExpression(argExpr, currentBasicLine));
-		return args;
+		return [.. argExprs.Select(argExpr => EvaluateExpression(argExpr, currentBasicLine))];
 	}
 
 	internal object EvaluateBuiltin(Builtin builtin, IEnumerable<Expression> argExprs, int currentBasicLine)

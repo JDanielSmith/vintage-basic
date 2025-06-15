@@ -1,4 +1,3 @@
-using System.Collections.Frozen;
 using static VintageBasic.Interpreter.RuntimeParsingUtils;
 
 namespace VintageBasic.Runtime;
@@ -17,18 +16,6 @@ internal static class ValExtensions
 		_ => throw new ArgumentException($"Unknown object type: {val.GetType().Name}")
 	};
 	 
-	public static object CoerceToType(this Type targetType, object value, int? lineNumber = null, StateManager? stateManager = null)
-	{
-		if (stateManager is not null && lineNumber.HasValue)
-			stateManager.SetCurrentLineNumber(lineNumber.Value);
-		if (targetType == value.GetType()) return value;
-		if (targetType == typeof(object)) return value; // Allow object as a generic target type
-		if (targetType == typeof(float)) return AsFloat(value);
-		if (targetType == typeof(int)) return AsInt(value);
-		if (targetType == typeof(string)) return value;
-		throw new Errors.TypeMismatchError($"Cannot coerce {value.GetTypeName()} to {targetType}", lineNumber ?? stateManager?.CurrentLineNumber);
-	}
-
 	// Coerces int to float for expression evaluation if needed, otherwise returns original value.
 	public static object CoerceToExpressionType(object value, int? lineNumber = null, StateManager? stateManager = null)
 	{
