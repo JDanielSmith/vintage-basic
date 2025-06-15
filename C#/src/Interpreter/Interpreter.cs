@@ -120,8 +120,7 @@ sealed class Interpreter(RuntimeContext context)
 	internal IReadOnlyList<int> EvaluateIndices(IEnumerable<Expression> dimExprs, int currentBasicLine)
 	{
 		var indices = from dimExpr in dimExprs
-					  let dimVal = EvaluateExpression(dimExpr, currentBasicLine)
-					  select dimVal.AsInt(currentBasicLine);
+					  select EvaluateExpression(dimExpr, currentBasicLine).AsInt(currentBasicLine);
 		return [.. indices];
 	}
 
@@ -201,49 +200,7 @@ sealed class Interpreter(RuntimeContext context)
 		{ Builtin.Val, [ typeof(string)] },
 	}.ToFrozenDictionary();
 
-	List<object> EvaluateArgs(IEnumerable<Expression> argExprs, int currentBasicLine)
-	{
-		return [.. argExprs.Select(argExpr => EvaluateExpression(argExpr, currentBasicLine))];
-	}
-
-	internal object EvaluateBuiltin(Builtin builtin, IEnumerable<Expression> argExprs, int currentBasicLine)
-	{
-		StateManager.SetCurrentLineNumber(currentBasicLine);
-
-		var args = EvaluateArgs(argExprs, currentBasicLine);
-		if (builtinArgTypes.TryGetValue(builtin, out var expectedTypes))
-		{
-			CheckArgTypes(builtin, expectedTypes, args, currentBasicLine);
-		}
-		return builtin switch
-		{
-			Builtin.Abs => Math.Abs(args[0].AsFloat(currentBasicLine)),
-			Builtin.Asc => BuiltinAsc(args, currentBasicLine),
-			Builtin.Atn => (float)Math.Atan(args[0].AsFloat(currentBasicLine)),
-			Builtin.Chr => BuiltinChr(args, currentBasicLine),
-			Builtin.Cos => (float)Math.Cos(args[0].AsFloat(currentBasicLine)),
-			Builtin.Exp => (float)Math.Exp(args[0].AsFloat(currentBasicLine)),
-			Builtin.Int => BuiltinInt(args, currentBasicLine),
-			Builtin.Left => BuiltinLeft(args, currentBasicLine),
-			Builtin.Len => (float)((string)args[0]).Length,
-			Builtin.Log => BuiltinLog(args, currentBasicLine),
-			Builtin.Mid => BuildinMid(args, currentBasicLine),
-			Builtin.Right => BuiltinRight(args, currentBasicLine),
-			Builtin.Rnd => BuiltinRnd(args, currentBasicLine),
-			Builtin.Sgn => BuiltinSgn(args, currentBasicLine),
-			Builtin.Sin => (float)Math.Sin(args[0].AsFloat(currentBasicLine)),
-			Builtin.Spc => BuiltinSpc(args, currentBasicLine),
-			Builtin.Sqr => BultinSqr(args, currentBasicLine),
-			Builtin.Str => BultinStr(args, currentBasicLine),
-			Builtin.Tab => BultinTab(args, currentBasicLine),
-			Builtin.Tan => (float)Math.Tan(args[0].AsFloat(currentBasicLine)),
-			Builtin.Val => BultinVal(args),
-			_ => throw new NotImplementedException($"Builtin function {builtin}. Line: {currentBasicLine}"),
-		};
-	}
-
-	// Helper to check if a object is numeric (int or float)
-	static bool IsNumeric(object val) => val is int or float;
+	static bool IsNumeric(object val) => val is int or float;   // Helper to check if a object is numeric (int or float)
 
 	static void ThrowIfNotNumericArg0(List<object> args, string message, int currentBasicLine)
 	{
@@ -252,130 +209,155 @@ sealed class Interpreter(RuntimeContext context)
 			throw new TypeMismatchError(message, currentBasicLine);
 	}
 
-	static float BuiltinAsc(List<object> args, int currentBasicLine)
+	internal object EvaluateBuiltin(Builtin builtin, IEnumerable<Expression> argExprs, int currentBasicLine)
 	{
-		var ascStr = (string)args[0];
-		if (string.IsNullOrEmpty(ascStr))
-			throw new InvalidArgumentError("ASC argument is empty", currentBasicLine);
-		return ascStr[0];
-	}
+		StateManager.SetCurrentLineNumber(currentBasicLine);
 
-	static string BuiltinChr(List<object> args, int currentBasicLine)
-	{
-		ThrowIfNotNumericArg0(args, "CHR$ expects 1 numeric arg", currentBasicLine);
-		var chrCode = args[0].AsInt(currentBasicLine);
-		if (chrCode < 0 || chrCode > 255)
-			throw new InvalidArgumentError($"CHR$ code {chrCode} out of range (0-255)", currentBasicLine);
-		return ((char)chrCode).ToString();
-	}
+		var args = argExprs.Select(argExpr => EvaluateExpression(argExpr, currentBasicLine)).ToList();
+		if (builtinArgTypes.TryGetValue(builtin, out var expectedTypes))
+		{
+			CheckArgTypes(builtin, expectedTypes, args, currentBasicLine);
+		}
 
-	static float BuiltinInt(List<object> args, int currentBasicLine)
-	{
-		ThrowIfNotNumericArg0(args, "INT expects 1 numeric arg", currentBasicLine);
-		return (float)Math.Floor(args[0].AsFloat(currentBasicLine));
-	}
+		float BuiltinAsc()
+		{
+			var ascStr = (string)args[0];
+			if (string.IsNullOrEmpty(ascStr))
+				throw new InvalidArgumentError("ASC argument is empty", currentBasicLine);
+			return ascStr[0];
+		}
 
-	static string BuiltinLeft(List<object> args, int currentBasicLine)
-	{
-		var leftStr = (string)args[0];
-		var leftN = args[1].AsInt(currentBasicLine);
-		if (leftN < 0)
-			leftN = 0;
-		return leftStr[..Math.Min(leftN, leftStr.Length)];
-	}
+		string BuiltinChr()
+		{
+			ThrowIfNotNumericArg0(args, "CHR$ expects 1 numeric arg", currentBasicLine);
+			var chrCode = args[0].AsInt(currentBasicLine);
+			if (chrCode is < 0 or > 255)
+				throw new InvalidArgumentError($"CHR$ code {chrCode} out of range (0-255)", currentBasicLine);
+			return ((char)chrCode).ToString();
+		}
 
-	static float BuiltinLog(List<object> args, int currentBasicLine)
-	{
-		var logArg = args[0].AsFloat(currentBasicLine);
-		if (logArg <= 0)
-			throw new InvalidArgumentError("LOG argument must be > 0", currentBasicLine);
-		return (float)Math.Log(logArg);
-	}
+		float BuiltinInt()
+		{
+			ThrowIfNotNumericArg0(args, "INT expects 1 numeric arg", currentBasicLine);
+			return (float)Math.Floor(args[0].AsFloat(currentBasicLine));
+		}
 
-	string BuildinMid(List<object> args, int currentBasicLine)
-	{
-		if (args.Count < 2 || args.Count > 3)
-			throw new WrongNumberOfArgumentsError("MID$ expects 2 or 3 args", currentBasicLine);
-		CheckArgTypes(Builtin.Mid, [typeof(string), typeof(float)], [.. args.Take(2)], currentBasicLine);
-		if (args.Count == 3 && !IsNumeric(args[2]))
-			throw new TypeMismatchError("MID$ length arg must be numeric", currentBasicLine);
-		string midStr = (string)args[0];
-		int midStart = args[1].AsInt(currentBasicLine);
-		if (midStart < 1) midStart = 1;
-		int midLen = (args.Count == 3) ? args[2].AsInt(currentBasicLine) : midStr.Length - (midStart - 1);
-		if (midLen < 0) midLen = 0;
-		if (midStart > midStr.Length || midLen == 0)
-			return String.Empty;
-		midStart--; // Adjust to 0-based index for Substring
-		if (midStart + midLen > midStr.Length) midLen = midStr.Length - midStart;
-		return midStr.Substring(midStart, midLen);
-	}
+		string BuiltinLeft()
+		{
+			var leftStr = (string)args[0];
+			var leftN = args[1].AsInt(currentBasicLine);
+			return leftStr[..Math.Min(leftN < 0 ? 0 : leftN, leftStr.Length)];
+		}
 
-	static string BuiltinRight(List<object> args, int currentBasicLine)
-	{
-		var rightStr = (string)args[0];
-		var rightN = args[1].AsInt(currentBasicLine);
-		if (rightN < 0)
-			rightN = 0;
-		return rightStr[Math.Max(0, rightStr.Length - rightN)..];
-	}
+		float BuiltinLog()
+		{
+			var logArg = args[0].AsFloat(currentBasicLine);
+			if (logArg <= 0)
+				throw new InvalidArgumentError("LOG argument must be > 0", currentBasicLine);
+			return (float)Math.Log(logArg);
+		}
 
-	float BuiltinRnd(List<object> args, int currentBasicLine)
-	{
-		var rndArg = (args.Count > 0) ? args[0].AsFloat(currentBasicLine) : 1.0f;
-		if (rndArg < 0)
-			RandomManager.SeedRandom((int)rndArg);
-		var rndVal = (rndArg == 0) ? RandomManager.PreviousRandomValue : RandomManager.GetRandomValue();
-		return (float)rndVal;
-	}
+		string BuildinMid()
+		{
+			if (args.Count < 2 || args.Count > 3)
+				throw new WrongNumberOfArgumentsError("MID$ expects 2 or 3 args", currentBasicLine);
+			CheckArgTypes(Builtin.Mid, [typeof(string), typeof(float)], [.. args.Take(2)], currentBasicLine);
+			if (args.Count == 3 && !IsNumeric(args[2]))
+				throw new TypeMismatchError("MID$ length arg must be numeric", currentBasicLine);
+			string midStr = (string)args[0];
+			int midStart = args[1].AsInt(currentBasicLine);
+			if (midStart < 1) midStart = 1;
+			int midLen = (args.Count == 3) ? args[2].AsInt(currentBasicLine) : midStr.Length - (midStart - 1);
+			if (midLen < 0) midLen = 0;
+			if (midStart > midStr.Length || midLen == 0)
+				return String.Empty;
+			midStart--; // Adjust to 0-based index for Substring
+			if (midStart + midLen > midStr.Length) midLen = midStr.Length - midStart;
+			return midStr.Substring(midStart, midLen);
+		}
 
-	static float BuiltinSgn(List<object> args, int currentBasicLine)
-	{
-		ThrowIfNotNumericArg0(args, "SGN expects 1 numeric arg", currentBasicLine);
-		return Math.Sign(args[0].AsFloat(currentBasicLine));
-	}
+		string BuiltinRight()
+		{
+			var rightStr = (string)args[0];
+			var rightN = args[1].AsInt(currentBasicLine);
+			return rightStr[Math.Max(0, rightStr.Length - (rightN < 0 ? 0 : rightN))..];
+		}
 
-	static string BuiltinSpc(List<object> args, int currentBasicLine)
-	{
-		ThrowIfNotNumericArg0(args, "SPC expects 1 numeric arg", currentBasicLine);
-		var spcCount = args[0].AsInt(currentBasicLine);
-		if (spcCount < 0)
-			spcCount = 0;
-		return new(' ', Math.Min(spcCount, 255));
-	}
+		float BuiltinRnd()
+		{
+			var rndArg = (args.Count > 0) ? args[0].AsFloat(currentBasicLine) : 1.0f;
+			if (rndArg < 0)
+				RandomManager.SeedRandom((int)rndArg);
+			var rndVal = (rndArg == 0) ? RandomManager.PreviousRandomValue : RandomManager.GetRandomValue();
+			return (float)rndVal;
+		}
 
-	static float BultinSqr(List<object> args, int currentBasicLine)
-	{
-		float sqrArg = args[0].AsFloat(currentBasicLine);
-		if (sqrArg < 0)
-			throw new InvalidArgumentError("SQR argument < 0", currentBasicLine);
-		return (float)Math.Sqrt(sqrArg);
-	}
+		float BuiltinSgn()
+		{
+			ThrowIfNotNumericArg0(args, "SGN expects 1 numeric arg", currentBasicLine);
+			return Math.Sign(args[0].AsFloat(currentBasicLine));
+		}
 
-	static string BultinStr(List<object> args, int currentBasicLine)
-	{
-		ThrowIfNotNumericArg0(args, "STR$ expects 1 numeric arg", currentBasicLine);
-		var strNum = args[0].AsFloat(currentBasicLine);
-		var strRep = strNum.ToString(CultureInfo.InvariantCulture);
-		if (strNum >= 0 && (strRep.Length == 0 || strRep[0] != '-'))
-			strRep = " " + strRep;
-		return strRep;
-	}
+		string BuiltinSpc()
+		{
+			ThrowIfNotNumericArg0(args, "SPC expects 1 numeric arg", currentBasicLine);
+			var spcCount = args[0].AsInt(currentBasicLine);
+			return new(' ', Math.Min(spcCount < 0 ? 0 : spcCount, 255));
+		}
 
-	string BultinTab(List<object> args, int currentBasicLine)
-	{
-		ThrowIfNotNumericArg0(args, "TAB expects 1 numeric arg", currentBasicLine);
-		int tabCol = args[0].AsInt(currentBasicLine);
-		if (tabCol < 1 || tabCol > 255)
-			throw new InvalidArgumentError($"TAB col {tabCol} out of range (1-255)", currentBasicLine);
-		int curCol = _interpreterContext.IoManager.OutputColumn + 1;
-		return tabCol > curCol ? new System.String(' ', tabCol - curCol) : "";
-	}
+		float BultinSqr()
+		{
+			float sqrArg = args[0].AsFloat(currentBasicLine);
+			if (sqrArg < 0)
+				throw new InvalidArgumentError("SQR argument < 0", currentBasicLine);
+			return (float)Math.Sqrt(sqrArg);
+		}
 
-	static float BultinVal(List<object> args)
-	{
-		string valStr = ((string)args[0]).Trim();
-		return RuntimeParsingUtils.TryParseFloat(valStr, out var v) ? v : default;
+		string BultinStr()
+		{
+			ThrowIfNotNumericArg0(args, "STR$ expects 1 numeric arg", currentBasicLine);
+			var strNum = args[0].AsFloat(currentBasicLine);
+			var strRep = $"{strNum}";
+			if (strNum >= 0 && (strRep.Length == 0 || strRep[0] != '-'))
+				strRep = " " + strRep;
+			return strRep;
+		}
+
+		string BultinTab()
+		{
+			ThrowIfNotNumericArg0(args, "TAB expects 1 numeric arg", currentBasicLine);
+			int tabCol = args[0].AsInt(currentBasicLine);
+			if (tabCol < 1 || tabCol > 255)
+				throw new InvalidArgumentError($"TAB col {tabCol} out of range (1-255)", currentBasicLine);
+			int curCol = _interpreterContext.IoManager.OutputColumn + 1;
+			return tabCol > curCol ? new string(' ', tabCol - curCol) : "";
+		}	
+
+		return builtin switch
+		{
+			Builtin.Abs => Math.Abs(args[0].AsFloat(currentBasicLine)),
+			Builtin.Asc => BuiltinAsc(),
+			Builtin.Atn => (float)Math.Atan(args[0].AsFloat(currentBasicLine)),
+			Builtin.Chr => BuiltinChr(),
+			Builtin.Cos => (float)Math.Cos(args[0].AsFloat(currentBasicLine)),
+			Builtin.Exp => (float)Math.Exp(args[0].AsFloat(currentBasicLine)),
+			Builtin.Int => BuiltinInt(),
+			Builtin.Left => BuiltinLeft(),
+			Builtin.Len => (float)((string)args[0]).Length,
+			Builtin.Log => BuiltinLog(),
+			Builtin.Mid => BuildinMid(),
+			Builtin.Right => BuiltinRight(),
+			Builtin.Rnd => BuiltinRnd(),
+			Builtin.Sgn => BuiltinSgn(),
+			Builtin.Sin => (float)Math.Sin(args[0].AsFloat(currentBasicLine)),
+			Builtin.Spc => BuiltinSpc(),
+			Builtin.Sqr => BultinSqr(),
+			Builtin.Str => BultinStr(),
+			Builtin.Tab => BultinTab(),
+			Builtin.Tan => (float)Math.Tan(args[0].AsFloat(currentBasicLine)),
+			Builtin.Val => RuntimeParsingUtils.TryParseFloat((string)args[0], out var v) ? v : default,
+			_ => throw new NotImplementedException($"Builtin function {builtin}. Line: {currentBasicLine}"),
+		};
 	}
 }
 
