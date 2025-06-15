@@ -8,6 +8,14 @@ abstract record Expression
 {
 	public virtual bool IsPrintSeparator => false;
 	internal abstract object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine);
+
+	// Coerces int to float for expression evaluation if needed, otherwise returns original value.
+	internal static object CoerceToType(object value, int? lineNumber = null, StateManager? stateManager = null)
+	{
+		if (stateManager is not null && lineNumber.HasValue)
+			stateManager.SetCurrentLineNumber(lineNumber.Value);
+		return value is int iv ? (float)iv : value; // Coerce int to float for expression evaluation
+	}
 }
 
 sealed record LiteralExpression(object Value) : Expression
@@ -24,7 +32,7 @@ sealed record VarExpression(Var Value) : Expression
 {
 	public override string ToString() => $"{nameof(VarExpression)}({Value})";
 	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine) =>
-		ValExtensions.CoerceToExpressionType(Value.GetVar(interpreter), currentBasicLine, interpreter.StateManager);
+		CoerceToType(Value.GetVar(interpreter), currentBasicLine, interpreter.StateManager);
 }
 
 sealed record MinusExpression(Expression Right) : Expression
@@ -33,7 +41,7 @@ sealed record MinusExpression(Expression Right) : Expression
 	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine)
 	{
 		var op = interpreter.EvaluateExpression(Right, currentBasicLine);
-		if (ValExtensions.CoerceToExpressionType(op, currentBasicLine, interpreter.StateManager) is float fv)
+		if (CoerceToType(op, currentBasicLine, interpreter.StateManager) is float fv)
 			return -fv;
 		throw new TypeMismatchError("Numeric operand for unary minus.", currentBasicLine);
 	}
@@ -45,7 +53,7 @@ sealed record NotExpression(Expression Right) : Expression
 	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine)
 	{
 		var notOp = interpreter.EvaluateExpression(Right, currentBasicLine);
-		if (ValExtensions.CoerceToExpressionType(notOp, currentBasicLine, interpreter.StateManager) is float fvN)
+		if (CoerceToType(notOp, currentBasicLine, interpreter.StateManager) is float fvN)
 			return fvN == 0.0f ? -1.0f : 0.0f;
 		throw new TypeMismatchError("Numeric operand for NOT.", currentBasicLine);
 	}

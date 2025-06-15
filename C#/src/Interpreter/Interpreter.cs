@@ -120,13 +120,10 @@ sealed class Interpreter(RuntimeContext context)
 
 	internal IReadOnlyList<int> EvaluateIndices(IEnumerable<Expression> dimExprs, int currentBasicLine)
 	{
-		List<int> indices = [];
-		foreach (var dimExpr in dimExprs)
-		{
-			var dimVal = EvaluateExpression(dimExpr, currentBasicLine);
-			indices.Add(dimVal.AsInt(currentBasicLine));
-		}
-		return indices;
+		var indices = from dimExpr in dimExprs
+					  let dimVal = EvaluateExpression(dimExpr, currentBasicLine)
+					  select dimVal.AsInt(currentBasicLine);
+		return [.. indices];
 	}
 
 	internal object EvaluateExpression(Expression expr, int currentBasicLine)
@@ -138,8 +135,8 @@ sealed class Interpreter(RuntimeContext context)
 	internal object EvaluateBinOp(BinOp op, object v1, object v2, int currentBasicLine)
 	{
 		StateManager.SetCurrentLineNumber(currentBasicLine);
-		var cV1 = (op == BinOp.AddOp && v1 is string) ? v1 : ValExtensions.CoerceToExpressionType(v1, currentBasicLine, StateManager);
-		var cV2 = (op == BinOp.AddOp && v2 is string) ? v2 : ValExtensions.CoerceToExpressionType(v2, currentBasicLine, StateManager);
+		var cV1 = (op == BinOp.AddOp && v1 is string) ? v1 : Expression.CoerceToType(v1, currentBasicLine, StateManager);
+		var cV2 = (op == BinOp.AddOp && v2 is string) ? v2 : Expression.CoerceToType(v2, currentBasicLine, StateManager);
 
 		object Add()
 		{
@@ -194,7 +191,7 @@ sealed class Interpreter(RuntimeContext context)
 		}
 	}
 
-	static readonly FrozenDictionary<Builtin, List<Type>> BuiltinArgTypes = new Dictionary<Builtin, List<Type>>() {
+	static readonly FrozenDictionary<Builtin, List<Type>> builtinArgTypes = new Dictionary<Builtin, List<Type>>() {
 		{ Builtin.Abs, [ typeof(float) ] }, { Builtin.Asc, [ typeof(string) ] }, { Builtin.Atn, [ typeof(float) ] },
 		{ Builtin.Cos, [ typeof(float) ] },
 		{ Builtin.Exp, [ typeof(float) ] },
@@ -207,10 +204,7 @@ sealed class Interpreter(RuntimeContext context)
 
 	List<object> EvaluateArgs(IEnumerable<Expression> argExprs, int currentBasicLine)
 	{
-		List<object> args = [];
-		foreach (var argExpr in argExprs)
-			args.Add(EvaluateExpression(argExpr, currentBasicLine));
-		return args;
+		return [.. argExprs.Select(argExpr => EvaluateExpression(argExpr, currentBasicLine))];
 	}
 
 	internal object EvaluateBuiltin(Builtin builtin, IEnumerable<Expression> argExprs, int currentBasicLine)
@@ -218,7 +212,7 @@ sealed class Interpreter(RuntimeContext context)
 		StateManager.SetCurrentLineNumber(currentBasicLine);
 
 		var args = EvaluateArgs(argExprs, currentBasicLine);
-		if (BuiltinArgTypes.TryGetValue(builtin, out var expectedTypes))
+		if (builtinArgTypes.TryGetValue(builtin, out var expectedTypes))
 		{
 			CheckArgTypes(builtin, expectedTypes, args, currentBasicLine);
 		}
@@ -249,9 +243,12 @@ sealed class Interpreter(RuntimeContext context)
 		};
 	}
 
+	// Helper to check if a object is numeric (int or float)
+	static bool IsNumeric(object val) => val is int or float;
+
 	static void ThrowIfNotNumericArg0(List<object> args, string message, int currentBasicLine)
 	{
-		bool hasNumericArg0 = (args.Count == 1) && args[0].IsNumeric();
+		bool hasNumericArg0 = (args.Count == 1) && IsNumeric(args[0]);
 		if (!hasNumericArg0)
 			throw new TypeMismatchError(message, currentBasicLine);
 	}
@@ -301,7 +298,7 @@ sealed class Interpreter(RuntimeContext context)
 		if (args.Count < 2 || args.Count > 3)
 			throw new WrongNumberOfArgumentsError("MID$ expects 2 or 3 args", currentBasicLine);
 		CheckArgTypes(Builtin.Mid, [typeof(string), typeof(float)], [.. args.Take(2)], currentBasicLine);
-		if (args.Count == 3 && !args[2].IsNumeric())
+		if (args.Count == 3 && !IsNumeric(args[2]))
 			throw new TypeMismatchError("MID$ length arg must be numeric", currentBasicLine);
 		string midStr = (string)args[0];
 		int midStart = args[1].AsInt(currentBasicLine);

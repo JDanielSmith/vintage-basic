@@ -39,7 +39,7 @@ namespace VintageBasic.Tests.Parsing
 			Assert.IsType<ScalarVar>(actualLetStmt.Variable);
 			var actualScalarVar = (ScalarVar)actualLetStmt.Variable;
 			Assert.Equal(expectedScalarVar.VarName.Name, actualScalarVar.VarName.Name);
-			Assert.Equal(expectedScalarVar.Type, actualScalarVar.Type);
+			Assert.Equal(expectedScalarVar.Name.Type, actualScalarVar.Name.Type);
 
 			Assert.IsType<LiteralExpression>(actualLetStmt.Expression);
 			var actualLitX = (LiteralExpression)actualLetStmt.Expression;
@@ -69,7 +69,7 @@ namespace VintageBasic.Tests.Parsing
 			Assert.IsType<NextZoneExpression>(printStmtExpressions[1]); // Comma results in NextZoneExpression
 
 			Assert.IsType<VarExpression>(printStmtExpressions[2]);
-			Assert.Equal("A", ((VarExpression)printStmtExpressions[2]).Value.Name);
+			Assert.Equal("A", ((VarExpression)printStmtExpressions[2]).Value.Name.Name);
 
 			Assert.IsType<EmptyZoneExpression>(printStmtExpressions[3]); // Semicolon results in EmptyZoneExpression
 

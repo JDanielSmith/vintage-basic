@@ -48,15 +48,15 @@ public class InterpreterTests
 		var varB_Str = VarName.Create<string>("B"); // B$
 		var varC_Int = VarName.Create<int>("C");   // C%
 
-		Object valA = context.Variables.GetScalarVar(varA);
+		object valA = context.Variables.GetScalarVar(varA);
 		Assert.IsType<float>(valA);
 		Assert.Equal(123.0f, (float)valA);
 
-		Object valB_Str = context.Variables.GetScalarVar(varB_Str);
+		object valB_Str = context.Variables.GetScalarVar(varB_Str);
 		Assert.IsType<string>(valB_Str);
 		Assert.Equal("TEST", (string)valB_Str);
 
-		Object valC_Int = context.Variables.GetScalarVar(varC_Int);
+		object valC_Int = context.Variables.GetScalarVar(varC_Int);
 		// LET C% = A + 7. A is 123. 123+7 = 130. Coerced to Int32.
 		Assert.IsType<int>(valC_Int);
 		Assert.Equal(130, (int)valC_Int);
@@ -88,11 +88,12 @@ public class InterpreterTests
 			10 FOR I = 1 TO 3
 			20 PRINT I
 			30 NEXT I
+			40 for j = 10 to 20 step 3 : print j : next
 			""";
 
 		var (outputStream, _) = ExecuteBasicProgram(programText);
 
-		string expectedOutput = " 1 \n 2 \n 3 \n"; // PrintVal adds leading/trailing spaces for numbers
+		string expectedOutput = " 1 \n 2 \n 3 \n 10 \n 13 \n 16 \n 19 \n"; // PrintVal adds leading/trailing spaces for numbers
 		Assert.Equal(expectedOutput, outputStream.GetOutput());
 	}
 
@@ -210,13 +211,15 @@ public class InterpreterTests
 	public void DIM_Test()
 	{
 		const string programText = """
-			10 dim a(10)
+			10 dim a(10), a$(20), a%(30)
 			20 dim b$(10), c$(10)
+			30 a(1) = 10 : aa = 20
+			40 if AAAAAA = 20 then print "OK"
 			""";
 
 		var (outputStream, _) = ExecuteBasicProgram(programText);
 
-		string expectedOutput = "";
+		string expectedOutput = "OK\n";
 		Assert.Equal(expectedOutput, outputStream.GetOutput());
 	}
 }

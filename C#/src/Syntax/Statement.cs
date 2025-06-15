@@ -1,8 +1,9 @@
 using System.Globalization;
+using System.Xml.Linq;
 using VintageBasic.Interpreter;
+using VintageBasic.Parsing;
 using VintageBasic.Runtime;
 using VintageBasic.Runtime.Errors;
-using VintageBasic.Parsing;
 
 namespace VintageBasic.Syntax;
 
@@ -34,8 +35,7 @@ sealed record LetStatement(Var Variable, Expression Expression) : Statement
 	protected override void ExecuteImpl()
 	{
 		var valueToAssign = Interpreter.EvaluateExpression(Expression, CurrentBasicLine);
-		var coercedValue = Variable.CoerceToType(valueToAssign, CurrentBasicLine, StateManager);
-		Variable.SetVar(Interpreter, coercedValue);
+		Variable.SetVar(Interpreter, valueToAssign);
 	}
 }
 
@@ -45,13 +45,12 @@ sealed record DimStatement(IReadOnlyList<(VarName Name, IReadOnlyList<Expression
 
 	protected override void ExecuteImpl()
 	{
-		foreach (var (Name, Dimensions) in Declarations)
-		{
-			var bounds = from exprBound in Dimensions
-						 let boundVal = Interpreter.EvaluateExpression(exprBound, CurrentBasicLine)
-						 select boundVal.AsInt(CurrentBasicLine);
-			VariableManager.DimArray(Name, bounds);
-		}
+		var dimArrays = from decl in Declarations
+						let bounds = from exprBound in decl.Dimensions
+									 let boundVal = Interpreter.EvaluateExpression(exprBound, CurrentBasicLine)
+									 select boundVal.AsInt(CurrentBasicLine)
+						select VariableManager.DimArray(decl.Name, bounds);
+		var _ = dimArrays.ToList(); // make the actual calls to DimArray()
 	}
 }
 
@@ -156,7 +155,8 @@ sealed record ForStatement(VarName LoopVariable, Expression InitialValue, Expres
 
 	protected override void ExecuteImpl()
 	{
-		if (Context.State.ForLoopStack.TryPeek(out var existingLoopContext) && (existingLoopContext.LoopVariable.Name == LoopVariable.Name))
+		var forLoopStack = Context.State.ForLoopStack;
+		if (forLoopStack.TryPeek(out var existingLoopContext) && (existingLoopContext.LoopVariable == LoopVariable))
 		{
 			if (existingLoopContext.SingleLine)
 			{
@@ -164,11 +164,12 @@ sealed record ForStatement(VarName LoopVariable, Expression InitialValue, Expres
 			}
 		}
 		var startVal = Interpreter.EvaluateExpression(InitialValue, CurrentBasicLine);
+		var coercedStartVal = LoopVariable.CoerceToType(startVal, CurrentBasicLine, StateManager);
+		VariableManager.SetScalarVar(LoopVariable, coercedStartVal);
+
 		var limitVal = Interpreter.EvaluateExpression(LimitValue, CurrentBasicLine);
 		var stepVal = Interpreter.EvaluateExpression(StepValue, CurrentBasicLine);
-		var coercedStartVal = LoopVariable.Type.CoerceToType(startVal, CurrentBasicLine, StateManager);
-		VariableManager.SetScalarVar(LoopVariable, coercedStartVal);
-		Context.State.ForLoopStack.Push(new(LoopVariable, limitVal, stepVal, Interpreter._currentProgramLineIndex));
+		forLoopStack.Push(new(LoopVariable, limitVal, stepVal, Interpreter._currentProgramLineIndex));
 	}
 }
 
@@ -190,7 +191,7 @@ sealed record NextStatement(IReadOnlyList<VarName>? LoopVariables) : Statement /
 			var currentLoop = Context.State.ForLoopStack.Peek();
 			var currentValue = VariableManager.GetScalarVar(currentLoop.LoopVariable);
 			var addedValue = Interpreter.EvaluateBinOp(BinOp.AddOp, currentValue, currentLoop.StepValue, CurrentBasicLine);
-			var newLoopVal = currentLoop.LoopVariable.Type.CoerceToType(addedValue, CurrentBasicLine, StateManager);
+			var newLoopVal = currentLoop.LoopVariable.CoerceToType(addedValue, CurrentBasicLine, StateManager);
 			VariableManager.SetScalarVar(currentLoop.LoopVariable, newLoopVal);
 			var step = currentLoop.StepValue.AsFloat(CurrentBasicLine);
 			var limit = currentLoop.LimitValue.AsFloat(CurrentBasicLine);
@@ -328,7 +329,7 @@ sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Sta
 				}
 
 				var strValueFromInput = availableInputStrings.Dequeue();
-				var parsedVal = targetVar.Type.TryParse(strValueFromInput);
+				var parsedVal = targetVar.TryParse(strValueFromInput);
 				if (parsedVal is null)
 				{
 					IoManager.PrintString("!NUMBER EXPECTED - RETRY INPUT LINE\n");
@@ -336,7 +337,7 @@ sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Sta
 					availableInputStrings.Clear(); // Discard remaining values from this erroneous line
 					break; // Break from variables loop, outer do-while will retry entire INPUT
 				}
-				valuesToAssignThisInput.Add(targetVar.CoerceToType(parsedVal, CurrentBasicLine, StateManager));
+				valuesToAssignThisInput.Add(parsedVal);
 			}
 
 		} while (retryCurrentInputEntirely);
@@ -378,8 +379,8 @@ sealed record ReadStatement(IReadOnlyList<Var> Variables) : Statement
 		foreach (var varToRead in Variables)
 		{
 			var dataStr = IoManager.ReadData();
-			var val = varToRead.Type.TryParse(dataStr) ?? throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", CurrentBasicLine);
-			varToRead.SetVar(Interpreter, varToRead.CoerceToType(val, CurrentBasicLine, StateManager));
+			var val = varToRead.TryParse(dataStr) ?? throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", CurrentBasicLine);
+			varToRead.SetVar(Interpreter, val);
 		}
 	}
 }

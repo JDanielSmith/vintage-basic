@@ -29,9 +29,9 @@ sealed record BuiltinFuncToken(Builtin FuncName) : Token
 	public override string Text => FuncName.ToString().ToUpperInvariant(); // Match BASIC naming
 }
 
-sealed record VarNameToken(string Name, Type Type) : Token
+sealed record VarNameToken(string Name, char? TypeSuffix) : Token
 {
-	public override string Text => Name + VarName.GetSuffix(Type);
+	public override string Text => Name + TypeSuffix;
 }
 
 sealed record FloatToken(double Value) : Token

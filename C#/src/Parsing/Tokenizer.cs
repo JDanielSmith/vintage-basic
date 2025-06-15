@@ -123,10 +123,8 @@ file sealed class Implementation(ScannedLine scannedLine)
 	{
 		return c is 'E' or 'e' or 'D' or 'd';
 	}
-	static bool ContainsExponent(string potentialNumber)
-	{
-		return potentialNumber.IndexOfAny(['E', 'e', 'D', 'd']) >= 0;
-	}
+	static bool ContainsExponent(string potentialNumber) => potentialNumber.Any(IsExponentChar);
+
 	static bool IsSignChar(char c)
 	{
 		return c is '+' or '-';
@@ -147,11 +145,6 @@ file sealed class Implementation(ScannedLine scannedLine)
 		if (numEnd == currentPositionInContent && numEnd + 1 < content.Length && IsDecimalChar(content[numEnd + 1])) return true;
 
 		return false;
-	}
-
-	static bool IsVariableSuffix(char c)
-	{
-		return c is '$' or '%'; // String or Integer suffix
 	}
 
 	Tagged<Token>? PreviousToken;
@@ -178,7 +171,7 @@ file sealed class Implementation(ScannedLine scannedLine)
 
 		// Check if this number is followed by an identifier char, which means it's part of an identifier (e.g. A1)
 		// unless it's an exponent like 1E2 (handled by TryParseFloat)
-		bool isPartOfIdentifier = numEnd < content.Length && IsVariableSuffix(content[numEnd]);
+		bool isPartOfIdentifier = numEnd < content.Length && VarName.IsValidSuffix(content[numEnd]);
 		bool looks_like_a_number = !isPartOfIdentifier || ContainsExponent(potentialNumber);
 		if (!looks_like_a_number)
 			return null;
@@ -238,7 +231,7 @@ file sealed class Implementation(ScannedLine scannedLine)
 		string identifier = content[currentPositionInContent..identEnd];
 
 		if (!(Builtins.ContainsKey(identifier) || Keywords.ContainsKey(identifier)))
-			while (identEnd < content.Length && (Char.IsLetterOrDigit(content[identEnd]) || IsVariableSuffix(content[identEnd])))
+			while (identEnd < content.Length && (Char.IsLetterOrDigit(content[identEnd]) || VarName.IsValidSuffix(content[identEnd])))
 			{
 				identEnd++;
 				identifier = content[currentPositionInContent..identEnd];
@@ -274,11 +267,11 @@ file sealed class Implementation(ScannedLine scannedLine)
 
 		// Variable Name
 		var namePart = identifier;
-		Type typeSuffix = typeof(float); // Default, no suffix
+		char? typeSuffix = null; // Default, no suffix
 		var suffix = identifier[^1];
-		if (IsVariableSuffix(suffix))
+		if (VarName.IsValidSuffix(suffix))
 		{
-			typeSuffix = suffix is '$' ? typeof(string) : typeof(int);
+			typeSuffix = suffix;
 			namePart = identifier[..^1];
 		}
 
