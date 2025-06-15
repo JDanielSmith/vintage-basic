@@ -37,7 +37,7 @@ sealed class Interpreter(RuntimeContext context)
 		{
 			foreach (var currentLine in ProgramLines.OrderBy(l => l.Label))
 			{
-				var lineData = CollectDataFromLine(currentLine); // Uses refined ParseDataLineContent
+				var lineData = CollectDataFromLine(currentLine);
 				AllDataStrings.AddRange(lineData);
 				void programAction()
 				{
@@ -51,7 +51,6 @@ sealed class Interpreter(RuntimeContext context)
 				yield return new(currentLine.Label, programAction, lineData);
 			}
 		}
-
 		public static ImmutableList<JumpTableEntry> Build(Interpreter interpreter, IEnumerable<Line> programLines, out IEnumerable<string> allDataStrings)
 		{
 			JumpTableBuilder jtb = new(interpreter, programLines);
@@ -148,7 +147,7 @@ sealed class Interpreter(RuntimeContext context)
 		{
 			var divisor = cV2.AsFloat(currentBasicLine);
 			if (divisor == 0.0f)
-				throw new DivisionByZeroError(lineNumber: currentBasicLine);
+				throw new DivisionByZeroError(currentBasicLine);
 			return cV1.AsFloat(currentBasicLine) / divisor;
 		}
 		float Comparison()

@@ -1,3 +1,4 @@
+using System.Data;
 using System.Globalization;
 using System.Xml.Linq;
 using VintageBasic.Interpreter;
@@ -17,7 +18,7 @@ abstract record Statement
 		ExecuteImpl();
 	}
 
-	protected InterpreterContext InterpreterContext => Interpreter._interpreterContext;
+	InterpreterContext InterpreterContext => Interpreter._interpreterContext;
 	protected RuntimeContext Context => InterpreterContext.Context;
 	protected VariableManager VariableManager => InterpreterContext.VariableManager;
 	protected InputOutputManager IoManager => InterpreterContext.IoManager;
@@ -27,6 +28,21 @@ abstract record Statement
 	protected int CurrentBasicLine => StateManager.CurrentLineNumber;
 
 	protected abstract void ExecuteImpl();
+
+	protected object Evaluate(Expression expr)
+	{
+		return Interpreter.EvaluateExpression(expr, CurrentBasicLine);
+	}
+	protected int EvaluateAsInt(Expression expr)
+	{
+		return Evaluate(expr).AsInt(CurrentBasicLine);
+	}
+
+	protected void SetNextInstruction(int targetLabel)
+	{
+		StateManager.SetCurrentLineNumber(targetLabel);
+		Interpreter._nextInstructionIsJump = true;
+	}
 }
 
 sealed record LetStatement(Var Variable, Expression Expression) : Statement
@@ -34,8 +50,7 @@ sealed record LetStatement(Var Variable, Expression Expression) : Statement
 	public override string ToString() => $"{nameof(LetStatement)}({Variable}, {Expression})";
 	protected override void ExecuteImpl()
 	{
-		var valueToAssign = Interpreter.EvaluateExpression(Expression, CurrentBasicLine);
-		Variable.SetVar(Interpreter, valueToAssign);
+		Variable.SetVar(Interpreter, Evaluate(Expression));
 	}
 }
 
@@ -47,10 +62,9 @@ sealed record DimStatement(IReadOnlyList<(VarName Name, IReadOnlyList<Expression
 	{
 		var dimArrays = from decl in Declarations
 						let bounds = from exprBound in decl.Dimensions
-									 let boundVal = Interpreter.EvaluateExpression(exprBound, CurrentBasicLine)
-									 select boundVal.AsInt(CurrentBasicLine)
+									 select EvaluateAsInt(exprBound)
 						select VariableManager.DimArray(decl.Name, bounds);
-		var _ = dimArrays.ToList(); // make the actual calls to DimArray()
+		var _ = dimArrays.ToList(); // make the actual calls to VariableManager.DimArray()
 	}
 }
 
@@ -61,8 +75,7 @@ sealed record GotoStatement(int TargetLabel) : Statement
 	{
 		if (!JumpTable.Any(jte => jte.Label == TargetLabel))
 			throw new BadGotoTargetError(TargetLabel, CurrentBasicLine);
-		StateManager.SetCurrentLineNumber(TargetLabel);
-		Interpreter._nextInstructionIsJump = true;
+		SetNextInstruction(TargetLabel);
 	}
 }
 
@@ -75,8 +88,7 @@ sealed record GosubStatement(int TargetLabel) : Statement
 		if (!JumpTable.Any(jte => jte.Label == TargetLabel))
 			throw new BadGosubTargetError(TargetLabel, CurrentBasicLine);
 		Context.State.GosubReturnStack.Push(Interpreter._currentProgramLineIndex);
-		StateManager.SetCurrentLineNumber(TargetLabel);
-		Interpreter._nextInstructionIsJump = true;
+		SetNextInstruction(TargetLabel);
 	}
 }
 
@@ -85,15 +97,13 @@ sealed record OnGotoStatement(Expression Expression, IReadOnlyList<int> TargetLa
 	public override string ToString() => $"{nameof(OnGotoStatement)}({Expression}, [{string.Join(", ", TargetLabels)}])";
 	protected override void ExecuteImpl()
 	{
-		Object indexValGoto = Interpreter.EvaluateExpression(Expression, CurrentBasicLine);
-		int indexGoto = indexValGoto.AsInt(CurrentBasicLine);
+		var indexGoto = EvaluateAsInt(Expression);
 		if (indexGoto >= 1 && indexGoto <= TargetLabels.Count)
 		{
 			int targetLabel = TargetLabels[indexGoto - 1];
 			if (!JumpTable.Any(jte => jte.Label == targetLabel))
 				throw new BadGotoTargetError(targetLabel, CurrentBasicLine);
-			StateManager.SetCurrentLineNumber(targetLabel);
-			Interpreter._nextInstructionIsJump = true;
+			SetNextInstruction(targetLabel);
 		}
 	}
 }
@@ -104,16 +114,14 @@ sealed record OnGosubStatement(Expression Expression, IReadOnlyList<int> TargetL
 
 	protected override void ExecuteImpl()
 	{
-		var indexValGosub = Interpreter.EvaluateExpression(Expression, CurrentBasicLine);
-		int indexGosub = indexValGosub.AsInt(CurrentBasicLine);
+		var indexGosub = EvaluateAsInt(Expression);
 		if (indexGosub >= 1 && indexGosub <= TargetLabels.Count)
 		{
 			int targetLabel = TargetLabels[indexGosub - 1];
 			if (!JumpTable.Any(jte => jte.Label == targetLabel))
 				throw new BadGosubTargetError(targetLabel, CurrentBasicLine);
 			Context.State.GosubReturnStack.Push(Interpreter._currentProgramLineIndex);
-			StateManager.SetCurrentLineNumber(targetLabel);
-			Interpreter._nextInstructionIsJump = true;
+			SetNextInstruction(targetLabel);
 		}
 	}
 }
@@ -137,8 +145,8 @@ sealed record IfStatement(Expression Condition, IReadOnlyList<Tagged<Statement>>
 
 	protected override void ExecuteImpl()
 	{
-		var condition = Interpreter.EvaluateExpression(Condition, CurrentBasicLine);
-		if (condition.AsInt(CurrentBasicLine) == 0)
+		var condition = EvaluateAsInt(Condition);
+		if (condition == 0)
 			return;
 		foreach (var thenStmtTagged in Statements)
 		{
@@ -163,13 +171,9 @@ sealed record ForStatement(VarName LoopVariable, Expression InitialValue, Expres
 				return; // If this is a single-line FOR loop, we don't reinitialize it.
 			}
 		}
-		var startVal = Interpreter.EvaluateExpression(InitialValue, CurrentBasicLine);
-		var coercedStartVal = LoopVariable.CoerceToType(startVal, CurrentBasicLine, StateManager);
-		VariableManager.SetScalarVar(LoopVariable, coercedStartVal);
-
-		var limitVal = Interpreter.EvaluateExpression(LimitValue, CurrentBasicLine);
-		var stepVal = Interpreter.EvaluateExpression(StepValue, CurrentBasicLine);
-		forLoopStack.Push(new(LoopVariable, limitVal, stepVal, Interpreter._currentProgramLineIndex));
+		var coercedInitialValue = LoopVariable.CoerceToType(Evaluate(InitialValue), CurrentBasicLine, StateManager);
+		VariableManager.SetScalarVar(LoopVariable, coercedInitialValue);
+		forLoopStack.Push(new(LoopVariable, Evaluate(LimitValue), Evaluate(StepValue), Interpreter._currentProgramLineIndex));
 	}
 }
 
@@ -206,8 +210,7 @@ sealed record NextStatement(IReadOnlyList<VarName>? LoopVariables) : Statement /
 				{
 					index--;
 				}
-				StateManager.SetCurrentLineNumber(JumpTable[index].Label);
-				Interpreter._nextInstructionIsJump = true;
+				SetNextInstruction(JumpTable[index].Label);
 				return;
 			}
 			Context.State.ForLoopStack.Pop();
@@ -271,7 +274,7 @@ sealed record PrintStatement(IEnumerable<Expression> Expressions) : Statement
 			else if (expr is EmptyZoneExpression) { /* No space */ }
 			else
 			{
-				var val = Interpreter.EvaluateExpression(expr, CurrentBasicLine);
+				var val = Evaluate(expr);
 				if (val is string sv && (sv is NextZoneExpression.Value or EmptyZoneExpression.Value)) continue;
 				IoManager.PrintString(PrintVal(val));
 			}
