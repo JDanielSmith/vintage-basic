@@ -56,7 +56,7 @@ sealed record LetStatement(Var Variable, Expression Expression) : Statement
 	public override string ToString() => $"{nameof(LetStatement)}({Variable}, {Expression})";
 	protected override void ExecuteImpl()
 	{
-		Variable.SetVar(Interpreter, Evaluate(Expression));
+		Variable.SetValue(Interpreter, Evaluate(Expression));
 	}
 }
 
@@ -174,7 +174,7 @@ sealed record ForStatement(VarName LoopVariable, Expression InitialValue, Expres
 			}
 		}
 		var coercedInitialValue = LoopVariable.CoerceToType(Evaluate(InitialValue), CurrentBasicLine, StateManager);
-		VariableManager.SetScalarVar(LoopVariable, coercedInitialValue);
+		VariableManager.SetScalarValue(LoopVariable, coercedInitialValue);
 		forLoopStack.Push(new(LoopVariable, Evaluate(LimitValue), Evaluate(StepValue), Interpreter._currentProgramLineIndex));
 	}
 }
@@ -196,10 +196,10 @@ sealed record NextStatement(IEnumerable<VarName> LoopVariables) : Statement
 				throw new BasicRuntimeException($"NEXT variable {varNameInNextClause.Name} does not match current FOR loop variable", CurrentBasicLine);
 
 			var currentLoop = forLoopStack.Peek();
-			var currentValue = VariableManager.GetScalarVar(currentLoop.LoopVariable);
+			var currentValue = VariableManager.GetScalarValue(currentLoop.LoopVariable);
 			var addedValue = Interpreter.EvaluateBinOp(BinOp.AddOp, currentValue, currentLoop.StepValue, CurrentBasicLine);
 			var newLoopVal = currentLoop.LoopVariable.CoerceToType(addedValue, CurrentBasicLine, StateManager);
-			VariableManager.SetScalarVar(currentLoop.LoopVariable, newLoopVal);
+			VariableManager.SetScalarValue(currentLoop.LoopVariable, newLoopVal);
 			var step = currentLoop.StepValue.AsFloat(CurrentBasicLine);
 			var limit = currentLoop.LimitValue.AsFloat(CurrentBasicLine);
 			var current = newLoopVal.AsFloat(CurrentBasicLine);
@@ -352,7 +352,7 @@ sealed record InputStatement(string? Prompt, IReadOnlyList<Var> Variables) : Sta
 		{
 			var targetVar = Variables[i];
 			var valueToAssign = valuesToAssignThisInput[i];
-			targetVar.SetVar(Interpreter, valueToAssign);
+			targetVar.SetValue(Interpreter, valueToAssign);
 		}
 		// If availableInputStrings still has items, they are extra and ignored (common BASIC behavior).
 	}
@@ -386,7 +386,7 @@ sealed record ReadStatement(IEnumerable<Var> Variables) : Statement
 		{
 			var dataStr = IoManager.ReadData();
 			var val = varToRead.TryParse(dataStr) ?? throw new TypeMismatchError($"Invalid data format '{dataStr}' for variable {varToRead.Name}", CurrentBasicLine);
-			varToRead.SetVar(Interpreter, val);
+			varToRead.SetValue(Interpreter, val);
 		}
 	}
 }

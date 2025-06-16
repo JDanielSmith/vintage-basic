@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using VintageBasic.Runtime.Errors;
 using VintageBasic.Syntax;
 
@@ -6,14 +7,13 @@ namespace VintageBasic.Runtime;
 sealed class VariableManager(BasicStore store)
 {
 	readonly BasicStore _store = store;
-	static readonly IReadOnlyList<int> DefaultDimensionBounds = [11]; // For 0-10 elements
 
-	public object GetScalarVar(VarName varName)
+	public object GetScalarValue(VarName varName)
 	{
 		return _store.ScalarVariables.TryGetValue(varName, out var value) ? value : Var.GetDefaultValue(varName.Type);
 	}
 
-	public void SetScalarVar(VarName varName, object value)
+	public void SetScalarValue(VarName varName, object value)
 	{
 		_store.ScalarVariables[varName] = value;
 	}
@@ -28,30 +28,30 @@ sealed class VariableManager(BasicStore store)
 	public BasicArray DimArray(VarName varName, IEnumerable<int> dimensionUpperBounds) =>
 		!_store.ArrayVariables.ContainsKey(varName) ? DimArray_(varName, dimensionUpperBounds) : throw new RedimensionedArrayError($"Array {varName} already dimensioned.");
 
-	BasicArray GetOrDimArray(VarName varName, int numDimensions)
+	static readonly IReadOnlyList<int> DefaultDimensionBounds = [11]; // For 0-10 elements
+	BasicArray GetOrDimArray(VarName varName, IReadOnlyList<int> indices)
 	{
-		if (!_store.ArrayVariables.TryGetValue(varName, out var retval))
+		var numDimensions = indices.Count;
+		if (_store.ArrayVariables.TryGetValue(varName, out var retval))
 		{
-			// Implicitly dimension with default bounds if accessed before DIM
-			var defaultUpperBounds = Enumerable.Repeat(DefaultDimensionBounds[0] - 1, numDimensions);
-			retval = DimArray_(varName, defaultUpperBounds);
+			return retval.Dimensions == numDimensions ? retval :
+				throw new MismatchedArrayDimensionsError($"Array {varName} expects {retval.Dimensions} dimensions, but received {numDimensions}.");
 		}
-		else if (retval.Dimensions != numDimensions)
-		{
-			throw new MismatchedArrayDimensionsError($"Array {varName} expects {retval.Dimensions} dimensions, but received {numDimensions}.");
-		}
-		return retval;
+
+		// Implicitly dimension with default bounds if accessed before DIM
+		var defaultUpperBounds = Enumerable.Repeat(DefaultDimensionBounds[0] - 1, numDimensions);
+		return DimArray_(varName, defaultUpperBounds);
 	}
 
-	public object GetArrayVar(VarName varName, IReadOnlyList<int> indices)
+	public object GetArrayValue(VarName varName, IReadOnlyList<int> indices)
 	{
-		var array = GetOrDimArray(varName, indices.Count);
+		var array = GetOrDimArray(varName, indices);
 		return array.GetValue(indices, varName.ToString());
 	}
 
-	public void SetArrayVar(VarName varName, IReadOnlyList<int> indices, Object value)
+	public void SetArrayValue(VarName varName, IReadOnlyList<int> indices, object value)
 	{
-		var array = GetOrDimArray(varName, indices.Count);
+		var array = GetOrDimArray(varName, indices);
 		array.SetValue(indices, value, varName.ToString());
 	}
 }

@@ -12,7 +12,7 @@ abstract record Expression
 	// Coerces int to float for expression evaluation if needed, otherwise returns original value.
 	internal static object CoerceToType(object value, int? lineNumber = null, StateManager? stateManager = null)
 	{
-		Type targetType = value is int ? typeof(float) : value.GetType(); // Coerce int to float for expression evaluation
+		var targetType = value is int ? typeof(float) : value.GetType(); // Coerce int to float for expression evaluation
 		return targetType.CoerceToType(value, lineNumber, stateManager);
 	}
 }
@@ -31,7 +31,7 @@ sealed record VarExpression(Var Value) : Expression
 {
 	public override string ToString() => $"{nameof(VarExpression)}({Value})";
 	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine) =>
-		CoerceToType(Value.GetVar(interpreter), currentBasicLine, interpreter.StateManager);
+		CoerceToType(Value.GetValue(interpreter), currentBasicLine, interpreter.StateManager);
 }
 
 sealed record MinusExpression(Expression Right) : Expression

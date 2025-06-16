@@ -11,8 +11,8 @@ abstract record Var(VarName Name)
 		var currentBasicLine = stateManager.CurrentLineNumber;
 		return Name.CoerceToType(value, currentBasicLine, stateManager);
 	}
-	internal abstract object GetVar(Interpreter.Interpreter interpreter);
-	internal abstract void SetVar(Interpreter.Interpreter interpreter, object value);
+	internal abstract object GetValue(Interpreter.Interpreter interpreter);
+	internal abstract void SetValue(Interpreter.Interpreter interpreter, object value);
 
 	internal object? TryParse(string inputString)
 	{
@@ -31,28 +31,27 @@ abstract record Var(VarName Name)
 sealed record ScalarVar(VarName VarName) : Var(VarName)
 {
 	public override string ToString() => $"ScalarVar({VarName})";
-	internal override object GetVar(Interpreter.Interpreter interpreter) => interpreter._interpreterContext.VariableManager.GetScalarVar(VarName);
-	internal override void SetVar(Interpreter.Interpreter interpreter, object value)
+	internal override object GetValue(Interpreter.Interpreter interpreter) => interpreter._interpreterContext.VariableManager.GetScalarValue(VarName);
+	internal override void SetValue(Interpreter.Interpreter interpreter, object value)
 	{
 		var coercedValue = CoerceToType(value, interpreter);
-		interpreter._interpreterContext.VariableManager.SetScalarVar(VarName, coercedValue);
+		interpreter._interpreterContext.VariableManager.SetScalarValue(VarName, coercedValue);
 	}
 }
-
 sealed record ArrVar(VarName VarName, IEnumerable<Expression> Dimensions) : Var(VarName)
 {
 	public override string ToString() => $"ArrVar({VarName}, [{String.Join(", ", Dimensions.Select(d => d.ToString()))}])";
-	internal override object GetVar(Interpreter.Interpreter interpreter)
+	internal override object GetValue(Interpreter.Interpreter interpreter)
 	{
 		var indices = interpreter.EvaluateIndices(Dimensions, interpreter.StateManager.CurrentLineNumber);
-		return interpreter._interpreterContext.VariableManager.GetArrayVar(VarName, indices);
+		return interpreter._interpreterContext.VariableManager.GetArrayValue(VarName, indices);
 	}
-	internal override void SetVar(Interpreter.Interpreter interpreter, object value)
+	internal override void SetValue(Interpreter.Interpreter interpreter, object value)
 	{
 		var coercedValue = CoerceToType(value, interpreter);
 
 		var stateManager = interpreter._interpreterContext.StateManager;
 		var indices = interpreter.EvaluateIndices(Dimensions, stateManager.CurrentLineNumber);
-		interpreter._interpreterContext.VariableManager.SetArrayVar(VarName, indices, coercedValue);
+		interpreter._interpreterContext.VariableManager.SetArrayValue(VarName, indices, coercedValue);
 	}
 }

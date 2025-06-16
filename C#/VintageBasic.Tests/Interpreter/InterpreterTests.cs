@@ -48,15 +48,15 @@ public class InterpreterTests
 		var varB_Str = VarName.Create<string>("B"); // B$
 		var varC_Int = VarName.Create<int>("C");   // C%
 
-		object valA = context.Variables.GetScalarVar(varA);
+		object valA = context.Variables.GetScalarValue(varA);
 		Assert.IsType<float>(valA);
 		Assert.Equal(123.0f, (float)valA);
 
-		object valB_Str = context.Variables.GetScalarVar(varB_Str);
+		object valB_Str = context.Variables.GetScalarValue(varB_Str);
 		Assert.IsType<string>(valB_Str);
 		Assert.Equal("TEST", (string)valB_Str);
 
-		object valC_Int = context.Variables.GetScalarVar(varC_Int);
+		object valC_Int = context.Variables.GetScalarValue(varC_Int);
 		// LET C% = A + 7. A is 123. 123+7 = 130. Coerced to Int32.
 		Assert.IsType<int>(valC_Int);
 		Assert.Equal(130, (int)valC_Int);
@@ -76,7 +76,7 @@ public class InterpreterTests
 		Assert.Equal("WHAT IS YOUR NAME?? HELLO, CHATBOT\n", output);
 
 		var varN_Str = VarName.Create<string>("N");
-		Object valN_Str = context.Variables.GetScalarVar(varN_Str);
+		Object valN_Str = context.Variables.GetScalarValue(varN_Str);
 		Assert.IsType<string>(valN_Str);
 		Assert.Equal("CHATBOT", (string)valN_Str);
 	}

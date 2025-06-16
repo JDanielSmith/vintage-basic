@@ -29,14 +29,14 @@ internal static class ValExtensions
 	{
 		float or int => (float)o,
 		/* string sv => VAL() semantics */
-		_ => throw new Errors.TypeMismatchError($"Cannot convert {o.GetType().Name} to Float", lineNumber)
+		_ => throw new TypeMismatchError($"Cannot convert {o.GetType().Name} to Float", lineNumber)
 	};
 	public static int AsInt(this object o, int? lineNumber = null) => o switch
 	{
 		float fv => (int) Math.Floor(fv), // BASIC INT semantics
 		int iv => iv,
 		/* string sv => VAL() then INT() */
-		_ => throw new Errors.TypeMismatchError($"Cannot convert {o.GetType().Name} to Int", lineNumber)
+		_ => throw new TypeMismatchError($"Cannot convert {o.GetType().Name} to Int", lineNumber)
 	};
 }
 
