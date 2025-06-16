@@ -1,12 +1,12 @@
-using VintageBasic.Parsing;
+﻿using VintageBasic.Parsing;
 using VintageBasic.Runtime;
 using VintageBasic.Syntax;
-using VintageBasic.Tests.IO; // For StringInputStream, StringBuilderOutputStream
-using Xunit;
+using VintageBasic.Tests.IO;
 
-namespace VintageBasic.Tests.Interpreter;
+namespace VintageBasic.Tests;
 
-public class InterpreterTests
+[TestClass]
+public sealed class InterpreterTests
 {
 	static (StringBuilderOutputStream outputStream, RuntimeContext context) ExecuteBasicProgram(string programText, string consoleInput = "")
 	{
@@ -25,7 +25,7 @@ public class InterpreterTests
 		return (outputStream, context);
 	}
 
-	[Fact]
+	[TestMethod]
 	public void TestPrintStatementOutput()
 	{
 		string programText = "10 print \"HELLO, WORLD!\"";
@@ -37,7 +37,7 @@ public class InterpreterTests
 		Assert.Equal("HELLO, WORLD!\n", output);
 	}
 
-	[Fact]
+	[TestMethod]
 	public void TestLetStatementAndVariableState()
 	{
 		string programText = "10 let a = 123\n20 let b$ = \"TEST\"\n30 let c% = A + 7";
@@ -62,7 +62,7 @@ public class InterpreterTests
 		Assert.Equal(130, (int)valC_Int);
 	}
 
-	[Fact]
+	[TestMethod]
 	public void TestInputStatement()
 	{
 		string programText = "10 INPUT \"WHAT IS YOUR NAME?\"; N$\n20 PRINT \"HELLO, \"; N$";
@@ -81,7 +81,7 @@ public class InterpreterTests
 		Assert.Equal("CHATBOT", (string)valN_Str);
 	}
 
-	[Fact]
+	[TestMethod]
 	public void SimpleForLoopTest()
 	{
 		const string programText = """
@@ -97,7 +97,7 @@ public class InterpreterTests
 		Assert.Equal(expectedOutput, outputStream.GetOutput());
 	}
 
-	[Fact]
+	[TestMethod]
 	public void MathTest()
 	{
 		string programText = "10 INPUT\"ENTER A NUMBER\";N\r\n20 ?\"ABS(N)=\";ABS(N)\r\n25 ?\"ATN(N)=\";ATN(N)\r\n30 ?\"COS(N)=\";COS(N)\r\n40 ?\"EXP(N)=\";EXP(N)\r\n50 ?\"INT(N)=\";INT(N)\r\n60 ?\"LOG(N)=\";LOG(N)\r\n70 ?\"SGN(N)=\";SGN(N)\r\n80 ?\"SQR(N)=\";SQR(N)\r\n90 ?\"TAN(N)=\";TAN(N)";
@@ -109,7 +109,7 @@ public class InterpreterTests
 		Assert.Equal(expectedOutput, outputStream.GetOutput());
 	}
 
-	[Fact]
+	[TestMethod]
 	public void NameTest()
 	{
 		string programText = "10 INPUT\"WHAT IS YOUR NAME\";NAME$\r\n20 INPUT\"ENTER A NUMBER\";N\r\n30 FORI=1TON\r\n40 ?\"HELLO, \";NAME$;\"!\"\r\n50 NEXT";
@@ -121,7 +121,7 @@ public class InterpreterTests
 		Assert.Equal(expectedOutput, outputStream.GetOutput());
 	}
 
-	[Fact]
+	[TestMethod]
 	public void StringsTest()
 	{
 		string programText = "10 INPUT\"ENTER A STRING\";A$\r\n20 INPUT\"ENTER A NUMBER\";N\r\n30 ?\"ASC(A$)=\";ASC(A$)\r\n40 ?\"CHR$(N)=\";CHR$(N)\r\n50 ?\"LEFT$(A$,N)=\";LEFT$(A$,N)\r\n60 ?\"MID$(A$,N)=\";MID$(A$,N)\r\n70 ?\"MID$(A$,N,3)=\";MID$(A$,N,3)\r\n80 ?\"RIGHT$(A$,N)=\";RIGHT$(A$,N)\r\n90 ?\"LEN(A$)=\";LEN(A$)\r\n100 ?\"VAL(A$)=\";VAL(A$)\r\n110 ?\"STR$(N)=\";STR$(N)\r\n120 ?\"SPC(N)='\";SPC(N);\"'\"";
@@ -133,7 +133,7 @@ public class InterpreterTests
 		Assert.Equal(expectedOutput, outputStream.GetOutput());
 	}
 
-	[Fact]
+	[TestMethod]
 	public void StarsTest()
 	{
 		string programText = "10 INPUT \"What is your name\"; U$\r\n20 PRINT \"Hello \"; U$\r\n30 INPUT \"How many stars do you want\"; N\r\n40 S$ = \"\"\r\n50 FOR I = 1 TO N\r\n60 S$ = S$ + \"*\"\r\n70 NEXT I\r\n80 PRINT S$\r\n90 INPUT \"Do you want more stars\"; A$\r\n100 IF LEN(A$) = 0 THEN 90\r\n110 A$ = LEFT$(A$, 1)\r\n120 IF A$ = \"Y\" OR A$ = \"y\" THEN 30\r\n130 PRINT \"Goodbye \";U$\r\n140 END";
@@ -145,7 +145,7 @@ public class InterpreterTests
 		Assert.Equal(expectedOutput, outputStream.GetOutput());
 	}
 
-	[Fact]
+	[TestMethod]
 	public void DiamondTest()
 	{
 		const string programText = """
@@ -169,8 +169,8 @@ public class InterpreterTests
 		Assert.Equal(expectedOutput, outputStream.GetOutput());
 	}
 
-	[Fact]
-	public void RESTORE_Test()
+	[TestMethod]
+	public void RESTORETest()
 	{
 		const string programText = """
 			10 DATA 5, 10, 15, 20 : REM this is our data
@@ -187,8 +187,8 @@ public class InterpreterTests
 		Assert.Equal(expectedOutput, outputStream.GetOutput());
 	}
 
-	[Fact]
-	public void ON_GOTO_Test()
+	[TestMethod]
+	public void ONGOTOTest()
 	{
 		const string programText = """
 			10 for A = 8 to 13 step 2
@@ -207,8 +207,8 @@ public class InterpreterTests
 		Assert.Equal(expectedOutput, outputStream.GetOutput());
 	}
 
-	[Fact]
-	public void DIM_Test()
+	[TestMethod]
+	public void DIMTest()
 	{
 		const string programText = """
 			10 dim a(10), a$(20), a%(30)
@@ -223,3 +223,4 @@ public class InterpreterTests
 		Assert.Equal(expectedOutput, outputStream.GetOutput());
 	}
 }
+

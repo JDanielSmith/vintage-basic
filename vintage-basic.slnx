@@ -10,5 +10,5 @@
     <File Path="README.md" />
   </Folder>
   <Project Path="C#/src/VintageBasic.csproj" />
-  <Project Path="C#/VintageBasic.Tests/VintageBasic.Tests.csproj" />
+  <Project Path="C#/VintageBasic.Tests/VintageBasic.Tests.csproj" Id="34399d59-ddf6-4b82-991d-f173976fe77e" />
 </Solution>

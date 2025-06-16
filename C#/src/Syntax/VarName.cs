@@ -16,7 +16,7 @@ sealed class VarName : IEquatable<VarName>
 	internal VarName(string name, Type type)
 	{
 		ArgumentOutOfRangeException.ThrowIfNullOrWhiteSpace(name, nameof(name));
-		var _ = suffixForType[type]; // validate
+		_ = suffixForType[type]; // validate
 		Type = type;
 		Name = name;
 	}

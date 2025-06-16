@@ -70,7 +70,7 @@ sealed record DimStatement(IEnumerable<(VarName Name, IEnumerable<Expression> Di
 						let bounds = from exprBound in decl.Dimensions
 									 select EvaluateAsInt(exprBound)
 						select VariableManager.DimArray(decl.Name, bounds);
-		var _ = dimArrays.ToList(); // make the actual calls to VariableManager.DimArray()
+		_ = dimArrays.ToList(); // make the actual calls to VariableManager.DimArray()
 	}
 }
 

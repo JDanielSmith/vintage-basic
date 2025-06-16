@@ -2,7 +2,6 @@ using VintageBasic.IO;
 using VintageBasic.Parsing;
 using VintageBasic.Runtime;
 using VintageBasic.Runtime.Errors;
-using VintageBasic.Syntax;
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("VintageBasic.Tests")]
 
