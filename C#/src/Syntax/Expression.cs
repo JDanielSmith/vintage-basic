@@ -12,9 +12,8 @@ abstract record Expression
 	// Coerces int to float for expression evaluation if needed, otherwise returns original value.
 	internal static object CoerceToType(object value, int? lineNumber = null, StateManager? stateManager = null)
 	{
-		if (stateManager is not null && lineNumber.HasValue)
-			stateManager.SetCurrentLineNumber(lineNumber.Value);
-		return value is int iv ? (float)iv : value; // Coerce int to float for expression evaluation
+		Type targetType = value is int ? typeof(float) : value.GetType(); // Coerce int to float for expression evaluation
+		return targetType.CoerceToType(value, lineNumber, stateManager);
 	}
 }
 
@@ -70,7 +69,7 @@ sealed record BinOpExpression(BinOp Op, Expression Left, Expression Right) : Exp
 	}
 }
 
-sealed record BuiltinExpression(Builtin Builtin, IReadOnlyList<Expression> Args) : Expression
+sealed record BuiltinExpression(Builtin Builtin, IEnumerable<Expression> Args) : Expression
 {
 	public override string ToString() => $"{nameof(BuiltinExpression)}({Builtin}, [{String.Join(", ", Args.Select(a => a.ToString()))}])";
 	internal override object Evaluate(Interpreter.Interpreter interpreter, int currentBasicLine) => interpreter.EvaluateBuiltin(Builtin, Args, currentBasicLine);

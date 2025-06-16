@@ -62,15 +62,6 @@ sealed class VarName : IEquatable<VarName>
 
 	internal object CoerceToType(object value, int? lineNumber = null, StateManager? stateManager = null) 
 	{
-		if (stateManager is not null && lineNumber.HasValue)
-			stateManager.SetCurrentLineNumber(lineNumber.Value);
-
-		var targetType = Type;
-		if (targetType == value.GetType()) return value;
-		if (targetType == typeof(object)) return value; // Allow object as a generic target type
-		if (targetType == typeof(float)) return value.AsFloat(lineNumber);
-		if (targetType == typeof(int)) return value.AsInt(lineNumber);
-		if (targetType == typeof(string)) return value;
-		throw new TypeMismatchError($"Cannot coerce {value.GetTypeName()} to {targetType}", lineNumber ?? stateManager?.CurrentLineNumber);
+		return Type.CoerceToType(value, lineNumber, stateManager);
 	}
 }

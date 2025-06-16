@@ -17,8 +17,7 @@ static partial class LineScanner
 		var trimmedLine = line.TrimStart(); // Corresponds to dropWhile isSpace
 
 		var match = MyRegex().Match(trimmedLine);
-		int numPartLength = match.Success ? match.Length : 0;
-		if (numPartLength == 0) // No numeric part found at the beginning
+		if (!match.Success) // No numeric part found at the beginning
 		{
 			// The Haskell version passes 's' (original line) if no numPart.
 			// However, typical BASIC might treat lines without numbers as comments or errors,
@@ -29,10 +28,10 @@ static partial class LineScanner
 			throw new InvalidOperationException("No line number");
 		}
 
-		var numStr = trimmedLine[..numPartLength];
-		var statPart = trimmedLine[numPartLength..].TrimStart(); // Corresponds to dropWhile isSpace for statPart
-		if (Int32.TryParse(numStr, out var lineNumber))
+		var numPartLength = match.Length;
+		if (Int32.TryParse(trimmedLine[..numPartLength], out var lineNumber))
 		{
+			var statPart = trimmedLine[numPartLength..].TrimStart(); // Corresponds to dropWhile isSpace for statPart
 			return new(lineNumber, statPart, originalLineIndex);
 		}
 

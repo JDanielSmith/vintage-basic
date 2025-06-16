@@ -194,9 +194,10 @@ file sealed class Implementation(ScannedLine scannedLine)
 
 	Tagged<Token>? CreateOpToken()
 	{
+		var symbol = content[currentPositionInContent..];
 		foreach (var opSymbol in OrderedOperatorSymbols)
 		{
-			if (content[currentPositionInContent..].StartsWith(opSymbol, StringComparison.OrdinalIgnoreCase))
+			if (symbol.StartsWith(opSymbol, StringComparison.OrdinalIgnoreCase))
 			{
 				currentPositionInContent += opSymbol.Length;
 				return CreateTaggedlToken(new OpToken(Operators[opSymbol]));
@@ -370,44 +371,3 @@ file sealed class Implementation(ScannedLine scannedLine)
 	}
 }
 
-enum Builtin
-{
-	Abs,
-	Asc,
-	Atn,
-	Chr,
-	Cos,
-	Exp,
-	Int,
-	Left,  // Corresponds to LeftBI
-	Len,
-	Log,
-	Mid,   // Corresponds to MidBI
-	Right, // Corresponds to RightBI
-	Rnd,
-	Sgn,
-	Sin,
-	Spc,
-	Sqr,
-	Str,
-	Tab,
-	Tan,
-	Val
-}
-
-enum BinOp
-{
-	AddOp,
-	SubOp,
-	MulOp,
-	DivOp,
-	PowOp,
-	EqOp,
-	NEOp,
-	LTOp,
-	LEOp,
-	GTOp,
-	GEOp,
-	AndOp,
-	OrOp
-}

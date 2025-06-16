@@ -43,6 +43,12 @@ abstract record Statement
 		StateManager.SetCurrentLineNumber(targetLabel);
 		Interpreter._nextInstructionIsJump = true;
 	}
+
+	protected void ValidateJumpTarget(int targetLabel, Exception ex)
+	{
+		if (!JumpTable.Any(jte => jte.Label == targetLabel))
+			throw ex;
+	}
 }
 
 sealed record LetStatement(Var Variable, Expression Expression) : Statement
@@ -54,7 +60,7 @@ sealed record LetStatement(Var Variable, Expression Expression) : Statement
 	}
 }
 
-sealed record DimStatement(IReadOnlyList<(VarName Name, IReadOnlyList<Expression> Dimensions)> Declarations) : Statement
+sealed record DimStatement(IEnumerable<(VarName Name, IEnumerable<Expression> Dimensions)> Declarations) : Statement
 {
 	public override string ToString() => $"{nameof(DimStatement)}([{string.Join(", ", Declarations.Select(d => $"{d.Name}({string.Join(", ", d.Dimensions)})"))}])";
 
@@ -73,8 +79,7 @@ sealed record GotoStatement(int TargetLabel) : Statement
 	public override string ToString() => $"{nameof(GotoStatement)}({TargetLabel})";
 	protected override void ExecuteImpl()
 	{
-		if (!JumpTable.Any(jte => jte.Label == TargetLabel))
-			throw new BadGotoTargetError(TargetLabel, CurrentBasicLine);
+		ValidateJumpTarget(TargetLabel, new BadGotoTargetError(TargetLabel, CurrentBasicLine));
 		SetNextInstruction(TargetLabel);
 	}
 }
@@ -85,8 +90,7 @@ sealed record GosubStatement(int TargetLabel) : Statement
 
 	protected override void ExecuteImpl()
 	{
-		if (!JumpTable.Any(jte => jte.Label == TargetLabel))
-			throw new BadGosubTargetError(TargetLabel, CurrentBasicLine);
+		ValidateJumpTarget(TargetLabel, new BadGosubTargetError(TargetLabel, CurrentBasicLine));
 		Context.State.GosubReturnStack.Push(Interpreter._currentProgramLineIndex);
 		SetNextInstruction(TargetLabel);
 	}
@@ -101,8 +105,7 @@ sealed record OnGotoStatement(Expression Expression, IReadOnlyList<int> TargetLa
 		if (indexGoto >= 1 && indexGoto <= TargetLabels.Count)
 		{
 			int targetLabel = TargetLabels[indexGoto - 1];
-			if (!JumpTable.Any(jte => jte.Label == targetLabel))
-				throw new BadGotoTargetError(targetLabel, CurrentBasicLine);
+			ValidateJumpTarget(targetLabel, new BadGotoTargetError(targetLabel, CurrentBasicLine));
 			SetNextInstruction(targetLabel);
 		}
 	}
@@ -118,8 +121,7 @@ sealed record OnGosubStatement(Expression Expression, IReadOnlyList<int> TargetL
 		if (indexGosub >= 1 && indexGosub <= TargetLabels.Count)
 		{
 			int targetLabel = TargetLabels[indexGosub - 1];
-			if (!JumpTable.Any(jte => jte.Label == targetLabel))
-				throw new BadGosubTargetError(targetLabel, CurrentBasicLine);
+			ValidateJumpTarget(targetLabel, new BadGosubTargetError(targetLabel, CurrentBasicLine));
 			Context.State.GosubReturnStack.Push(Interpreter._currentProgramLineIndex);
 			SetNextInstruction(targetLabel);
 		}
@@ -139,7 +141,7 @@ sealed record ReturnStatement : Statement
 	}
 }
 
-sealed record IfStatement(Expression Condition, IReadOnlyList<Tagged<Statement>> Statements) : Statement
+sealed record IfStatement(Expression Condition, IEnumerable<Tagged<Statement>> Statements) : Statement
 {
 	public override string ToString() => $"{nameof(IfStatement)}({Condition}, [{string.Join("; ", Statements.Select(s => s.ToString()))}])";
 
@@ -164,9 +166,9 @@ sealed record ForStatement(VarName LoopVariable, Expression InitialValue, Expres
 	protected override void ExecuteImpl()
 	{
 		var forLoopStack = Context.State.ForLoopStack;
-		if (forLoopStack.TryPeek(out var existingLoopContext) && (existingLoopContext.LoopVariable == LoopVariable))
+		if (forLoopStack.TryPeek(out var existingLoopContext))
 		{
-			if (existingLoopContext.SingleLine)
+			if (existingLoopContext.SingleLine && (existingLoopContext.LoopVariable == LoopVariable))
 			{
 				return; // If this is a single-line FOR loop, we don't reinitialize it.
 			}
@@ -177,22 +179,23 @@ sealed record ForStatement(VarName LoopVariable, Expression InitialValue, Expres
 	}
 }
 
-sealed record NextStatement(IReadOnlyList<VarName>? LoopVariables) : Statement // Nullable for simple NEXT
+sealed record NextStatement(IEnumerable<VarName> LoopVariables) : Statement
 {
-	public override string ToString() => $"{nameof(NextStatement)}([{string.Join(", ", LoopVariables?.Select(v => v.ToString()) ?? [])}])";
+	public override string ToString() => $"{nameof(NextStatement)}([{string.Join(", ", LoopVariables.Select(v => v.ToString()) ?? [])}])";
 
 	protected override void ExecuteImpl()
 	{
-		if (Context.State.ForLoopStack.Count <= 0)
+		var forLoopStack = Context.State.ForLoopStack;
+		if (forLoopStack.Count <= 0)
 			throw new BasicRuntimeException("NEXT without FOR", CurrentBasicLine);
 
-		var loopVarNamesInNext = LoopVariables ?? [Context.State.ForLoopStack.Peek().LoopVariable];
+		var loopVarNamesInNext = LoopVariables.Any() ? LoopVariables : [forLoopStack.Peek().LoopVariable];
 		foreach (var varNameInNextClause in loopVarNamesInNext)
 		{
-			if ((Context.State.ForLoopStack.Count <= 0) || Context.State.ForLoopStack.Peek().LoopVariable.Name != varNameInNextClause.Name)
+			if ((forLoopStack.Count <= 0) || forLoopStack.Peek().LoopVariable.Name != varNameInNextClause.Name)
 				throw new BasicRuntimeException($"NEXT variable {varNameInNextClause.Name} does not match current FOR loop variable", CurrentBasicLine);
 
-			var currentLoop = Context.State.ForLoopStack.Peek();
+			var currentLoop = forLoopStack.Peek();
 			var currentValue = VariableManager.GetScalarVar(currentLoop.LoopVariable);
 			var addedValue = Interpreter.EvaluateBinOp(BinOp.AddOp, currentValue, currentLoop.StepValue, CurrentBasicLine);
 			var newLoopVal = currentLoop.LoopVariable.CoerceToType(addedValue, CurrentBasicLine, StateManager);
@@ -213,7 +216,7 @@ sealed record NextStatement(IReadOnlyList<VarName>? LoopVariables) : Statement /
 				SetNextInstruction(JumpTable[index].Label);
 				return;
 			}
-			Context.State.ForLoopStack.Pop();
+			forLoopStack.Pop();
 		}
 	}
 }
@@ -373,7 +376,7 @@ sealed record RandomizeStatement : Statement
 	protected override void ExecuteImpl() => Interpreter.RandomManager.SeedRandomFromTime();
 }
 
-sealed record ReadStatement(IReadOnlyList<Var> Variables) : Statement
+sealed record ReadStatement(IEnumerable<Var> Variables) : Statement
 {
 	public override string ToString() => $"{nameof(ReadStatement)}([{string.Join(", ", Variables.Select(v => v.ToString()))}])";
 
@@ -397,8 +400,7 @@ sealed record RestoreStatement(int? TargetLabel) : Statement
 		if (TargetLabel.HasValue)
 		{
 			var targetLabel = TargetLabel.Value;
-			if (!JumpTable.Any(jte => jte.Label == targetLabel))
-				throw new BadRestoreTargetError(targetLabel, CurrentBasicLine);
+			ValidateJumpTarget(targetLabel, new BadRestoreTargetError(targetLabel, CurrentBasicLine));
 			var dataFromTargetOnwards = JumpTable.Where(jte => jte.Label >= targetLabel).SelectMany(jte => jte.Data);
 			IoManager.RestoreData(dataFromTargetOnwards);
 		}

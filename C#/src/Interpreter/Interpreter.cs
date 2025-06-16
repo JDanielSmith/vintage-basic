@@ -41,9 +41,9 @@ sealed class Interpreter(RuntimeContext context)
 				AllDataStrings.AddRange(lineData);
 				void programAction()
 				{
+					Interpreter.StateManager.SetCurrentLineNumber(currentLine.Label);
 					foreach (var taggedStatement in currentLine.Statements)
 					{
-						Interpreter.StateManager.SetCurrentLineNumber(currentLine.Label);
 						Interpreter.InterpretStatement(taggedStatement);
 						if (Interpreter._programEnded || Interpreter._nextInstructionIsJump) break;
 					}
@@ -102,7 +102,7 @@ sealed class Interpreter(RuntimeContext context)
 				int targetLabel = StateManager.CurrentLineNumber;
 				_currentProgramLineIndex = _jumpTable.FindIndex(jte => jte.Label == targetLabel);
 				if (_currentProgramLineIndex == -1)
-					throw new BadGotoTargetError(targetLabel, lineNumber: entry.Label);
+					throw new BadGotoTargetError(targetLabel, entry.Label);
 			}
 			else
 			{
@@ -171,7 +171,7 @@ sealed class Interpreter(RuntimeContext context)
 		};
 	}
 
-	void CheckArgTypes(Builtin builtinName, List<Type> expectedTypes, List<object> actualArgs, int currentBasicLine)
+	void CheckArgTypes(Builtin builtinName, ImmutableList<Type> expectedTypes, ImmutableList<object> actualArgs, int currentBasicLine)
 	{
 		StateManager.SetCurrentLineNumber(currentBasicLine);
 		if (expectedTypes.Count != actualArgs.Count)
@@ -189,7 +189,7 @@ sealed class Interpreter(RuntimeContext context)
 		}
 	}
 
-	static readonly FrozenDictionary<Builtin, List<Type>> builtinArgTypes = new Dictionary<Builtin, List<Type>>() {
+	static readonly FrozenDictionary<Builtin, ImmutableList<Type>> builtinArgTypes = new Dictionary<Builtin, ImmutableList<Type>>() {
 		{ Builtin.Abs, [ typeof(float) ] }, { Builtin.Asc, [ typeof(string) ] }, { Builtin.Atn, [ typeof(float) ] },
 		{ Builtin.Cos, [ typeof(float) ] },
 		{ Builtin.Exp, [ typeof(float) ] },
@@ -202,7 +202,7 @@ sealed class Interpreter(RuntimeContext context)
 
 	static bool IsNumeric(object val) => val is int or float;   // Helper to check if a object is numeric (int or float)
 
-	static void ThrowIfNotNumericArg0(List<object> args, string message, int currentBasicLine)
+	static void ThrowIfNotNumericArg0(ImmutableList<object> args, string message, int currentBasicLine)
 	{
 		bool hasNumericArg0 = (args.Count == 1) && IsNumeric(args[0]);
 		if (!hasNumericArg0)
@@ -213,7 +213,7 @@ sealed class Interpreter(RuntimeContext context)
 	{
 		StateManager.SetCurrentLineNumber(currentBasicLine);
 
-		var args = argExprs.Select(argExpr => EvaluateExpression(argExpr, currentBasicLine)).ToList();
+		var args = argExprs.Select(argExpr => EvaluateExpression(argExpr, currentBasicLine)).ToImmutableList();
 		if (builtinArgTypes.TryGetValue(builtin, out var expectedTypes))
 		{
 			CheckArgTypes(builtin, expectedTypes, args, currentBasicLine);
