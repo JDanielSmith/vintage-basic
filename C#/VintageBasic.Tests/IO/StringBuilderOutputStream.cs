@@ -1,49 +1,38 @@
-// VintageBasic.Tests/IO/StringBuilderOutputStream.cs
-using System;
-using System.IO;
 using System.Text;
-using System.Threading.Tasks;
 using VintageBasic.Runtime;
 
-namespace VintageBasic.Tests.IO
+namespace VintageBasic.Tests.IO;
+sealed class StringBuilderOutputStream : IOutputStream
 {
-    public class StringBuilderOutputStream : IOutputStream
-    {
-        private readonly StringBuilder _stringBuilder;
+	readonly StringBuilder _stringBuilder = new();
 
-        public StringBuilderOutputStream()
-        {
-            _stringBuilder = new StringBuilder();
-        }
+	public void WriteString(string text)
+	{
+		_stringBuilder.Append(text);
+	}
 
-        public void WriteString(string text)
-        {
-            _stringBuilder.Append(text);
-        }
+	public void WriteLine(string text)
+	{
+		_stringBuilder.AppendLine(text);
+	}
 
-        public void WriteLine(string text)
-        {
-            _stringBuilder.AppendLine(text);
-        }
+	public void WriteChar(char c)
+	{
+		_stringBuilder.Append(c);
+	}
 
-        public void WriteChar(char c)
-        {
-            _stringBuilder.Append(c);
-        }
+	public void Flush()
+	{
+		// No-op for StringBuilder
+	}
 
-        public void Flush()
-        {
-            // No-op for StringBuilder
-        }
+	public string GetOutput()
+	{
+		return _stringBuilder.ToString();
+	}
 
-        public string GetOutput()
-        {
-            return _stringBuilder.ToString();
-        }
-
-        public void Clear()
-        {
-            _stringBuilder.Clear();
-        }
-    }
+	public void Clear()
+	{
+		_stringBuilder.Clear();
+	}
 }

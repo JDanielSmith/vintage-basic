@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/examples/">
+    <File Path="examples/diamond.bas" />
+    <File Path="examples/math.bas" />
+    <File Path="examples/name.bas" />
+    <File Path="examples/stars.bas" />
+    <File Path="examples/strings.bas" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="C#/src/VintageBasic.csproj" />
+  <Project Path="C#/VintageBasic.Tests/VintageBasic.Tests.csproj" Id="34399d59-ddf6-4b82-991d-f173976fe77e" />
+</Solution>
